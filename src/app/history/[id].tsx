@@ -1,14 +1,20 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { courseLabel, goalProgress } from '../../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
-import { deleteRun, getRun } from '../../services/storage';
+import { routeSegments } from '../../core/track';
+import { deleteRun, getRun, loadEvents } from '../../services/storage';
+import { RouteMap } from '../../ui/RouteMap';
 import { Stat } from '../../ui/Stat';
 import { activityColor, color, space } from '../../ui/theme';
 
 export default function RunDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const run = getRun(Number(id));
+  const runId = Number(id);
+  const run = getRun(runId);
+  // 저장된 원본 이벤트를 다시 재생해 거리 계산과 같은 경로를 얻는다
+  const segments = useMemo(() => routeSegments(loadEvents(runId)), [runId]);
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
   const goal = goalProgress(run.goalMin, run.movingMs);
@@ -34,6 +40,7 @@ export default function RunDetail() {
           {goal.done ? `${run.goalMin}분 목표 달성` : `${run.goalMin}분 목표의 ${Math.round(goal.ratio * 100)}%`}
         </Text>
       )}
+      <RouteMap segments={segments} tint={activityColor[run.activity]} />
       <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
       <View style={styles.row}>
         <Stat label="시간" value={formatDuration(run.movingMs)} />

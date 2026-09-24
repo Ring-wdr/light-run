@@ -28,7 +28,7 @@
 | **expo-location + expo-task-manager** | 백그라운드 위치. Android는 포그라운드 서비스, iOS는 background location 모드 |
 | **expo-sqlite** | 기록 중 원본 저장소. 앱이 죽어도 이어서 복원 |
 | **expo-speech** | 1km마다 음성 안내(TTS, 음원 없음) |
-| **지도는 MVP에서 제외** | Android 지도는 Google Maps API 키가 필요하고, 라이브러리가 무겁다. 2단계에서 경로를 SVG로 그리는 방식부터 검토 |
+| **지도: OSM 타일 + SVG 경로(라이브러리 없음)** | react-native-maps는 Android에서 Google 키가 필요하고, MapLibre는 SDK 57 호환 목록에 없다. 기록 화면에만 쓰는 정적 지도라 타일 이미지를 직접 깔고 `react-native-svg`로 선을 그린다. 키·가입 불필요 |
 | **Vitest** | 순수 로직(`src/core`)만 Node에서 빠르게 테스트. 화면은 실기기 확인 |
 
 ## 2-1. 코스
@@ -48,6 +48,15 @@
 - 기록 목록은 전체·걷기·달리기로 거를 수 있다. DB는 마이그레이션 2에서 `runs.activity`, `runs.goal_min`을 추가했고, 기존 기록은 "달리기 · 자유"로 본다.
 - 색: 달리기 코랄 `#FF5D3A`, 걷기 파인 `#2E5E4E`
 
+## 2-2. 경로 지도
+
+- 기록 상세(종료 직후 결과 화면 포함)에만 표시한다. 달리는 중에는 그리지 않는다(배터리·데이터 절약).
+- 선은 원본 GPS 점이 아니라 **거리 계산에 쓰인 점**(`core/track.ts`의 `routeSegments`)으로 그린다. 튄 점이 선에 나오지 않고, 선 길이 = 기록 거리(테스트로 보장). 일시정지 구간은 선을 끊는다.
+- 확대·이동 없는 정적 지도. 경로가 여백 안에 들어오는 가장 큰 줌(최대 17)을 고른다. 타일을 128dp로 깔아(한 단계 높은 줌) 고해상도 화면에서도 선명하다. 한 화면에 타일 최대 12장.
+- 시작점 초록 원, 끝점 남색 원. 우측 하단에 `© OpenStreetMap contributors`(탭하면 저작권 페이지).
+- **OSM 타일 사용 정책**: 앱 식별 User-Agent, 저작권 표시, 과도한 요청 금지. 개인 사용은 문제없다. 스토어에 공개해 사용자가 늘면 `src/ui/RouteMap.tsx`의 `TILE_URL`만 MapTiler·Stadia 등(무료 한도 있음, 키 필요)으로 바꾼다.
+- 오프라인이면 타일 자리가 회색으로 남고 경로 선은 그대로 보인다.
+
 ## 3. 구조
 
 ```
@@ -55,6 +64,8 @@ src/
   core/        순수 TS. react·expo import 금지(tests/boundary.test.ts가 막음)
     types.ts     Sample(GPS 점), Split(1km 구간)
     course.ts    코스(종목 × 시간 목표), 목표 진행률, 목표 안내 시점
+    tiles.ts     정적 지도 계산: 메르카토르 투영, 줌 맞춤, 타일 목록, SVG 경로
+    track.ts     지도용 경로 = 리듀서가 받아들인 점(일시정지로 구간 분리)
     geo.ts       haversine 거리
     filter.ts    GPS 필터: 정확도 컷 → 튐 제거 → 칼만 스무딩 → 최소 이동
     session.ts   러닝 상태 머신(리듀서) + replay()
@@ -70,7 +81,7 @@ src/
     index.tsx          홈: 종목 탭 + 코스 카드(30분·50분·자유) + 최근 기록
     run.tsx            기록 중: 거리·시간·평균/현재 페이스, 일시정지, 길게 눌러 종료
     history/index.tsx  전체 기록(전체·걷기·달리기 필터)
-    history/[id].tsx   상세: 요약 + 구간표 + 삭제
+    history/[id].tsx   상세: 경로 지도 + 요약 + 구간표 + 삭제
   ui/          공용 컴포넌트, 색
 tests/         Vitest(core만) + 합성 GPS 트랙 생성기
 tests/report/  튜닝용 리포트(npm run report:filter)
@@ -133,11 +144,12 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 
 ### 0단계: 뼈대 ✅ (이 커밋)
 - [x] Expo SDK 57 + Router + TS strict
-- [x] core: 필터·상태 머신·페이스·GPX·코스 + 테스트 49개
+- [x] core: 필터·상태 머신·페이스·GPX·코스·지도 + 테스트 63개
 - [x] 백그라운드 위치 태스크, SQLite 스키마, 기록 복원
 - [x] 화면 4개(홈·기록 중·목록·상세)
 - [x] CI: 타입체크 + 테스트 + Android JS 번들
 - [x] 코스: 걷기·달리기 × 30분·50분·자유, 목표 진행 막대와 음성 안내, 기록 필터
+- [x] 기록 상세에 경로 지도(OSM 타일 + SVG)
 
 ### 1단계: MVP, 갤럭시 실사용
 - [ ] development build를 폰에 설치하고 실제로 달려 보기(30분 이상, 화면 끔)
@@ -148,7 +160,6 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 - [ ] 앱 아이콘·스플래시
 
 ### 2단계: 쓸 만하게
-- [ ] 경로 그리기(SVG 폴리라인부터, 지도 타일은 나중)
 - [ ] 주간·월간 합계
 - [ ] Health Connect 연동(Samsung Health로 동기화)
 - [ ] 자동 일시정지(속력 기반, core 리듀서에 이벤트로 추가)
