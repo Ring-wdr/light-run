@@ -1,22 +1,43 @@
 {
   "name": "light-run",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "dependencies": {
     "expo": "~57.0.24",
+    "expo-constants": "~57.0.19",
+    "expo-dev-client": "~57.0.19",
+    "expo-linking": "~57.0.10",
+    "expo-location": "~57.0.19",
+    "expo-router": "~57.0.22",
+    "expo-speech": "~57.0.3",
+    "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
+    "expo-task-manager": "~57.0.19",
     "react": "19.2.3",
-    "react-native": "0.86.3"
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
+    "report:filter": "vitest run -c vitest.report.config.mts",
+    "doctor": "expo-doctor"
   },
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
 }

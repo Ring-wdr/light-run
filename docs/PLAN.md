@@ -1,0 +1,153 @@
+# 가벼운 러닝 — 기획서
+
+작성 2026-09-24 · 상태: 뼈대 완료, 1단계(MVP) 진행 전
+
+## 1. 왜 만드는가
+
+쓰던 러닝 앱은 기록 전후로 광고가 붙고 소셜·챌린지·구독 유도가 많다. 필요한 건 **"누르고 달리고 끝나면 기록이 남는 것"**뿐이다.
+
+### 목표
+- 시작 버튼 한 번으로 기록을 시작한다. 로그인·온보딩·광고는 없다.
+- 화면이 꺼지고 주머니에 들어가 있어도 **30분 이상 끊기지 않고** 기록한다(갤럭시 기준).
+- 거리 오차는 공인 코스 대비 ±3% 안(GPS 상태가 보통인 도심 기준).
+- 데이터는 기기 안(SQLite)에만 둔다. 서버와 운영비는 0원.
+- Android(갤럭시)에 먼저 출시하고, 같은 코드로 iOS에 출시한다.
+
+### 비목표 (만들지 않는 것)
+- 계정, 친구, 피드, 챌린지, 랭킹
+- 훈련 계획, 코칭
+- 광고, 구독 결제
+- 워치 앱(나중에 네이티브로 따로. 4단계 참고)
+
+## 2. 기술 선택과 이유
+
+| 결정 | 이유 |
+|---|---|
+| **React Native + Expo SDK 57** | 에이전트가 가장 많이 학습한 TS/React. EAS 클라우드 빌드 덕분에 Mac 없이 iOS 빌드 가능. 네이티브가 필요하면 Expo Modules로 앱 안에 추가(재작성 없음) |
+| **Expo Router** (`src/app/`) | Expo 권장 내비게이션. 파일이 곧 화면 |
+| **expo-location + expo-task-manager** | 백그라운드 위치. Android는 포그라운드 서비스, iOS는 background location 모드 |
+| **expo-sqlite** | 기록 중 원본 저장소. 앱이 죽어도 이어서 복원 |
+| **expo-speech** | 1km마다 음성 안내(TTS, 음원 없음) |
+| **지도는 MVP에서 제외** | Android 지도는 Google Maps API 키가 필요하고, 라이브러리가 무겁다. 2단계에서 경로를 SVG로 그리는 방식부터 검토 |
+| **Vitest** | 순수 로직(`src/core`)만 Node에서 빠르게 테스트. 화면은 실기기 확인 |
+
+## 3. 구조
+
+```
+src/
+  core/        순수 TS. react·expo import 금지(tests/boundary.test.ts가 막음)
+    types.ts     Sample(GPS 점), Split(1km 구간)
+    geo.ts       haversine 거리
+    filter.ts    GPS 필터: 정확도 컷 → 튐 제거 → 칼만 스무딩 → 최소 이동
+    session.ts   러닝 상태 머신(리듀서) + replay()
+    pace.ts      페이스 계산, 표시 포맷, 음성 안내 문구
+    gpx.ts       GPX 읽기/쓰기
+  services/    플랫폼 연결(expo-*)
+    location.ts        백그라운드 위치 태스크, 권한 요청
+    storage.ts         SQLite 스키마·마이그레이션·CRUD
+    run-controller.ts  이벤트 저장 + 리듀서 호출 + React 구독(useRun)
+    voice.ts           구간 음성 안내
+  app/         화면(Expo Router)
+    _layout.tsx        태스크 등록, DB 마이그레이션, 진행 중 기록 복원
+    index.tsx          홈: 시작 버튼 + 최근 기록
+    run.tsx            기록 중: 거리·시간·평균/현재 페이스, 일시정지, 길게 눌러 종료
+    history/index.tsx  전체 기록
+    history/[id].tsx   상세: 요약 + 구간표 + 삭제
+  ui/          공용 컴포넌트, 색
+tests/         Vitest(core만) + 합성 GPS 트랙 생성기
+tests/report/  튜닝용 리포트(npm run report:filter)
+```
+
+### 데이터 흐름
+
+```
+GPS ──(1초, 배치)──▶ 위치 태스크 ──▶ SQLite samples ─┐
+                           │                          │  앱 재시작 시
+                           └─▶ run-controller ◀───────┘  loadEvents → replay()
+버튼(시작·일시정지·재개·종료) ─▶ run-controller ─▶ SQLite runs / run_marks
+run-controller: RunState = reduce(RunState, RunEvent)  →  화면(useRun)
+```
+
+**원칙: 기록의 원본은 이벤트(시작·일시정지·재개·GPS 점·종료)이고, 거리·구간·페이스는 언제나 리듀서로 다시 계산한 결과다.** 그래서
+- UI 프로세스가 죽었다 살아나도 SQLite의 이벤트를 replay해서 그대로 이어진다.
+- 필터를 개선하면 과거 기록도 다시 계산할 수 있다(원본 점을 버리지 않음).
+- 같은 이벤트 열이면 배치를 어떻게 쪼개 넣든 결과가 같다(테스트로 보장).
+
+### 상태 머신
+`idle → running ⇄ paused → finished`
+- 일시정지하면 거리 기준점을 끊는다. 멈춘 동안 이동한 거리는 더하지 않고, 경과 시간에서도 뺀다.
+- 재개 전 시각의 점이 백그라운드 배치에 섞여 와도 무시한다.
+- 일시정지·종료할 때 최소 이동 거리에 못 미친 마지막 몇 m를 마저 더한다.
+
+## 4. GPS 필터
+
+1초 간격 GPS는 제자리에서도 수 m씩 흔들린다. 점을 그대로 이으면 지그재그가 누적돼 **노이즈 3m만으로 거리가 62% 부풀었다**(뼈대 작업 중 테스트로 확인). 그래서 네 단계로 거른다.
+
+1. 정확도 반경 > 25m인 점은 버린다.
+2. 직전 위치 대비 9m/s(1'51"/km) 넘게 튀면 버린다.
+3. 칼만 필터(과정 잡음 3m/s, 측정 잡음 = 기기가 보고한 정확도)로 위치를 다듬는다.
+4. 기준점에서 5m 이상 움직였을 때만 거리를 더한다.
+
+`npm run report:filter` 결과(5km, 튐 2%, 시드 5개 평균):
+
+| 트랙 | q | 최소 이동 | 노이즈 0m | 2m | 3m | 5m | 8m |
+|---|---|---|---|---|---|---|---|
+| 직선 | **3** | **5** | −0.1% | +3.0% | +3.3% | +3.1% | +1.4% |
+| 직선 | 2 | 5 | −0.1% | +1.6% | +1.7% | +0.7% | −0.6% |
+| 100m 정사각형 | **3** | **5** | −2.3% | +0.4% | −1.0% | −5.8% | −17.3% |
+| 100m 정사각형 | 2 | 5 | −3.1% | −2.1% | −5.1% | −14.0% | −30.8% |
+
+q를 줄이면 직선은 좋아지지만 모퉁이를 깎아 과소 측정한다. q=3이 둘 사이의 균형점이다.
+**한계:** 합성 트랙 기준이다. 실제 기기(특히 갤럭시의 Fused Location이 이미 스무딩한 값)로 GPX를 모아 `tests/fixtures/`에 넣고 다시 튜닝해야 한다(1단계 작업).
+
+## 5. 플랫폼별 주의
+
+| | Android (갤럭시) | iOS |
+|---|---|---|
+| 권한 | 위치(앱 사용 중) → 백그라운드 위치("항상 허용") 순서로 요청 | 같음. "항상 허용"은 나중에 OS가 다시 물어볼 수 있음 |
+| 백그라운드 | 포그라운드 서비스 + 상시 알림(`FOREGROUND_SERVICE_LOCATION`, 매니페스트 확인 완료) | `UIBackgroundModes: location`, `activityType: Fitness` |
+| 함정 | **One UI 절전 모드**(절전 앱·딥 슬립)가 서비스를 죽일 수 있다. 첫 실행 때 배터리 최적화 예외를 안내해야 함(1단계) | 심사 때 백그라운드 위치 사유 설명 필요 |
+| 빌드 | `eas build -p android --profile preview` → APK를 폰에 바로 설치 | EAS 클라우드 빌드 → TestFlight. Apple Developer 연 99달러 |
+
+Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **development build**(`eas build --profile development`)를 폰에 설치해서 개발한다.
+
+## 6. 로드맵
+
+### 0단계: 뼈대 ✅ (이 커밋)
+- [x] Expo SDK 57 + Router + TS strict
+- [x] core: 필터·상태 머신·페이스·GPX + 테스트 37개
+- [x] 백그라운드 위치 태스크, SQLite 스키마, 기록 복원
+- [x] 화면 4개(홈·기록 중·목록·상세)
+- [x] CI: 타입체크 + 테스트 + Android JS 번들
+
+### 1단계: MVP, 갤럭시 실사용
+- [ ] development build를 폰에 설치하고 실제로 달려 보기(30분 이상, 화면 끔)
+- [ ] 실제 GPX 3~5개 수집 → `tests/fixtures/` → 필터 재튜닝
+- [ ] 배터리 최적화 예외 안내 화면(Android)
+- [ ] 음성 안내 on/off, 단위 설정 화면
+- [ ] 기록 상세에 GPX 내보내기(공유 시트)
+- [ ] 앱 아이콘·스플래시
+
+### 2단계: 쓸 만하게
+- [ ] 경로 그리기(SVG 폴리라인부터, 지도 타일은 나중)
+- [ ] 주간·월간 합계
+- [ ] Health Connect 연동(Samsung Health로 동기화)
+- [ ] 자동 일시정지(속력 기반, core 리듀서에 이벤트로 추가)
+
+### 3단계: iOS 출시
+- [ ] EAS iOS 빌드, TestFlight
+- [ ] HealthKit 연동
+- [ ] App Store 심사(백그라운드 위치 사유, 개인정보 라벨: 데이터 수집 없음)
+
+### 4단계: 네이티브 확장 (필요할 때만)
+- [ ] 잠금화면 실시간 페이스: iOS Live Activities, Android 진행 중 알림 개선 → Expo Modules로 Swift/Kotlin 모듈 추가
+- [ ] 워치 앱: Wear OS(Kotlin), watchOS(Swift) 별도 타깃
+
+## 7. 리스크
+
+| 리스크 | 대응 |
+|---|---|
+| 갤럭시 절전 모드가 기록을 끊음 | 포그라운드 서비스 + 예외 안내. 끊겨도 SQLite 원본이 있으니 재시작 시 이어짐 |
+| 에이전트가 옛 Expo API를 씀 | CLAUDE.md에 SDK 버전 고정, `npx expo install`만 사용, 타입체크·번들을 CI로 검증 |
+| GPS 품질이 기기마다 다름 | 원본 점을 모두 저장하고 필터는 순수 함수로 → 실제 GPX로 재튜닝·재계산 가능 |
+| 실기기 검증 자동화 불가 | GPX 재생 테스트로 로직을 최대한 덮고, 실제 달리기 체크리스트는 사람이 수행 |

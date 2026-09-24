@@ -1,25 +1,42 @@
 {
   "expo": {
-    "name": "light-run",
+    "name": "가벼운 러닝",
     "slug": "light-run",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ringwdr.lightrun"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FF5D3A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.ringwdr.lightrun"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "달리는 동안 거리와 페이스를 기록하려고 위치를 사용해요.",
+          "locationAlwaysAndWhenInUsePermission": "화면이 꺼져 있어도 달리기 기록이 끊기지 않도록 위치를 사용해요. 기록 중에만 사용해요.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "scheme": "lightrun",
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
