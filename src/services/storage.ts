@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import type { Activity, Course } from '../core/course';
 import type { RunEvent } from '../core/session';
 import type { Sample, Split } from '../core/types';
 
@@ -34,6 +35,9 @@ const MIGRATIONS: string[] = [
      speed REAL,
      PRIMARY KEY (run_id, t)
    ) WITHOUT ROWID;`,
+  // 2: 코스(종목 · 시간 목표). 기존 기록은 달리기 · 자유로 본다
+  `ALTER TABLE runs ADD COLUMN activity TEXT NOT NULL DEFAULT 'run';
+   ALTER TABLE runs ADD COLUMN goal_min INTEGER;`,
 ];
 
 /** PRAGMA user_version으로 스키마 버전을 관리한다. 새 변경은 MIGRATIONS 끝에 추가만 할 것 */
@@ -49,7 +53,7 @@ export function migrate(): void {
   }
 }
 
-export interface RunRow {
+export interface RunRow extends Course {
   id: number;
   startedAt: number;
   endedAt: number | null;
@@ -67,6 +71,8 @@ interface RunRecord {
   distance_m: number;
   moving_ms: number;
   splits_json: string;
+  activity: Activity;
+  goal_min: number | null;
 }
 
 const toRun = (r: RunRecord): RunRow => ({
@@ -77,10 +83,15 @@ const toRun = (r: RunRecord): RunRow => ({
   distanceM: r.distance_m,
   movingMs: r.moving_ms,
   splits: JSON.parse(r.splits_json) as Split[],
+  activity: r.activity,
+  goalMin: r.goal_min,
 });
 
-export function createRun(startedAt: number): number {
-  const r = db.runSync("INSERT INTO runs (started_at, status) VALUES (?, 'active')", startedAt);
+export function createRun(startedAt: number, course: Course): number {
+  const r = db.runSync(
+    "INSERT INTO runs (started_at, status, activity, goal_min) VALUES (?, 'active', ?, ?)",
+    startedAt, course.activity, course.goalMin,
+  );
   return r.lastInsertRowId;
 }
 
@@ -148,10 +159,18 @@ export function finishRun(runId: number, r: { endedAt: number; distanceM: number
   );
 }
 
-export function listRuns(limit = 50): RunRow[] {
-  return db
-    .getAllSync<RunRecord>("SELECT * FROM runs WHERE status = 'finished' ORDER BY started_at DESC LIMIT ?", limit)
-    .map(toRun);
+/** activity를 주면 그 종목만 */
+export function listRuns(limit = 50, activity?: Activity): RunRow[] {
+  const rows = activity
+    ? db.getAllSync<RunRecord>(
+        "SELECT * FROM runs WHERE status = 'finished' AND activity = ? ORDER BY started_at DESC LIMIT ?",
+        activity, limit,
+      )
+    : db.getAllSync<RunRecord>(
+        "SELECT * FROM runs WHERE status = 'finished' ORDER BY started_at DESC LIMIT ?",
+        limit,
+      );
+  return rows.map(toRun);
 }
 
 export function getRun(id: number): RunRow | null {

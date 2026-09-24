@@ -1,11 +1,13 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ACTIVITY_DOING, courseLabel, goalProgress } from '../core/course';
 import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
 import { elapsedMs } from '../core/session';
 import { pauseRun, resumeRun, stopRun, useRun } from '../services/run-controller';
+import { ProgressBar } from '../ui/ProgressBar';
 import { Stat } from '../ui/Stat';
-import { color, space } from '../ui/theme';
+import { activityColor, color, space } from '../ui/theme';
 
 /** 경과 시간 표시용 1초 틱. 거리·페이스는 GPS 점이 올 때 바뀐다 */
 function useNow(active: boolean): number {
@@ -19,7 +21,7 @@ function useNow(active: boolean): number {
 }
 
 export default function RunScreen() {
-  const { runId, run } = useRun();
+  const { runId, course, run } = useRun();
   const now = useNow(run.status === 'running');
   const [stopping, setStopping] = useState(false);
 
@@ -27,6 +29,8 @@ export default function RunScreen() {
 
   const ms = elapsedMs(run, now);
   const paused = run.status === 'paused';
+  const tint = course ? activityColor[course.activity] : color.accent;
+  const goal = course ? goalProgress(course.goalMin, ms) : null;
 
   const onStop = async () => {
     setStopping(true);
@@ -36,6 +40,20 @@ export default function RunScreen() {
 
   return (
     <View style={styles.wrap}>
+      {course && <Stack.Screen options={{ title: ACTIVITY_DOING[course.activity] }} />}
+      {course && <Text style={[styles.course, { color: tint }]}>{courseLabel(course)}</Text>}
+
+      {goal && (
+        <View style={{ gap: space.s }}>
+          <ProgressBar ratio={goal.ratio} tint={tint} />
+          <Text style={[styles.goalText, goal.done && { color: tint }]}>
+            {goal.done
+              ? `목표 달성! +${formatDuration(goal.overMs)}`
+              : `목표까지 ${formatDuration(goal.remainingMs)}`}
+          </Text>
+        </View>
+      )}
+
       <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
       <View style={styles.row}>
         <Stat label="시간" value={formatDuration(ms)} />
@@ -55,7 +73,7 @@ export default function RunScreen() {
         </Pressable>
         {/* 주머니 속 오작동을 막으려고 종료는 길게 눌러야 한다 */}
         <Pressable
-          style={[styles.btn, styles.stop]}
+          style={[styles.btn, { backgroundColor: tint }]}
           onLongPress={onStop}
           delayLongPress={800}
           accessibilityRole="button"
@@ -69,12 +87,13 @@ export default function RunScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: space.l, justifyContent: 'center', gap: space.xl },
+  wrap: { flex: 1, padding: space.l, justifyContent: 'center', gap: space.l },
   row: { flexDirection: 'row' },
   paused: { textAlign: 'center', color: color.accent, fontWeight: '700', fontSize: 18 },
   buttons: { flexDirection: 'row', gap: space.m },
   btn: { flex: 1, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   secondary: { backgroundColor: color.card, borderWidth: 2, borderColor: color.ink },
-  stop: { backgroundColor: color.accent },
+  course: { textAlign: 'center', fontSize: 16, fontWeight: '700' },
+  goalText: { textAlign: 'center', fontSize: 16, color: color.sub, fontVariant: ['tabular-nums'] },
   btnText: { fontSize: 18, fontWeight: '700', color: color.ink },
 });

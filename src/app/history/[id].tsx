@@ -1,14 +1,17 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { courseLabel, goalProgress } from '../../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
 import { deleteRun, getRun } from '../../services/storage';
 import { Stat } from '../../ui/Stat';
-import { color, space } from '../../ui/theme';
+import { activityColor, color, space } from '../../ui/theme';
 
 export default function RunDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const run = getRun(Number(id));
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
+
+  const goal = goalProgress(run.goalMin, run.movingMs);
 
   const onDelete = () =>
     Alert.alert('이 기록을 삭제할까요?', '되돌릴 수 없어요.', [
@@ -25,6 +28,12 @@ export default function RunDetail() {
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
+      <Stack.Screen options={{ title: courseLabel(run) }} />
+      {goal && (
+        <Text style={[styles.goal, { color: goal.done ? activityColor[run.activity] : color.sub }]}>
+          {goal.done ? `${run.goalMin}분 목표 달성` : `${run.goalMin}분 목표의 ${Math.round(goal.ratio * 100)}%`}
+        </Text>
+      )}
       <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
       <View style={styles.row}>
         <Stat label="시간" value={formatDuration(run.movingMs)} />
@@ -53,6 +62,7 @@ export default function RunDetail() {
 const styles = StyleSheet.create({
   wrap: { padding: space.l, gap: space.l },
   row: { flexDirection: 'row' },
+  goal: { textAlign: 'center', fontSize: 16, fontWeight: '700' },
   h2: { fontSize: 18, fontWeight: '700', color: color.ink, marginBottom: space.s },
   split: {
     flexDirection: 'row',
