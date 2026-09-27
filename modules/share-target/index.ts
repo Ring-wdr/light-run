@@ -8,6 +8,8 @@ interface ShareTargetModule {
   isInstalled(packageName: string): boolean;
   /** 앱 캐시의 file:// 이미지를 packageName 앱으로 보낸다. text는 본문(받는 앱이 지원할 때만 붙는다) */
   shareImage(packageName: string, fileUrl: string, mimeType: string, text: string | null): void;
+  /** 사진 앱(Pictures/LightRun)에 저장한다. Android 10 미만은 ERR_SAVE_UNSUPPORTED */
+  saveImage(fileUrl: string, displayName: string, mimeType: string): void;
 }
 
 export default requireOptionalNativeModule<ShareTargetModule>('ShareTarget');

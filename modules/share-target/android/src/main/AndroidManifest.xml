@@ -14,5 +14,7 @@
   <!-- Android 11+ 패키지 공개 범위: 설치 여부를 확인할 앱 -->
   <queries>
     <package android:name="com.kakao.talk" />
+    <package android:name="com.instagram.android" />
+    <package android:name="com.twitter.android" />
   </queries>
 </manifest>

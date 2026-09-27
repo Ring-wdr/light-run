@@ -17,16 +17,16 @@ export interface ShareTargetInfo {
   label: string;
   /** Android 패키지 이름. 없으면 앱이 아니라 기능(저장·더보기) */
   androidPackage?: string;
-  /** 아직 동작을 연결하지 않은 항목(화면에만 보인다) */
-  comingSoon?: boolean;
 }
 
+/** 새 앱을 넣으면 modules/share-target의 AndroidManifest <queries>에도 패키지를 추가할 것(설치 확인용) */
 export const SHARE_TARGETS: ShareTargetInfo[] = [
   { id: 'kakao', label: '카카오톡', androidPackage: 'com.kakao.talk' },
-  { id: 'instagram', label: '인스타그램', androidPackage: 'com.instagram.android', comingSoon: true },
-  { id: 'x', label: 'X', androidPackage: 'com.twitter.android', comingSoon: true },
-  { id: 'save', label: '이미지 저장', comingSoon: true },
-  { id: 'more', label: '더보기', comingSoon: true },
+  // 인스타그램은 받은 뒤 피드·스토리·메시지 중 고르는 화면이 뜬다. 본문 문구는 붙지 않는다
+  { id: 'instagram', label: '인스타그램', androidPackage: 'com.instagram.android' },
+  { id: 'x', label: 'X', androidPackage: 'com.twitter.android' },
+  { id: 'save', label: '이미지 저장' },
+  { id: 'more', label: '더보기' },
 ];
 
 const MIME = 'image/png';
@@ -50,11 +50,40 @@ async function shareSheet(fileUri: string, title: string) {
   await Sharing.shareAsync(fileUri, { mimeType: MIME, UTI: 'public.png', dialogTitle: title });
 }
 
-/** target 앱으로 카드 이미지를 보낸다. text는 받는 앱이 지원하면 이미지와 함께 붙는다 */
-export async function shareCardTo(target: ShareTargetInfo, fileUri: string, text: string): Promise<void> {
-  if (target.comingSoon) throw new ShareError(`${target.label} 공유는 준비 중이에요.`);
-  const pkg = target.androidPackage;
-  if (!pkg || !ShareTarget) return shareSheet(fileUri, '기록 공유');
+const pad = (n: number) => String(n).padStart(2, '0');
+const fileStamp = (t: number) => {
+  const d = new Date(t);
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+};
+
+/**
+ * target으로 카드 이미지를 보낸다. text는 받는 앱이 지원하면 이미지와 함께 붙는다.
+ * 사용자에게 알릴 결과 문구가 있으면 돌려준다(저장 완료 등).
+ */
+export async function shareCardTo(
+  target: ShareTargetInfo,
+  fileUri: string,
+  text: string,
+  startedAt: number,
+): Promise<string | null> {
+  if (target.id === 'more' || !ShareTarget) {
+    // iOS·Expo Go: 앱별 공유·저장 모두 시스템 시트에서 고른다(iOS 시트에 "이미지 저장"이 있다)
+    await shareSheet(fileUri, '기록 공유');
+    return null;
+  }
+  if (target.id === 'save') {
+    try {
+      ShareTarget.saveImage(fileUri, `light-run-${fileStamp(startedAt)}.png`, MIME);
+      return '사진 앱(LightRun 앨범)에 저장했어요.';
+    } catch (e) {
+      // Android 9 이하: 저장소 권한 없이 저장할 수 없어서 공유 시트(파일·드라이브 등)로 넘긴다
+      if ((e as { code?: string }).code !== 'ERR_SAVE_UNSUPPORTED') throw e;
+      await shareSheet(fileUri, '이미지 저장');
+      return null;
+    }
+  }
+  const pkg = target.androidPackage!;
   if (!ShareTarget.isInstalled(pkg)) throw new ShareError(`${target.label} 앱이 설치되어 있지 않아요.`);
   ShareTarget.shareImage(pkg, fileUri, MIME, text);
+  return null;
 }

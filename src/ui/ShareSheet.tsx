@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LatLon } from '../core/geo';
-import { shareSummary } from '../core/share';
+import { SHARE_TAG, shareSummary } from '../core/share';
 import {
   captureCard,
   SHARE_TARGETS,
@@ -41,17 +41,13 @@ export function ShareSheet({
   const [busy, setBusy] = useState<ShareTargetId | null>(null);
 
   const onPick = async (target: ShareTargetInfo) => {
-    if (busy) return;
-    if (target.comingSoon) {
-      Alert.alert(`${target.label} 공유는 준비 중이에요`, '지금은 카카오톡으로 보낼 수 있어요.');
-      return;
-    }
-    if (!card.current) return;
+    if (busy || !card.current) return;
     setBusy(target.id);
     try {
       const uri = await captureCard(card.current, CARD_WIDTH, CARD_HEIGHT);
-      await shareCardTo(target, uri, shareSummary(run));
+      const notice = await shareCardTo(target, uri, `${shareSummary(run)} ${SHARE_TAG}`, run.startedAt);
       onClose();
+      if (notice) Alert.alert(notice);
     } catch (e) {
       const known = e instanceof ShareError;
       Alert.alert(known ? e.message : '공유하지 못했어요', known ? undefined : e instanceof Error ? e.message : String(e));
@@ -78,7 +74,7 @@ export function ShareSheet({
                 disabled={busy != null}
                 style={({ pressed }) => [styles.target, (pressed || (busy && busy !== t.id)) && { opacity: 0.5 }]}
                 accessibilityRole="button"
-                accessibilityLabel={`${t.label}${t.comingSoon ? ', 준비 중' : ''}`}
+                accessibilityLabel={t.label}
               >
                 <View style={[styles.badge, { backgroundColor: b.bg }]}>
                   {busy === t.id ? (
@@ -90,7 +86,6 @@ export function ShareSheet({
                 <Text style={styles.targetLabel} numberOfLines={1}>
                   {t.label}
                 </Text>
-                {t.comingSoon && <Text style={styles.soon}>준비 중</Text>}
               </Pressable>
             );
           })}
@@ -120,7 +115,6 @@ const styles = StyleSheet.create({
   badge: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 13, fontWeight: '800' },
   targetLabel: { marginTop: space.xs, fontSize: 12, color: color.ink },
-  soon: { fontSize: 10, color: color.sub },
   cancel: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m },
   cancelText: { fontSize: 16, color: color.sub },
 });
