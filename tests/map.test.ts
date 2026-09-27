@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { haversine } from '../src/core/geo';
 import { regionFor } from '../src/core/region';
 import { replay, type RunEvent } from '../src/core/session';
-import { routeSegments } from '../src/core/track';
+import { rawSegments, routeSegments } from '../src/core/track';
 import { squareTrack, straightTrack } from './helpers';
 
 const T0 = Date.UTC(2026, 8, 24, 6);
@@ -57,5 +57,41 @@ describe('regionFor', () => {
   });
   it('점이 없으면 null', () => {
     expect(regionFor([])).toBeNull();
+  });
+});
+
+describe('rawSegments (GPX 내보내기용 원본 점)', () => {
+  it('필터를 거치지 않은 원본 점을 그대로 준다(튄 점 포함)', () => {
+    const samples = straightTrack({ distanceM: 500, paceSec: 300, noiseM: 3, spikeRate: 0.05, startT: T0, seed: 5 });
+    const segs = rawSegments([{ type: 'start', at: T0 }, { type: 'samples', samples }, { type: 'stop', at: samples.at(-1)!.t }]);
+    expect(segs).toEqual([samples]);
+  });
+
+  it('일시정지 중에 찍힌 점은 빼고 구간을 나눈다', () => {
+    const a = straightTrack({ distanceM: 300, paceSec: 300, startT: T0 });
+    const during = straightTrack({ distanceM: 100, paceSec: 300, startT: T0 + 200_000 });
+    const b = straightTrack({ distanceM: 300, paceSec: 300, startT: T0 + 400_000 });
+    const segs = rawSegments([
+      { type: 'start', at: T0 },
+      { type: 'samples', samples: a },
+      { type: 'pause', at: a.at(-1)!.t },
+      { type: 'samples', samples: during },
+      { type: 'resume', at: b[0]!.t },
+      { type: 'samples', samples: b },
+      { type: 'stop', at: b.at(-1)!.t },
+    ]);
+    expect(segs).toEqual([a, b]);
+  });
+
+  it('시작 전 시각의 점과 중복 시각은 뺀다', () => {
+    const samples = straightTrack({ distanceM: 100, paceSec: 300, startT: T0 - 10_000 });
+    const segs = rawSegments([
+      { type: 'start', at: T0 },
+      { type: 'samples', samples },
+      { type: 'samples', samples: samples.slice(-3) },
+    ]);
+    expect(segs).toHaveLength(1);
+    expect(segs[0]!.every((p) => p.t >= T0)).toBe(true);
+    expect(new Set(segs[0]!.map((p) => p.t)).size).toBe(segs[0]!.length);
   });
 });

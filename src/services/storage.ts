@@ -147,7 +147,8 @@ export function loadEvents(runId: number): RunEvent[] {
     flushUntil(m.at);
     events.push({ type: m.type, at: m.at });
   }
-  flushUntil(Infinity);
+  // 종료 뒤에 늦게 도착한 점(백그라운드 배치 지연)은 기록에 넣지 않는다
+  flushUntil(run.ended_at ?? Infinity);
   if (run.ended_at != null) events.push({ type: 'stop', at: run.ended_at });
   return events;
 }

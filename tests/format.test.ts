@@ -31,9 +31,37 @@ describe('포맷', () => {
 });
 
 describe('GPX', () => {
+  const T = Date.UTC(2026, 0, 1);
+  const seg = (start: number) => straightTrack({ distanceM: 50, paceSec: 300, startT: start });
+
+  it('구간마다 <trkseg>, 트랙마다 <trk>, 종목은 <type>', () => {
+    const xml = toGpx([
+      { name: 'A', type: 'running', segments: [seg(T), seg(T + 600_000)] },
+      { name: 'B', type: 'walking', segments: [seg(T + 3_600_000)] },
+    ]);
+    expect(xml.match(/<trk>/g)).toHaveLength(2);
+    expect(xml.match(/<trkseg>/g)).toHaveLength(3);
+    expect(xml).toContain('<type>running</type>');
+    expect(xml).toContain('<type>walking</type>');
+    expect(xml).toContain(`<metadata><time>${new Date(T).toISOString()}</time></metadata>`);
+    expect(parseGpx(xml)).toHaveLength(seg(T).length * 3);
+  });
+  it('빈 구간과 점 없는 트랙은 뺀다', () => {
+    const xml = toGpx([{ name: 'A', segments: [[], seg(T)] }, { name: 'B', segments: [[]] }]);
+    expect(xml.match(/<trk>/g)).toHaveLength(1);
+    expect(xml.match(/<trkseg>/g)).toHaveLength(1);
+  });
+  it('이름의 특수문자를 이스케이프한다', () => {
+    expect(toGpx({ name: 'a & "b" <c>', segments: [seg(T)] })).toContain('<name>a &amp; &quot;b&quot; &lt;c&gt;</name>');
+  });
+  it('정확도는 hdop로 저장했다가 되돌린다', () => {
+    const back = parseGpx(toGpx({ name: 'x', segments: [[{ t: T, lat: 37.5, lon: 127, accuracy: 12 }]] }));
+    expect(back[0]!.accuracy).toBeCloseTo(12, 5);
+  });
+
   it('내보낸 GPX를 다시 읽으면 좌표와 시간이 같다', () => {
     const src = straightTrack({ distanceM: 100, paceSec: 300, startT: Date.UTC(2026, 0, 1) });
-    const back = parseGpx(toGpx('아침 <런>', src));
+    const back = parseGpx(toGpx({ name: '아침 <런>', segments: [src] }));
     expect(back).toHaveLength(src.length);
     expect(back[5]!.t).toBe(src[5]!.t);
     expect(back[5]!.lat).toBeCloseTo(src[5]!.lat, 6);

@@ -1,6 +1,7 @@
 import { FILTER, type FilterOptions } from './filter';
 import type { LatLon } from './geo';
 import { initialRun, reduce, type RunEvent, type RunState } from './session';
+import type { Sample } from './types';
 
 /**
  * 지도에 그릴 경로. 원본 GPS 점이 아니라, 거리 계산과 똑같이 리듀서가 받아들인 기준점(anchor)만 쓴다.
@@ -37,4 +38,40 @@ export function routeSegments(events: RunEvent[], filter: FilterOptions = FILTER
 function tailOf(prev: RunState) {
   const { anchor, smoothed } = prev;
   return anchor && smoothed && smoothed.t > anchor.t ? smoothed : null;
+}
+
+/**
+ * 내보내기용 원본 GPS 점. 필터를 거치지 않은 점을 그대로 주되(다른 앱이 자체 보정하도록),
+ * 달리는 중(시작~일시정지, 재개~종료)에 찍힌 점만 넣고 일시정지마다 구간을 나눈다.
+ */
+export function rawSegments(events: RunEvent[]): Sample[][] {
+  const segments: Sample[][] = [];
+  let current: Sample[] = [];
+  let runningSince: number | null = null;
+  const close = () => {
+    if (current.length) segments.push(current);
+    current = [];
+  };
+  for (const e of events) {
+    switch (e.type) {
+      case 'start':
+      case 'resume':
+        if (runningSince == null) runningSince = e.at;
+        break;
+      case 'pause':
+      case 'stop':
+        runningSince = null;
+        close();
+        break;
+      case 'samples':
+        if (runningSince == null) break;
+        for (const p of e.samples) {
+          const lastT = current.at(-1)?.t ?? -Infinity;
+          if (p.t >= runningSince && p.t > lastT) current.push(p);
+        }
+        break;
+    }
+  }
+  close();
+  return segments;
 }

@@ -72,17 +72,18 @@ src/
     types.ts     Sample(GPS 점), Split(1km 구간)
     course.ts    코스(종목 × 시간 목표), 목표 진행률, 목표 안내 시점
     region.ts    경로를 담는 지도 초기 영역
-    track.ts     지도용 경로 = 리듀서가 받아들인 점(일시정지로 구간 분리)
+    track.ts     지도용 경로(리듀서가 받아들인 점) / 내보내기용 원본 점(달린 구간만), 일시정지로 구간 분리
     geo.ts       haversine 거리
     filter.ts    GPS 필터: 정확도 컷 → 튐 제거 → 칼만 스무딩 → 최소 이동
     session.ts   러닝 상태 머신(리듀서) + replay()
     pace.ts      페이스 계산, 표시 포맷, 음성 안내 문구
-    gpx.ts       GPX 읽기/쓰기
+    gpx.ts       GPX 읽기/쓰기(트랙 여러 개·구간·종목·정확도→hdop)
   services/    플랫폼 연결(expo-*)
     location.ts        백그라운드 위치 태스크, 권한 요청
     storage.ts         SQLite 스키마·마이그레이션·CRUD
     run-controller.ts  이벤트 저장 + 리듀서 호출 + React 구독(useRun)
     voice.ts           구간 음성 안내
+    export.ts          GPX 파일 생성 → 공유 시트(expo-file-system, expo-sharing)
   app/         화면(Expo Router)
     _layout.tsx        태스크 등록, DB 마이그레이션, 진행 중 기록 복원
     index.tsx          홈: 종목 탭 + 코스 카드(30분·50분·자유) + 최근 기록
@@ -163,7 +164,7 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 - [ ] 실제 GPX 3~5개 수집 → `tests/fixtures/` → 필터 재튜닝
 - [ ] 배터리 최적화 예외 안내 화면(Android)
 - [ ] 음성 안내 on/off, 단위 설정 화면
-- [ ] 기록 상세에 GPX 내보내기(공유 시트)
+- [x] GPX 내보내기: 기록 상세(한 개), 기록 목록(전체 백업 한 파일). 원본 GPS 점, 일시정지마다 `<trkseg>`, 종목 `<type>`
 - [ ] 앱 아이콘·스플래시
 
 ### 2단계: 쓸 만하게

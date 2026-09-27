@@ -1,9 +1,10 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { courseLabel, goalProgress } from '../../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
 import { routeSegments } from '../../core/track';
+import { exportRunGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
 import { RouteMap } from '../../ui/RouteMap';
 import { Stat } from '../../ui/Stat';
@@ -15,9 +16,21 @@ export default function RunDetail() {
   const run = getRun(runId);
   // 저장된 원본 이벤트를 다시 재생해 거리 계산과 같은 경로를 얻는다
   const segments = useMemo(() => routeSegments(loadEvents(runId)), [runId]);
+  const [exporting, setExporting] = useState(false);
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
   const goal = goalProgress(run.goalMin, run.movingMs);
+
+  const onExport = async () => {
+    setExporting(true);
+    try {
+      if (!(await exportRunGpx(run.id))) Alert.alert('내보낼 GPS 기록이 없어요');
+    } catch (e) {
+      Alert.alert('내보내지 못했어요', e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const onDelete = () =>
     Alert.alert('이 기록을 삭제할까요?', '되돌릴 수 없어요.', [
@@ -59,6 +72,15 @@ export default function RunDetail() {
         </View>
       )}
 
+      <Pressable
+        onPress={onExport}
+        disabled={exporting}
+        style={({ pressed }) => [styles.export, (pressed || exporting) && { opacity: 0.6 }]}
+        accessibilityRole="button"
+      >
+        <Text style={styles.exportText}>{exporting ? '내보내는 중…' : 'GPX 내보내기'}</Text>
+      </Pressable>
+
       <Pressable onPress={onDelete} style={styles.delete} accessibilityRole="button">
         <Text style={styles.deleteText}>기록 삭제</Text>
       </Pressable>
@@ -80,6 +102,16 @@ const styles = StyleSheet.create({
   },
   splitKm: { color: color.sub },
   splitPace: { color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  export: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: space.m,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: color.ink,
+    backgroundColor: color.card,
+  },
+  exportText: { fontSize: 16, fontWeight: '700', color: color.ink },
   delete: { alignSelf: 'center', padding: space.m },
   deleteText: { color: color.accent },
   empty: { padding: space.l, color: color.sub },
