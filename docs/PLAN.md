@@ -28,7 +28,7 @@
 | **expo-location + expo-task-manager** | 백그라운드 위치. Android는 포그라운드 서비스, iOS는 background location 모드 |
 | **expo-sqlite** | 기록 중 원본 저장소. 앱이 죽어도 이어서 복원 |
 | **expo-speech** | 1km마다 음성 안내(TTS, 음원 없음) |
-| **지도: react-native-maps + OSM 대체** | Android는 Google 지도(키 필요, Maps SDK 모바일 지도 표시는 무제한·무료 SKU), iOS는 Apple 지도(키 불필요). 키가 없는 빌드는 OSM 타일 + SVG 정적 지도로 대체 |
+| **지도: Google Maps SDK만(react-native-maps `PROVIDER_GOOGLE`)** | Android·iOS 모두 Google 지도. Maps SDK 모바일 지도 표시는 무제한·무료 SKU. 키 없는 빌드는 지도 대신 안내 문구 |
 | **Vitest** | 순수 로직(`src/core`)만 Node에서 빠르게 테스트. 화면은 실기기 확인 |
 
 ## 2-1. 코스
@@ -53,23 +53,16 @@
 - 기록 상세(종료 직후 결과 화면 포함)에만 표시한다. 달리는 중에는 그리지 않는다(배터리·데이터 절약).
 - 선은 원본 GPS 점이 아니라 **거리 계산에 쓰인 점**(`core/track.ts`의 `routeSegments`)으로 그린다. 튄 점이 선에 나오지 않고, 선 길이 = 기록 거리(테스트로 보장). 일시정지 구간은 선을 끊는다.
 
-| 플랫폼 | 지도 | 조건 |
-|---|---|---|
-| Android | Google 지도(확대·이동) | 빌드 시 `GOOGLE_MAPS_API_KEY`가 있을 때 |
-| Android | OSM 정적 지도(`OsmRouteMap`) | 키가 없을 때(포크·CI·키 문제 시 대체) |
-| iOS | Apple 지도(확대·이동) | 키 불필요 |
+- **Google Maps SDK만 쓴다**(Android·iOS 모두 `PROVIDER_GOOGLE`). 확대·이동 가능, 출발(초록)·도착 마커, 흰 테두리 + 종목 색 경로.
+- 키 없이 빌드하면 지도 자리에 "지도 키가 설정되지 않은 빌드" 안내가 나온다. Expo Go는 자체 키로 지도가 뜬다.
 
 ### Google Maps 키
 - **코드·git에 넣지 않는다.** `app.config.ts`가 빌드 시 환경 변수에서 읽어 매니페스트(`com.google.android.geo.API_KEY`)에 넣는다. JS에는 "키가 있는지"만 노출(`extra.hasGoogleMapsKey`).
 - EAS 빌드: `eas env:create --name GOOGLE_MAPS_API_KEY --value <키> --visibility sensitive --environment development --environment preview --environment production`
 - 로컬(`npx expo run:android`): 프로젝트 루트 `.env`에 `GOOGLE_MAPS_API_KEY=<키>` (gitignore됨)
+- iOS 출시 때: iOS 앱(번들 ID `com.ringwdr.lightrun`)으로 제한한 키를 따로 발급해 `GOOGLE_MAPS_IOS_API_KEY`로 등록(없으면 Android 키를 넣지만 Android 앱 제한 때문에 iOS에서는 거부된다)
 - Cloud Console 제한: 애플리케이션 = Android 앱(`com.ringwdr.lightrun` + EAS 서명 SHA-1), API = Maps SDK for Android만. 예산 알림 설정.
 - 요금: 모바일 지도 표시(Maps SDK SKU)는 무제한. **스트리트 뷰, 지도 ID(클라우드 스타일)는 쓰지 않는다**(유료 SKU).
-
-### OSM 대체 지도
-- 확대·이동 없는 정적 지도. 경로가 여백 안에 들어오는 가장 큰 줌(최대 17), 타일 128dp(선명), 최대 12장.
-- 타일 사용 정책: 앱 식별 User-Agent, `© OpenStreetMap contributors` 표시, 과도한 요청 금지. 서버 교체는 `OsmRouteMap.tsx`의 `TILE_URL`.
-- 오프라인이면 타일 자리가 회색으로 남고 경로 선은 보인다.
 
 ## 3. 구조
 
@@ -78,7 +71,7 @@ src/
   core/        순수 TS. react·expo import 금지(tests/boundary.test.ts가 막음)
     types.ts     Sample(GPS 점), Split(1km 구간)
     course.ts    코스(종목 × 시간 목표), 목표 진행률, 목표 안내 시점
-    tiles.ts     정적 지도 계산: 메르카토르 투영, 줌 맞춤, 타일 목록, SVG 경로
+    region.ts    경로를 담는 지도 초기 영역
     track.ts     지도용 경로 = 리듀서가 받아들인 점(일시정지로 구간 분리)
     geo.ts       haversine 거리
     filter.ts    GPS 필터: 정확도 컷 → 튐 제거 → 칼만 스무딩 → 최소 이동
@@ -158,12 +151,12 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 
 ### 0단계: 뼈대 ✅ (이 커밋)
 - [x] Expo SDK 57 + Router + TS strict
-- [x] core: 필터·상태 머신·페이스·GPX·코스·지도 + 테스트 66개
+- [x] core: 필터·상태 머신·페이스·GPX·코스·경로 + 테스트 57개
 - [x] 백그라운드 위치 태스크, SQLite 스키마, 기록 복원
 - [x] 화면 4개(홈·기록 중·목록·상세)
 - [x] CI: 타입체크 + 테스트 + Android JS 번들
 - [x] 코스: 걷기·달리기 × 30분·50분·자유, 목표 진행 막대와 음성 안내, 기록 필터
-- [x] 기록 상세에 경로 지도(Android Google 지도 / iOS Apple 지도, 키 없으면 OSM 정적 지도)
+- [x] 기록 상세에 경로 지도(Google Maps SDK)
 
 ### 1단계: MVP, 갤럭시 실사용
 - [ ] development build를 폰에 설치하고 실제로 달려 보기(30분 이상, 화면 끔)
