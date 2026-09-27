@@ -13,25 +13,15 @@ import {
   type DatedRun,
   type YearMonth,
 } from '../../core/calendar';
-import { ACTIVITY_LABEL, type Activity } from '../../core/course';
 import { formatDuration, formatKm } from '../../core/pace';
 import { exportAllGpx } from '../../services/export';
 import { listRunDates, listRuns, type RunRow } from '../../services/storage';
 import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
-import { Segmented } from '../../ui/Segmented';
 import { Stat } from '../../ui/Stat';
-import { activityColor, color, space } from '../../ui/theme';
-
-type Filter = 'all' | Activity;
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: '전체' },
-  { value: 'walk', label: ACTIVITY_LABEL.walk },
-  { value: 'run', label: ACTIVITY_LABEL.run },
-];
+import { color, space } from '../../ui/theme';
 
 export default function History() {
-  const [filter, setFilter] = useState<Filter>('all');
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [dated, setDated] = useState<DatedRun[]>([]);
   const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
@@ -51,13 +41,11 @@ export default function History() {
   };
   useFocusEffect(
     useCallback(() => {
-      const activity = filter === 'all' ? undefined : filter;
-      setRuns(listRuns(500, activity));
-      setDated(listRunDates(activity));
-    }, [filter]),
+      setRuns(listRuns(500));
+      setDated(listRunDates());
+    }, []),
   );
 
-  const tint = filter === 'all' ? color.ink : activityColor[filter];
   const now = Date.now();
   const thisMonth = monthOf(now);
   const isThisMonth = sameMonth(month, thisMonth);
@@ -81,13 +69,6 @@ export default function History() {
       renderItem={({ item }) => <RunListItem run={item} />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <Segmented
-            options={FILTERS}
-            value={filter}
-            onChange={setFilter}
-            tint={tint}
-          />
-
           <View style={styles.summary}>
             <Text style={styles.totalKm} numberOfLines={1} adjustsFontSizeToFit>
               {formatKm(all.distanceM)}
@@ -109,7 +90,7 @@ export default function History() {
             selectedDay={selected}
             onSelectDay={setDay}
             today={isThisMonth ? new Date(now).getDate() : null}
-            tint={tint}
+            tint={color.ink}
           />
           <Text style={styles.monthLine}>
             {month.month + 1}월 {monthTotal.count}회 · {formatKm(monthTotal.distanceM)} km ·{' '}
@@ -124,7 +105,7 @@ export default function History() {
             </Pressable>
           )}
 
-          {/* 필터와 무관하게 전체 기록을 한 파일로(다른 폰·빌드로 옮길 때) */}
+          {/* 전체 기록을 한 파일로(다른 폰·빌드로 옮길 때) */}
           <Pressable onPress={onBackup} disabled={exporting} style={styles.backup} accessibilityRole="button">
             <Text style={styles.backupText}>{exporting ? '백업 파일 만드는 중…' : '전체 기록 백업 (GPX)'}</Text>
           </Pressable>
@@ -146,7 +127,6 @@ const styles = StyleSheet.create({
     paddingVertical: space.m,
     paddingHorizontal: space.s,
     alignItems: 'center',
-    marginTop: space.s,
   },
   totalKm: { fontSize: 48, fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
   totalUnit: { fontSize: 20, fontWeight: '700', color: color.sub },
