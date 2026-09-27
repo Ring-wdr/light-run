@@ -43,7 +43,8 @@
     "check": "npm run typecheck && npm test",
     "report:filter": "vitest run -c vitest.report.config.mts",
     "doctor": "expo-doctor",
-    "prebuild:android": "expo prebuild --clean --platform android"
+    "prebuild:android": "expo prebuild --clean --platform android",
+    "android:release": "expo prebuild --clean --platform android && expo run:android --variant release --device"
   },
   "private": true,
   "engines": {
