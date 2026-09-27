@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
 import { startRun, useRun } from '../services/run-controller';
 import { listRuns, type RunRow } from '../services/storage';
+import { Chevron } from '../ui/Chevron';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
 import { activityColor, color, space } from '../ui/theme';
@@ -89,8 +90,15 @@ export default function Home() {
       <View style={styles.sectionHead}>
         <Text style={styles.h2}>최근 기록</Text>
         {recent.length > 0 && (
-          <Link href="/history" style={styles.more} accessibilityRole="button">
-            전체 보기 ›
+          <Link href="/history" asChild>
+            <Pressable
+              style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              accessibilityLabel="전체 기록 보기"
+            >
+              <Text style={styles.moreText}>전체 보기</Text>
+              <Chevron dir="right" size={20} color={color.accent} />
+            </Pressable>
           </Link>
         )}
       </View>
@@ -119,5 +127,6 @@ const styles = StyleSheet.create({
   cardGo: { position: 'absolute', right: space.l, bottom: space.l, fontWeight: '700', fontSize: 16 },
   empty: { color: color.sub, paddingVertical: space.m },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  more: { color: color.accent, fontWeight: '600', paddingTop: space.l, paddingLeft: space.m },
+  more: { flexDirection: 'row', alignItems: 'center', paddingTop: space.l, paddingLeft: space.m },
+  moreText: { color: color.accent, fontWeight: '600' },
 });
