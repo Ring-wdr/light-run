@@ -7,6 +7,7 @@ import { routeSegments } from '../../core/track';
 import { exportRunGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
 import { RouteMap } from '../../ui/RouteMap';
+import { ShareSheet } from '../../ui/ShareSheet';
 import { Stat } from '../../ui/Stat';
 import { activityColor, color, space } from '../../ui/theme';
 
@@ -17,6 +18,7 @@ export default function RunDetail() {
   // 저장된 원본 이벤트를 다시 재생해 거리 계산과 같은 경로를 얻는다
   const segments = useMemo(() => routeSegments(loadEvents(runId)), [runId]);
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
   const goal = goalProgress(run.goalMin, run.movingMs);
@@ -73,6 +75,14 @@ export default function RunDetail() {
       )}
 
       <Pressable
+        onPress={() => setSharing(true)}
+        style={({ pressed }) => [styles.share, { backgroundColor: activityColor[run.activity] }, pressed && { opacity: 0.6 }]}
+        accessibilityRole="button"
+      >
+        <Text style={styles.shareText}>공유하기</Text>
+      </Pressable>
+
+      <Pressable
         onPress={onExport}
         disabled={exporting}
         style={({ pressed }) => [styles.export, (pressed || exporting) && { opacity: 0.6 }]}
@@ -84,6 +94,8 @@ export default function RunDetail() {
       <Pressable onPress={onDelete} style={styles.delete} accessibilityRole="button">
         <Text style={styles.deleteText}>기록 삭제</Text>
       </Pressable>
+
+      <ShareSheet run={run} segments={segments} visible={sharing} onClose={() => setSharing(false)} />
     </ScrollView>
   );
 }
@@ -102,6 +114,8 @@ const styles = StyleSheet.create({
   },
   splitKm: { color: color.sub },
   splitPace: { color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  share: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m, borderRadius: 999 },
+  shareText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   export: {
     alignSelf: 'stretch',
     alignItems: 'center',

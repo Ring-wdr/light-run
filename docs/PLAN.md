@@ -64,6 +64,24 @@
 - Cloud Console 제한: 애플리케이션 = Android 앱(`com.ringwdr.lightrun` + EAS 서명 SHA-1), API = Maps SDK for Android만. 예산 알림 설정.
 - 요금: 모바일 지도 표시(Maps SDK SKU)는 무제한. **스트리트 뷰, 지도 ID(클라우드 스타일)는 쓰지 않는다**(유료 SKU).
 
+## 2-3. 기록 공유
+
+- 기록 상세의 **공유하기** → 아래 시트: 기록 카드 미리보기 + 보낼 곳(카카오톡·인스타그램·X·이미지 저장·더보기).
+- 카드는 종목 색 배경에 경로 모양·거리·시간·평균 페이스. 지도는 넣지 않는다(캡처하면 빈 화면이 되는 기기가 있고, 키 없는 빌드도 있음). 경로는 `core/share.ts`가 계산한 선분을 View로 그린다.
+- 카드(300×375, 4:5)를 가로 1080px PNG로 캡처해 보낸다.
+- **카카오 SDK는 쓰지 않는다.** 카카오톡 공유 API는 앱 키·키 해시 등록과 이미지 서버 업로드가 필요하다. 대신 Android에서는 로컬 모듈이 `ACTION_SEND` 인텐트를 앱 패키지에 바로 보낸다(서버·키 없음).
+
+| 보낼 곳 | Android | iOS·Expo Go |
+|---|---|---|
+| 카카오톡 `com.kakao.talk` | 대화방 선택 화면 | 시스템 공유 시트 |
+| 인스타그램 `com.instagram.android` | 피드·스토리·메시지 선택(문구는 안 붙음) | 시스템 공유 시트 |
+| X `com.twitter.android` | 글쓰기 화면(이미지 + 요약 문구) | 시스템 공유 시트 |
+| 이미지 저장 | MediaStore `Pictures/LightRun`(Android 10+, 권한 없음). 9 이하는 공유 시트 | 공유 시트의 "이미지 저장" |
+| 더보기 | 시스템 공유 시트 | 시스템 공유 시트 |
+
+- 앱이 없으면 "설치되어 있지 않아요" 안내. 앱을 추가하면 `modules/share-target`의 `<queries>`에도 패키지를 넣는다(Android 11+ 설치 확인).
+- 인스타그램 스토리 직접 공유(`com.instagram.share.ADD_TO_STORY`)는 Facebook 앱 ID가 필요해서 하지 않는다.
+
 ## 3. 구조
 
 ```
@@ -78,19 +96,23 @@ src/
     session.ts   러닝 상태 머신(리듀서) + replay()
     pace.ts      페이스 계산, 표시 포맷, 음성 안내 문구
     gpx.ts       GPX 읽기/쓰기(트랙 여러 개·구간·종목·정확도→hdop)
+    share.ts     공유 카드용 경로 모양(상자에 맞춘 선분), 공유 요약 문구
   services/    플랫폼 연결(expo-*)
     location.ts        백그라운드 위치 태스크, 권한 요청
     storage.ts         SQLite 스키마·마이그레이션·CRUD
     run-controller.ts  이벤트 저장 + 리듀서 호출 + React 구독(useRun)
     voice.ts           구간 음성 안내
     export.ts          GPX 파일 생성 → 공유 시트(expo-file-system, expo-sharing)
+    share.ts           기록 카드 캡처(react-native-view-shot) → 앱으로 바로 공유(없으면 공유 시트)
   app/         화면(Expo Router)
     _layout.tsx        태스크 등록, DB 마이그레이션, 진행 중 기록 복원
     index.tsx          홈: 종목 탭 + 코스 카드(30분·50분·자유) + 최근 기록
     run.tsx            기록 중: 거리·시간·평균/현재 페이스, 일시정지, 길게 눌러 종료
     history/index.tsx  전체 기록(전체·걷기·달리기 필터)
-    history/[id].tsx   상세: 경로 지도 + 요약 + 구간표 + 삭제
-  ui/          공용 컴포넌트, 색
+    history/[id].tsx   상세: 경로 지도 + 요약 + 구간표 + 공유 + 삭제
+  ui/          공용 컴포넌트, 색, 공유 카드·공유 시트
+modules/
+  share-target/  로컬 Expo 모듈(Android). 공유 시트 없이 특정 앱(카카오톡 등)에 이미지를 바로 보낸다
 tests/         Vitest(core만) + 합성 GPS 트랙 생성기
 tests/report/  튜닝용 리포트(npm run report:filter)
 ```

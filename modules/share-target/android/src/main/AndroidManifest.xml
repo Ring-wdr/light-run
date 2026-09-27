@@ -1,0 +1,20 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <provider
+      android:name=".ShareTargetFileProvider"
+      android:authorities="${applicationId}.ShareTargetFileProvider"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/share_target_paths" />
+    </provider>
+  </application>
+
+  <!-- Android 11+ 패키지 공개 범위: 설치 여부를 확인할 앱 -->
+  <queries>
+    <package android:name="com.kakao.talk" />
+    <package android:name="com.instagram.android" />
+    <package android:name="com.twitter.android" />
+  </queries>
+</manifest>
