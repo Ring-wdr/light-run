@@ -6,12 +6,14 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const CELL = 36;
 
 /**
- * 한 달 달력. 기록이 있는 날은 동그라미(O)로 표시하고, 누르면 그날을 고른다.
- * 고른 날은 채운 동그라미, 다시 누르면 선택 해제.
+ * 한 달 달력. 기록이 있는 날은 동그라미(O)로 표시하고, 누르면 그날을 고른다(채운 동그라미).
+ * 고른 날을 다시 누르거나 기록이 없는 날을 누르면 선택 해제.
+ * 제목(0000년 0월)을 누르면 onPressTitle(연·월 선택 팝업).
  */
 export function RunCalendar({
   month,
   onChangeMonth,
+  onPressTitle,
   canNext,
   activeDays,
   selectedDay,
@@ -21,6 +23,7 @@ export function RunCalendar({
 }: {
   month: YearMonth;
   onChangeMonth: (delta: number) => void;
+  onPressTitle: () => void;
   canNext: boolean;
   activeDays: Set<number>;
   selectedDay: number | null;
@@ -35,9 +38,18 @@ export function RunCalendar({
         <Pressable onPress={() => onChangeMonth(-1)} hitSlop={12} accessibilityRole="button" accessibilityLabel="이전 달">
           <Text style={styles.nav}>‹</Text>
         </Pressable>
-        <Text style={styles.title}>
-          {month.year}년 {month.month + 1}월
-        </Text>
+        <Pressable
+          onPress={onPressTitle}
+          hitSlop={8}
+          style={({ pressed }) => [styles.titleBtn, pressed && { opacity: 0.6 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`${month.year}년 ${month.month + 1}월, 눌러서 연월 바꾸기`}
+        >
+          <Text style={styles.title}>
+            {month.year}년 {month.month + 1}월
+          </Text>
+          <Text style={styles.caret}>▾</Text>
+        </Pressable>
         <Pressable
           onPress={() => onChangeMonth(1)}
           disabled={!canNext}
@@ -67,11 +79,10 @@ export function RunCalendar({
               <Pressable
                 key={di}
                 style={styles.cell}
-                disabled={!ran}
-                onPress={() => onSelectDay(selected ? null : day)}
+                onPress={() => onSelectDay(ran && !selected ? day : null)}
                 accessibilityRole="button"
                 accessibilityLabel={`${month.month + 1}월 ${day}일${ran ? ', 기록 있음' : ''}`}
-                accessibilityState={{ selected, disabled: !ran }}
+                accessibilityState={{ selected }}
               >
                 <View
                   style={[
@@ -110,7 +121,9 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.s },
+  titleBtn: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   title: { fontSize: 17, fontWeight: '700', color: color.ink },
+  caret: { fontSize: 13, color: color.sub },
   nav: { fontSize: 28, lineHeight: 30, color: color.ink, paddingHorizontal: space.s },
   navOff: { color: color.line },
   week: { flexDirection: 'row' },

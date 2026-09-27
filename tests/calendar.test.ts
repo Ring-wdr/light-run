@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeDays,
+  activeMonths,
   addMonths,
   dayKey,
   inMonth,
+  isAfter,
   monthGrid,
+  monthRange,
   onDay,
   totals,
 } from '../src/core/calendar';
@@ -41,5 +44,23 @@ describe('달력', () => {
     const runs = [run(at(2026, 9, 3), 5, 30), run(at(2026, 9, 3, 19), 3, 20), run(at(2026, 9, 27), 4.5, 25)];
     expect(totals(runs)).toEqual({ count: 3, distanceM: 12_500, movingMs: 75 * 60_000, days: 2 });
     expect(totals([])).toEqual({ count: 0, distanceM: 0, movingMs: 0, days: 0 });
+  });
+});
+
+describe('달 범위·선택기', () => {
+  it('달 범위는 1일 0시부터 다음 달 1일 0시 전까지', () => {
+    const { from, to } = monthRange({ year: 2026, month: 11 });
+    expect(from).toBe(new Date(2026, 11, 1).getTime());
+    expect(to).toBe(new Date(2027, 0, 1).getTime());
+    expect(at(2026, 12, 31, 23) < to).toBe(true);
+  });
+  it('뒤의 달 비교', () => {
+    expect(isAfter({ year: 2026, month: 9 }, { year: 2026, month: 8 })).toBe(true);
+    expect(isAfter({ year: 2025, month: 11 }, { year: 2026, month: 0 })).toBe(false);
+    expect(isAfter({ year: 2026, month: 8 }, { year: 2026, month: 8 })).toBe(false);
+  });
+  it('기록이 있는 달', () => {
+    const runs = [run(at(2026, 9, 3), 5, 30), run(at(2026, 8, 31), 2, 15), run(at(2025, 9, 1), 1, 5)];
+    expect([...activeMonths(runs, 2026)].sort()).toEqual([7, 8]);
   });
 });

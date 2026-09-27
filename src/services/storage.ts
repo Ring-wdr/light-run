@@ -175,6 +175,16 @@ export function listRuns(limit = 50, activity?: Activity): RunRow[] {
   return rows.map(toRun);
 }
 
+/** [from, to) 사이에 시작한 끝난 기록(최신순). 달력에서 고른 달의 목록용 */
+export function listRunsBetween(from: number, to: number): RunRow[] {
+  return db
+    .getAllSync<RunRecord>(
+      "SELECT * FROM runs WHERE status = 'finished' AND started_at >= ? AND started_at < ? ORDER BY started_at DESC",
+      from, to,
+    )
+    .map(toRun);
+}
+
 /** 달력·합계용: 끝난 기록 전부의 날짜·거리·시간만(가볍게) */
 export function listRunDates(): DatedRun[] {
   return db.getAllSync<DatedRun>(

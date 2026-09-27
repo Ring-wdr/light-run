@@ -3,10 +3,12 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   activeDays,
+  activeMonths,
   addMonths,
   dayKey,
   inMonth,
   monthOf,
+  monthRange,
   onDay,
   sameMonth,
   totals,
@@ -15,7 +17,8 @@ import {
 } from '../../core/calendar';
 import { formatDuration, formatKm } from '../../core/pace';
 import { exportAllGpx } from '../../services/export';
-import { listRunDates, listRuns, type RunRow } from '../../services/storage';
+import { listRunDates, listRunsBetween, type RunRow } from '../../services/storage';
+import { MonthPicker } from '../../ui/MonthPicker';
 import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
 import { Stat } from '../../ui/Stat';
@@ -26,6 +29,7 @@ export default function History() {
   const [dated, setDated] = useState<DatedRun[]>([]);
   const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
   const [day, setDay] = useState<number | null>(null);
+  const [picking, setPicking] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const onBackup = async () => {
@@ -40,10 +44,12 @@ export default function History() {
     }
   };
   useFocusEffect(
+    // 목록은 달력에서 보고 있는 달의 기록만
     useCallback(() => {
-      setRuns(listRuns(500));
+      const { from, to } = monthRange(month);
+      setRuns(listRunsBetween(from, to));
       setDated(listRunDates());
-    }, []),
+    }, [month]),
   );
 
   const now = Date.now();
@@ -56,63 +62,82 @@ export default function History() {
   const selected = day != null && ranDays.has(day) ? day : null;
   const shown = selected == null ? runs : onDay(runs, dayKey(new Date(month.year, month.month, selected).getTime()));
 
-  const changeMonth = (delta: number) => {
-    setMonth((m) => addMonths(m, delta));
+  const goTo = (ym: YearMonth) => {
+    setMonth(ym);
     setDay(null);
   };
+  const minYear = dated.length > 0 ? new Date(dated[0]!.startedAt).getFullYear() : thisMonth.year;
 
   return (
-    <FlatList
-      contentContainerStyle={styles.wrap}
-      data={shown}
-      keyExtractor={(r) => String(r.id)}
-      renderItem={({ item }) => <RunListItem run={item} />}
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <View style={styles.summary}>
-            <Text style={styles.totalKm} numberOfLines={1} adjustsFontSizeToFit>
-              {formatKm(all.distanceM)}
-              <Text style={styles.totalUnit}> km</Text>
-            </Text>
-            <Text style={styles.totalLabel}>총 거리</Text>
-            <View style={styles.statRow}>
-              <Stat label="횟수" value={String(all.count)} />
-              <Stat label="총 시간" value={formatDuration(all.movingMs)} />
-              <Stat label="기록한 날" value={String(all.days)} />
-            </View>
-          </View>
-
-          <RunCalendar
-            month={month}
-            onChangeMonth={changeMonth}
-            canNext={!isThisMonth}
-            activeDays={ranDays}
-            selectedDay={selected}
-            onSelectDay={setDay}
-            today={isThisMonth ? new Date(now).getDate() : null}
-            tint={color.ink}
-          />
-          <Text style={styles.monthLine}>
-            {month.month + 1}월 {monthTotal.count}회 · {formatKm(monthTotal.distanceM)} km ·{' '}
-            {formatDuration(monthTotal.movingMs)}
-          </Text>
-
-          {selected != null && (
-            <Pressable onPress={() => setDay(null)} style={styles.dayFilter} accessibilityRole="button">
-              <Text style={styles.dayFilterText}>
-                {month.month + 1}월 {selected}일 기록만 보는 중 · <Text style={styles.link}>전체 보기</Text>
+    <>
+      <FlatList
+        contentContainerStyle={styles.wrap}
+        data={shown}
+        keyExtractor={(r) => String(r.id)}
+        renderItem={({ item }) => <RunListItem run={item} />}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <View style={styles.summary}>
+              <Text style={styles.totalKm} numberOfLines={1} adjustsFontSizeToFit>
+                {formatKm(all.distanceM)}
+                <Text style={styles.totalUnit}> km</Text>
               </Text>
-            </Pressable>
-          )}
+              <Text style={styles.totalLabel}>총 거리</Text>
+              <View style={styles.statRow}>
+                <Stat label="횟수" value={String(all.count)} />
+                <Stat label="총 시간" value={formatDuration(all.movingMs)} />
+                <Stat label="기록한 날" value={String(all.days)} />
+              </View>
+            </View>
 
-          {/* 전체 기록을 한 파일로(다른 폰·빌드로 옮길 때) */}
-          <Pressable onPress={onBackup} disabled={exporting} style={styles.backup} accessibilityRole="button">
-            <Text style={styles.backupText}>{exporting ? '백업 파일 만드는 중…' : '전체 기록 백업 (GPX)'}</Text>
-          </Pressable>
-        </View>
-      }
-      ListEmptyComponent={<Text style={styles.empty}>아직 기록이 없어요.</Text>}
-    />
+            <RunCalendar
+              month={month}
+              onChangeMonth={(delta) => goTo(addMonths(month, delta))}
+              onPressTitle={() => setPicking(true)}
+              canNext={!isThisMonth}
+              activeDays={ranDays}
+              selectedDay={selected}
+              onSelectDay={setDay}
+              today={isThisMonth ? new Date(now).getDate() : null}
+              tint={color.ink}
+            />
+            <Text style={styles.monthLine}>
+              {month.month + 1}월 {monthTotal.count}회 · {formatKm(monthTotal.distanceM)} km ·{' '}
+              {formatDuration(monthTotal.movingMs)}
+            </Text>
+
+            {selected != null && (
+              <Pressable onPress={() => setDay(null)} style={styles.dayFilter} accessibilityRole="button">
+                <Text style={styles.dayFilterText}>
+                  {month.month + 1}월 {selected}일 기록만 보는 중 · <Text style={styles.link}>{month.month + 1}월 전체 보기</Text>
+                </Text>
+              </Pressable>
+            )}
+
+            {/* 전체 기록을 한 파일로(다른 폰·빌드로 옮길 때) */}
+            <Pressable onPress={onBackup} disabled={exporting} style={styles.backup} accessibilityRole="button">
+              <Text style={styles.backupText}>{exporting ? '백업 파일 만드는 중…' : '전체 기록 백업 (GPX)'}</Text>
+            </Pressable>
+          </View>
+        }
+        ListEmptyComponent={
+          <Text style={styles.empty}>{dated.length === 0 ? '아직 기록이 없어요.' : `${month.month + 1}월에는 기록이 없어요.`}</Text>
+        }
+      />
+      <MonthPicker
+        visible={picking}
+        value={month}
+        max={thisMonth}
+        minYear={Math.min(minYear, month.year)}
+        monthsWithRuns={(y) => activeMonths(dated, y)}
+        onSelect={(ym) => {
+          setPicking(false);
+          goTo(ym);
+        }}
+        onClose={() => setPicking(false)}
+        tint={color.ink}
+      />
+    </>
   );
 }
 

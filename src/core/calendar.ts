@@ -88,3 +88,21 @@ export function inMonth<T extends DatedRun>(runs: T[], ym: YearMonth): T[] {
 export function onDay<T extends DatedRun>(runs: T[], key: string): T[] {
   return runs.filter((r) => dayKey(r.startedAt) === key);
 }
+
+/** 그 달의 [시작, 다음 달 시작) 현지 시각(ms). DB 기간 조회용 */
+export function monthRange({ year, month }: YearMonth): { from: number; to: number } {
+  return { from: new Date(year, month, 1).getTime(), to: new Date(year, month + 1, 1).getTime() };
+}
+
+/** a가 b보다 뒤의 달인가 */
+export const isAfter = (a: YearMonth, b: YearMonth) => a.year * 12 + a.month > b.year * 12 + b.month;
+
+/** 그 해에서 기록이 있는 달(0~11) */
+export function activeMonths(runs: DatedRun[], year: number): Set<number> {
+  const out = new Set<number>();
+  for (const r of runs) {
+    const d = new Date(r.startedAt);
+    if (d.getFullYear() === year) out.add(d.getMonth());
+  }
+  return out;
+}
