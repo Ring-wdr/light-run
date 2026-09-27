@@ -6,6 +6,7 @@ import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/p
 import { routeSegments } from '../../core/track';
 import { exportRunGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
+import { MoreMenu } from '../../ui/MoreMenu';
 import { RouteMap } from '../../ui/RouteMap';
 import { ShareSheet } from '../../ui/ShareSheet';
 import { Stat } from '../../ui/Stat';
@@ -49,7 +50,20 @@ export default function RunDetail() {
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
-      <Stack.Screen options={{ title: courseLabel(run) }} />
+      <Stack.Screen
+        options={{
+          title: courseLabel(run),
+          // 자주 안 쓰는 동작은 헤더 ··· 메뉴로
+          headerRight: () => (
+            <MoreMenu
+              items={[
+                { label: exporting ? '내보내는 중…' : 'GPX 내보내기', onPress: onExport, disabled: exporting },
+                { label: '기록 삭제', onPress: onDelete, destructive: true },
+              ]}
+            />
+          ),
+        }}
+      />
       {goal && (
         <Text style={[styles.goal, { color: goal.done ? activityColor[run.activity] : color.sub }]}>
           {goal.done ? `${run.goalMin}분 목표 달성` : `${run.goalMin}분 목표의 ${Math.round(goal.ratio * 100)}%`}
@@ -82,19 +96,6 @@ export default function RunDetail() {
         <Text style={styles.shareText}>공유하기</Text>
       </Pressable>
 
-      <Pressable
-        onPress={onExport}
-        disabled={exporting}
-        style={({ pressed }) => [styles.export, (pressed || exporting) && { opacity: 0.6 }]}
-        accessibilityRole="button"
-      >
-        <Text style={styles.exportText}>{exporting ? '내보내는 중…' : 'GPX 내보내기'}</Text>
-      </Pressable>
-
-      <Pressable onPress={onDelete} style={styles.delete} accessibilityRole="button">
-        <Text style={styles.deleteText}>기록 삭제</Text>
-      </Pressable>
-
       <ShareSheet run={run} segments={segments} visible={sharing} onClose={() => setSharing(false)} />
     </ScrollView>
   );
@@ -116,17 +117,5 @@ const styles = StyleSheet.create({
   splitPace: { color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
   share: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m, borderRadius: 999 },
   shareText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  export: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    paddingVertical: space.m,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: color.ink,
-    backgroundColor: color.card,
-  },
-  exportText: { fontSize: 16, fontWeight: '700', color: color.ink },
-  delete: { alignSelf: 'center', padding: space.m },
-  deleteText: { color: color.accent },
   empty: { padding: space.l, color: color.sub },
 });
