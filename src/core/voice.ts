@@ -35,30 +35,38 @@ export function parseVoiceSettings(raw: { enabled?: string | null; intervalMin?:
   };
 }
 
+/** 한 번에 예약하는 시간 안내 범위(이동 시간). 이보다 오래 달리면 이후는 말하지 않는다 */
+export const SCHEDULE_HORIZON_MS = 12 * 60 * 60_000;
+
+export interface TimedCue {
+  /** 이동 시간(ms, 일시정지 제외) */
+  atMs: number;
+  cue: VoiceCue;
+}
+
 /**
- * (prevMs, nowMs] 사이에 지난 시간 안내 중 **말할 것 하나**. 없으면 null.
- * - 목표 안내(절반·5분 전·달성)와 같은 시각의 "N분 지났어요"는 목표 안내만 한다(둘 다 말하지 않음).
- * - GPS가 끊겼다가 한꺼번에 여러 시점을 지나면, 목표 안내가 있으면 그중 마지막, 없으면 마지막 시간 안내만 한다.
- * 일시정지 시간은 이동 시간에 들어가지 않으므로 "움직인 시간" 기준이다.
+ * fromMs 이후(이동 시간)에 말할 시간 안내 목록(시각순). GPS와 상관없이 시간만으로 정해진다.
+ * - 목표 안내(절반·5분 전·달성)와 같은 시각의 "N분 지났어요"는 빼고 목표 안내만 한다(둘 다 말하지 않음).
+ * - 0분에는 말하지 않는다(시작 안내가 따로 있다).
+ * 달리는 동안 이 목록을 벽시계 시각으로 바꿔 예약하고, 일시정지하면 취소, 재개하면 다시 만든다.
  */
-export function timeCueBetween(
+export function upcomingTimeCues(
   goalMin: number | null,
   intervalMin: VoiceInterval,
-  prevMs: number,
-  nowMs: number,
-): VoiceCue | null {
-  if (nowMs <= prevMs) return null;
-  const inWindow = (at: number) => prevMs < at && at <= nowMs;
-
-  const goals = goalMin == null ? [] : goalCuePoints(goalMin);
-  const goal = goals.filter(([, at]) => inWindow(at)).at(-1);
-  if (goal) return { type: 'goal', cue: goal[0] };
-
-  if (intervalMin === 0) return null;
-  const step = intervalMin * 60_000;
-  const lastStep = Math.floor(nowMs / step) * step;
-  if (lastStep <= 0 || !inWindow(lastStep)) return null;
-  return { type: 'elapsed', min: lastStep / 60_000 };
+  fromMs: number,
+  horizonMs = SCHEDULE_HORIZON_MS,
+): TimedCue[] {
+  const byTime = new Map<number, VoiceCue>();
+  if (intervalMin > 0) {
+    const step = intervalMin * 60_000;
+    for (let at = step; at <= horizonMs; at += step) byTime.set(at, { type: 'elapsed', min: at / 60_000 });
+  }
+  // 목표 안내가 같은 시각의 간격 안내를 덮어쓴다
+  if (goalMin != null) for (const [cue, at] of goalCuePoints(goalMin)) byTime.set(at, { type: 'goal', cue });
+  return [...byTime]
+    .filter(([at]) => at > fromMs && at <= horizonMs)
+    .sort(([a], [b]) => a - b)
+    .map(([atMs, cue]) => ({ atMs, cue }));
 }
 
 /** 65 → "1시간 5분", 60 → "1시간", 25 → "25분" */

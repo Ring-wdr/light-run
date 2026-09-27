@@ -1,23 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Course } from '../src/core/course';
-import { cueText, parseVoiceSettings, spokenMinutes, timeCueBetween, type VoiceCue } from '../src/core/voice';
+import { cueText, parseVoiceSettings, spokenMinutes, upcomingTimeCues, type TimedCue } from '../src/core/voice';
 
 const MIN = 60_000;
 const run30: Course = { activity: 'run', goalMin: 30 };
 
-/** 1초마다 확인한다고 치고 [from, to] 분 사이에 말하는 안내를 모은다 */
-function spokenBetween(goalMin: number | null, interval: 0 | 5 | 10, fromMin: number, toMin: number) {
-  const out: [number, VoiceCue][] = [];
-  for (let t = fromMin * MIN; t < toMin * MIN; t += 1000) {
-    const cue = timeCueBetween(goalMin, interval, t, t + 1000);
-    if (cue) out.push([(t + 1000) / MIN, cue]);
-  }
-  return out;
-}
+const times = (cues: TimedCue[]) => cues.map((c) => [c.atMs / MIN, c.cue]);
 
-describe('timeCueBetween', () => {
-  it('자유 코스 5분 간격: 5분마다 한 번씩', () => {
-    expect(spokenBetween(null, 5, 0, 21)).toEqual([
+describe('upcomingTimeCues', () => {
+  it('자유 코스 5분 간격: 5분마다', () => {
+    expect(times(upcomingTimeCues(null, 5, 0, 21 * MIN))).toEqual([
       [5, { type: 'elapsed', min: 5 }],
       [10, { type: 'elapsed', min: 10 }],
       [15, { type: 'elapsed', min: 15 }],
@@ -26,7 +18,7 @@ describe('timeCueBetween', () => {
   });
 
   it('30분 코스: 목표 안내와 겹치는 15·25·30분은 목표 안내만 한다', () => {
-    expect(spokenBetween(30, 5, 0, 36)).toEqual([
+    expect(times(upcomingTimeCues(30, 5, 0, 36 * MIN))).toEqual([
       [5, { type: 'elapsed', min: 5 }],
       [10, { type: 'elapsed', min: 10 }],
       [15, { type: 'goal', cue: 'half' }],
@@ -37,40 +29,32 @@ describe('timeCueBetween', () => {
     ]);
   });
 
-  it('50분 코스: 45분(5분 전)에 "45분 지났어요"를 따로 말하지 않는다', () => {
-    const at45 = spokenBetween(50, 5, 44, 46);
-    expect(at45).toEqual([[45, { type: 'goal', cue: 'last5' }]]);
+  it('50분 코스: 45분엔 "5분 남았어요"만, 같은 시각 안내는 하나뿐', () => {
+    const cues = upcomingTimeCues(50, 5, 0, 60 * MIN);
+    expect(cues.filter((c) => c.atMs === 45 * MIN)).toEqual([{ atMs: 45 * MIN, cue: { type: 'goal', cue: 'last5' } }]);
+    expect(new Set(cues.map((c) => c.atMs)).size).toBe(cues.length);
   });
 
   it('간격 끔: 목표 안내만', () => {
-    expect(spokenBetween(30, 0, 0, 31).map(([m]) => m)).toEqual([15, 25, 30]);
-    expect(spokenBetween(null, 0, 0, 60)).toEqual([]);
+    expect(times(upcomingTimeCues(30, 0, 0, 60 * MIN)).map(([m]) => m)).toEqual([15, 25, 30]);
+    expect(upcomingTimeCues(null, 0, 0, 60 * MIN)).toEqual([]);
   });
 
   it('10분 간격', () => {
-    expect(spokenBetween(null, 10, 0, 31).map(([m]) => m)).toEqual([10, 20, 30]);
+    expect(times(upcomingTimeCues(null, 10, 0, 31 * MIN)).map(([m]) => m)).toEqual([10, 20, 30]);
   });
 
-  it('같은 시점을 두 번 말하지 않는다(경계는 (prev, now])', () => {
-    expect(timeCueBetween(30, 5, 15 * MIN, 16 * MIN)).toBeNull();
-    expect(timeCueBetween(null, 5, 10 * MIN, 11 * MIN)).toBeNull();
+  it('재개·이어가기: 이미 지난 시각(같은 시각 포함)은 다시 말하지 않는다', () => {
+    expect(times(upcomingTimeCues(30, 5, 15 * MIN, 31 * MIN)).map(([m]) => m)).toEqual([20, 25, 30]);
+    expect(times(upcomingTimeCues(30, 5, 16.5 * MIN, 31 * MIN)).map(([m]) => m)).toEqual([20, 25, 30]);
   });
 
-  it('GPS가 오래 끊겼다가 오면 한 번만 말한다: 목표 안내가 있으면 그중 마지막', () => {
-    expect(timeCueBetween(50, 5, 20 * MIN, 51 * MIN)).toEqual({ type: 'goal', cue: 'done' });
-    expect(timeCueBetween(50, 5, 20 * MIN, 40 * MIN)).toEqual({ type: 'goal', cue: 'half' });
+  it('0분에는 말하지 않는다', () => {
+    expect(upcomingTimeCues(null, 5, 0, 60 * MIN)[0]!.atMs).toBe(5 * MIN);
   });
 
-  it('목표 안내가 없으면 마지막 시간 안내만', () => {
-    expect(timeCueBetween(null, 5, 3 * MIN, 17 * MIN)).toEqual({ type: 'elapsed', min: 15 });
-  });
-
-  it('시간이 거꾸로 가면(복원 직후 등) 아무것도 안 한다', () => {
-    expect(timeCueBetween(30, 5, 20 * MIN, 10 * MIN)).toBeNull();
-  });
-
-  it('시작 직후 0분에는 말하지 않는다', () => {
-    expect(timeCueBetween(null, 5, 0, 1000)).toBeNull();
+  it('기본 범위는 12시간', () => {
+    expect(upcomingTimeCues(null, 5, 0).at(-1)!.atMs).toBe(12 * 60 * MIN);
   });
 });
 
