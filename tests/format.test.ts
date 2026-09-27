@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDuration, formatKm, formatPace, paceSecPerKm, splitCue } from '../src/core/pace';
-import { parseGpx, toGpx } from '../src/core/gpx';
+import { firstPointTime, gpxDocument, gpxTrack, parseGpx, toGpx } from '../src/core/gpx';
 import { straightTrack } from './helpers';
 
 describe('포맷', () => {
@@ -75,5 +75,17 @@ describe('GPX', () => {
     const pts = parseGpx(xml);
     expect(pts).toHaveLength(1);
     expect(pts[0]).toMatchObject({ lat: 37.5, lon: 127, altitude: 12, accuracy: 10 });
+  });
+
+  it('트랙을 하나씩 만들어 감싸도(진행률 표시용) toGpx와 같다', () => {
+    const tracks = [
+      { name: '빈 기록', segments: [[]] },
+      { name: 'A', type: 'running' as const, segments: [seg(T)] },
+      { name: 'B', type: 'walking' as const, segments: [[], seg(T + 3_600_000)] },
+    ];
+    expect(gpxTrack(tracks[0]!)).toBeNull();
+    const trks = tracks.map(gpxTrack).filter((x): x is string => x != null);
+    expect(gpxDocument(trks, firstPointTime(tracks[1]!))).toBe(toGpx(tracks));
+    expect(firstPointTime(tracks[2]!)).toBe(T + 3_600_000);
   });
 });

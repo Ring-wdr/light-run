@@ -52,25 +52,41 @@ function trkpt(p: Sample): string {
   return `      <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}">${ele}<time>${new Date(p.t).toISOString()}</time>${hdop}</trkpt>`;
 }
 
-/** GPX 1.1 문서. 트랙 여러 개(전체 백업)도 한 파일에 담는다. 점이 없는 구간·트랙은 뺀다 */
-export function toGpx(tracks: GpxTrack | GpxTrack[]): string {
-  const list = (Array.isArray(tracks) ? tracks : [tracks])
-    .map((t) => ({ ...t, segments: t.segments.filter((seg) => seg.length > 0) }))
-    .filter((t) => t.segments.length > 0);
-  const first = list[0]?.segments[0]?.[0];
-  const body = list
-    .map((t) => {
-      const segs = t.segments
-        .map((seg) => `    <trkseg>\n${seg.map(trkpt).join('\n')}\n    </trkseg>`)
-        .join('\n');
-      const type = t.type ? `\n    <type>${t.type}</type>` : '';
-      return `  <trk>\n    <name>${esc(t.name)}</name>${type}\n${segs}\n  </trk>`;
-    })
-    .join('\n');
-  const meta = first ? `\n  <metadata><time>${new Date(first.t).toISOString()}</time></metadata>` : '';
+/** <trk> 하나. 점이 없는 구간은 빼고, 남는 구간이 없으면 null */
+export function gpxTrack(t: GpxTrack): string | null {
+  const segments = t.segments.filter((seg) => seg.length > 0);
+  if (segments.length === 0) return null;
+  const segs = segments.map((seg) => `    <trkseg>\n${seg.map(trkpt).join('\n')}\n    </trkseg>`).join('\n');
+  const type = t.type ? `\n    <type>${t.type}</type>` : '';
+  return `  <trk>\n    <name>${esc(t.name)}</name>${type}\n${segs}\n  </trk>`;
+}
+
+/** gpxTrack 결과들을 GPX 1.1 문서로 감싼다. firstT는 <metadata><time>(첫 점 시각) */
+export function gpxDocument(trks: string[], firstT?: number): string {
+  const meta = firstT != null ? `\n  <metadata><time>${new Date(firstT).toISOString()}</time></metadata>` : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="light-run" xmlns="http://www.topografix.com/GPX/1/1">${meta}
-${body}
+${trks.join('\n')}
 </gpx>
 `;
+}
+
+/** 첫 점 시각(메타데이터용) */
+export const firstPointTime = (t: GpxTrack) => t.segments.find((seg) => seg.length > 0)?.[0]?.t;
+
+/**
+ * GPX 1.1 문서. 트랙 여러 개(전체 백업)도 한 파일에 담는다. 점이 없는 구간·트랙은 뺀다.
+ * 기록이 많아 오래 걸릴 때는 services/export.ts처럼 gpxTrack을 하나씩 부르고 사이사이 화면에 양보한다.
+ */
+export function toGpx(tracks: GpxTrack | GpxTrack[]): string {
+  const list = Array.isArray(tracks) ? tracks : [tracks];
+  const trks: string[] = [];
+  let firstT: number | undefined;
+  for (const t of list) {
+    const trk = gpxTrack(t);
+    if (!trk) continue;
+    trks.push(trk);
+    firstT ??= firstPointTime(t);
+  }
+  return gpxDocument(trks, firstT);
 }

@@ -16,8 +16,9 @@ import {
   type YearMonth,
 } from '../../core/calendar';
 import { formatDuration, formatKm } from '../../core/pace';
-import { exportAllGpx } from '../../services/export';
+import { prepareAllGpx, shareGpx } from '../../services/export';
 import { listRunDates, listRunsBetween, type RunRow } from '../../services/storage';
+import { BusyOverlay } from '../../ui/BusyOverlay';
 import { MonthPicker } from '../../ui/MonthPicker';
 import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
@@ -31,12 +32,17 @@ export default function History() {
   const [day, setDay] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const onBackup = async () => {
     setExporting(true);
+    setProgress(0);
     try {
-      const n = await exportAllGpx();
-      if (n === 0) Alert.alert('내보낼 기록이 없어요');
+      const file = await prepareAllGpx(setProgress);
+      // 공유 시트는 사용자가 닫을 때까지 기다리므로 로딩 표시는 파일이 만들어지면 바로 내린다
+      setExporting(false);
+      if (file) await shareGpx(file);
+      else Alert.alert('내보낼 기록이 없어요');
     } catch (e) {
       Alert.alert('백업하지 못했어요', e instanceof Error ? e.message : String(e));
     } finally {
@@ -68,7 +74,7 @@ export default function History() {
   };
 
   return (
-    <>
+    <View style={styles.screen}>
       <FlatList
         contentContainerStyle={styles.wrap}
         data={shown}
@@ -115,7 +121,7 @@ export default function History() {
 
             {/* 전체 기록을 한 파일로(다른 폰·빌드로 옮길 때) */}
             <Pressable onPress={onBackup} disabled={exporting} style={styles.backup} accessibilityRole="button">
-              <Text style={styles.backupText}>{exporting ? '백업 파일 만드는 중…' : '전체 기록 백업 (GPX)'}</Text>
+              <Text style={styles.backupText}>전체 기록 백업 (GPX)</Text>
             </Pressable>
           </View>
         }
@@ -135,11 +141,13 @@ export default function History() {
         onClose={() => setPicking(false)}
         tint={color.ink}
       />
-    </>
+      <BusyOverlay visible={exporting} label="백업 파일 만드는 중" progress={progress} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   wrap: { paddingHorizontal: space.l },
   header: { paddingVertical: space.m, gap: space.s },
   summary: {

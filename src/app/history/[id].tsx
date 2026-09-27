@@ -4,8 +4,10 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { courseLabel, goalProgress } from '../../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
 import { routeSegments } from '../../core/track';
-import { exportRunGpx } from '../../services/export';
+import { prepareRunGpx, shareGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
+import { BusyOverlay } from '../../ui/BusyOverlay';
+import { MoreMenu } from '../../ui/MoreMenu';
 import { RouteMap } from '../../ui/RouteMap';
 import { ShareSheet } from '../../ui/ShareSheet';
 import { Stat } from '../../ui/Stat';
@@ -18,6 +20,7 @@ export default function RunDetail() {
   // 저장된 원본 이벤트를 다시 재생해 거리 계산과 같은 경로를 얻는다
   const segments = useMemo(() => routeSegments(loadEvents(runId)), [runId]);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const [sharing, setSharing] = useState(false);
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
@@ -25,8 +28,13 @@ export default function RunDetail() {
 
   const onExport = async () => {
     setExporting(true);
+    setExportProgress(0);
     try {
-      if (!(await exportRunGpx(run.id))) Alert.alert('내보낼 GPS 기록이 없어요');
+      const file = await prepareRunGpx(run.id, setExportProgress);
+      // 공유 시트는 사용자가 닫을 때까지 기다리므로 로딩 표시는 파일이 만들어지면 바로 내린다
+      setExporting(false);
+      if (file) await shareGpx(file);
+      else Alert.alert('내보낼 GPS 기록이 없어요');
     } catch (e) {
       Alert.alert('내보내지 못했어요', e instanceof Error ? e.message : String(e));
     } finally {
@@ -48,59 +56,72 @@ export default function RunDetail() {
     ]);
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <Stack.Screen options={{ title: courseLabel(run) }} />
-      {goal && (
-        <Text style={[styles.goal, { color: goal.done ? activityColor[run.activity] : color.sub }]}>
-          {goal.done ? `${run.goalMin}분 목표 달성` : `${run.goalMin}분 목표의 ${Math.round(goal.ratio * 100)}%`}
-        </Text>
-      )}
-      <RouteMap segments={segments} tint={activityColor[run.activity]} />
-      <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
-      <View style={styles.row}>
-        <Stat label="시간" value={formatDuration(run.movingMs)} />
-        <Stat label="평균 페이스" value={formatPace(paceSecPerKm(run.distanceM, run.movingMs))} />
-      </View>
-
-      {run.splits.length > 0 && (
-        <View>
-          <Text style={styles.h2}>구간</Text>
-          {run.splits.map((s) => (
-            <View key={s.km} style={styles.split}>
-              <Text style={styles.splitKm}>{s.km} km</Text>
-              <Text style={styles.splitPace}>{formatPace(s.durationMs / 1000)}</Text>
-            </View>
-          ))}
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.wrap}>
+        <Stack.Screen
+          options={{
+            title: courseLabel(run),
+            // 자주 안 쓰는 동작은 헤더 ··· 메뉴로
+            headerRight: () => (
+              <MoreMenu
+                items={[
+                  { label: 'GPX 내보내기', onPress: onExport, disabled: exporting },
+                  { label: '기록 삭제', onPress: onDelete, destructive: true },
+                ]}
+              />
+            ),
+          }}
+        />
+        {goal && (
+          <Text style={[styles.goal, { color: goal.done ? activityColor[run.activity] : color.sub }]}>
+            {goal.done ? `${run.goalMin}분 목표 달성` : `${run.goalMin}분 목표의 ${Math.round(goal.ratio * 100)}%`}
+          </Text>
+        )}
+        <RouteMap segments={segments} tint={activityColor[run.activity]} />
+        <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
+        <View style={styles.row}>
+          <Stat label="시간" value={formatDuration(run.movingMs)} />
+          <Stat label="평균 페이스" value={formatPace(paceSecPerKm(run.distanceM, run.movingMs))} />
         </View>
-      )}
 
-      <Pressable
-        onPress={() => setSharing(true)}
-        style={({ pressed }) => [styles.share, { backgroundColor: activityColor[run.activity] }, pressed && { opacity: 0.6 }]}
-        accessibilityRole="button"
-      >
-        <Text style={styles.shareText}>공유하기</Text>
-      </Pressable>
+        {run.splits.length > 0 && (
+          <View>
+            <Text style={styles.h2}>구간</Text>
+            {run.splits.map((s) => (
+              <View key={s.km} style={styles.split}>
+                <Text style={styles.splitKm}>{s.km} km</Text>
+                <Text style={styles.splitPace}>{formatPace(s.durationMs / 1000)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-      <Pressable
-        onPress={onExport}
-        disabled={exporting}
-        style={({ pressed }) => [styles.export, (pressed || exporting) && { opacity: 0.6 }]}
-        accessibilityRole="button"
-      >
-        <Text style={styles.exportText}>{exporting ? '내보내는 중…' : 'GPX 내보내기'}</Text>
-      </Pressable>
+        <Pressable
+          onPress={() => setSharing(true)}
+          style={({ pressed }) => [
+            styles.share,
+            { backgroundColor: activityColor[run.activity] },
+            pressed && { opacity: 0.6 },
+          ]}
+          accessibilityRole="button"
+        >
+          <Text style={styles.shareText}>공유하기</Text>
+        </Pressable>
 
-      <Pressable onPress={onDelete} style={styles.delete} accessibilityRole="button">
-        <Text style={styles.deleteText}>기록 삭제</Text>
-      </Pressable>
-
-      <ShareSheet run={run} segments={segments} visible={sharing} onClose={() => setSharing(false)} />
-    </ScrollView>
+        <ShareSheet run={run} segments={segments} visible={sharing} onClose={() => setSharing(false)} />
+      </ScrollView>
+      <BusyOverlay
+        visible={exporting}
+        label="GPX 파일 만드는 중"
+        progress={exportProgress}
+        tint={activityColor[run.activity]}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   wrap: { padding: space.l, gap: space.l },
   row: { flexDirection: 'row' },
   goal: { textAlign: 'center', fontSize: 16, fontWeight: '700' },
@@ -116,17 +137,5 @@ const styles = StyleSheet.create({
   splitPace: { color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
   share: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m, borderRadius: 999 },
   shareText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  export: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    paddingVertical: space.m,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: color.ink,
-    backgroundColor: color.card,
-  },
-  exportText: { fontSize: 16, fontWeight: '700', color: color.ink },
-  delete: { alignSelf: 'center', padding: space.m },
-  deleteText: { color: color.accent },
   empty: { padding: space.l, color: color.sub },
 });
