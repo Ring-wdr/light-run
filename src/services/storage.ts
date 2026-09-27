@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import type { DatedRun } from '../core/calendar';
 import type { Activity, Course } from '../core/course';
+import { parseBlocks, sortCourses, toBlocks, type CourseSnapshot, type Draft, type MyCourse } from '../core/my-course';
 import { runEvents, type ImportedRun, type RunSource, type RunSummary } from '../core/record';
 import type { RunEvent } from '../core/session';
 import type { RunMark, Sample, Split } from '../core/types';
@@ -45,6 +46,17 @@ const MIGRATIONS: string[] = [
      key TEXT PRIMARY KEY NOT NULL,
      value TEXT NOT NULL
    ) WITHOUT ROWID;`,
+  // 4: 내 코스. 기록에는 코스 id와 시작할 때의 사본(course_json)을 같이 둔다(코스를 고치거나 지워도 기록은 그대로)
+  `CREATE TABLE courses (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     name TEXT NOT NULL,
+     description TEXT NOT NULL DEFAULT '',
+     blocks_json TEXT NOT NULL,
+     created_at INTEGER NOT NULL,
+     favorited_at INTEGER
+   );
+   ALTER TABLE runs ADD COLUMN course_id INTEGER;
+   ALTER TABLE runs ADD COLUMN course_json TEXT;`,
 ];
 
 /** PRAGMA user_version으로 스키마 버전을 관리한다. 새 변경은 MIGRATIONS 끝에 추가만 할 것 */
@@ -80,6 +92,8 @@ interface RunRecord {
   splits_json: string;
   activity: Activity;
   goal_min: number | null;
+  course_id: number | null;
+  course_json: string | null;
 }
 
 const toRun = (r: RunRecord): RunRow => ({
@@ -92,12 +106,25 @@ const toRun = (r: RunRecord): RunRow => ({
   splits: JSON.parse(r.splits_json) as Split[],
   activity: r.activity,
   goalMin: r.goal_min,
+  custom: toSnapshot(r.course_id, r.course_json),
 });
+
+function toSnapshot(id: number | null, json: string | null): CourseSnapshot | null {
+  if (!json) return null;
+  try {
+    const raw = JSON.parse(json) as { name?: unknown; blocks?: unknown };
+    const blocks = toBlocks(raw.blocks);
+    return blocks.length > 0 ? { id, name: String(raw.name ?? '내 코스'), blocks } : null;
+  } catch {
+    return null;
+  }
+}
 
 export function createRun(startedAt: number, course: Course): number {
   const r = db.runSync(
-    "INSERT INTO runs (started_at, status, activity, goal_min) VALUES (?, 'active', ?, ?)",
-    startedAt, course.activity, course.goalMin,
+    "INSERT INTO runs (started_at, status, activity, goal_min, course_id, course_json) VALUES (?, 'active', ?, ?, ?, ?)",
+    startedAt, course.activity, course.goalMin, course.custom?.id ?? null,
+    course.custom ? JSON.stringify({ name: course.custom.name, blocks: course.custom.blocks }) : null,
   );
   return r.lastInsertRowId;
 }
@@ -227,4 +254,57 @@ export function getPref(key: string): string | null {
 
 export function setPref(key: string, value: string): void {
   db.runSync('INSERT OR REPLACE INTO prefs (key, value) VALUES (?, ?)', key, value);
+}
+
+// ── 내 코스 ──────────────────────────────────────────
+
+interface CourseRecord {
+  id: number;
+  name: string;
+  description: string;
+  blocks_json: string;
+  created_at: number;
+  favorited_at: number | null;
+}
+
+const toCourse = (r: CourseRecord): MyCourse => ({
+  id: r.id,
+  name: r.name,
+  description: r.description,
+  blocks: parseBlocks(r.blocks_json),
+  createdAt: r.created_at,
+  favoritedAt: r.favorited_at,
+});
+
+/** 홈·목록 순서(즐겨찾기 먼저, 그다음 오래된 순) */
+export function listCourses(): MyCourse[] {
+  return sortCourses(db.getAllSync<CourseRecord>('SELECT * FROM courses').map(toCourse));
+}
+
+export function getCourse(id: number): MyCourse | null {
+  const r = db.getFirstSync<CourseRecord>('SELECT * FROM courses WHERE id = ?', id);
+  return r ? toCourse(r) : null;
+}
+
+export function createCourse(d: Draft, now = Date.now()): number {
+  return db.runSync(
+    'INSERT INTO courses (name, description, blocks_json, created_at) VALUES (?, ?, ?, ?)',
+    d.name.trim(), d.description.trim(), JSON.stringify(d.blocks), now,
+  ).lastInsertRowId;
+}
+
+export function updateCourse(id: number, d: Draft): void {
+  db.runSync(
+    'UPDATE courses SET name = ?, description = ?, blocks_json = ? WHERE id = ?',
+    d.name.trim(), d.description.trim(), JSON.stringify(d.blocks), id,
+  );
+}
+
+export function setCourseFavorite(id: number, on: boolean, now = Date.now()): void {
+  db.runSync('UPDATE courses SET favorited_at = ? WHERE id = ?', on ? now : null, id);
+}
+
+/** 지난 기록은 course_json 사본을 가지고 있어서 그대로 남는다 */
+export function deleteCourse(id: number): void {
+  db.runSync('DELETE FROM courses WHERE id = ?', id);
 }
