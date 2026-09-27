@@ -10,6 +10,8 @@
 - **비밀값(`GOOGLE_MAPS_API_KEY` 등)을 코드·app.json·커밋에 넣지 말 것.** `app.config.ts`가 환경 변수에서 읽는다(EAS env / 로컬 `.env`).
 - `android/`, `ios/`는 생성물(CNG)이다. 커밋하지 말고 직접 고치지 말 것. 네이티브 설정은 `app.json` 플러그인으로.
   `npx expo run:android`는 `android/`가 이미 있으면 prebuild를 다시 하지 않는다. 아이콘·app.json·플러그인을 바꿨으면 `npm run prebuild:android`(또는 `android:release`)로 다시 만든다.
+- **앱 변형(`APP_VARIANT`)**: 없으면 개발용(`com.ringwdr.lightrun.dev`, 디버그 키 서명), `eas.json`의 preview·production만 공유용(`com.ringwdr.lightrun`, EAS 키 서명).
+  서명이 다른 두 앱이 같은 패키지를 쓰면 덮어 설치가 안 되고 지우면 기록이 사라진다. 이 분리를 없애거나 로컬 빌드에 production을 넣지 말 것(README "앱 두 개").
 
 ## 명령
 ```bash
@@ -18,7 +20,9 @@ npm test               # Vitest (src/core)
 npm run report:filter  # GPS 필터 오차표(튜닝할 때)
 npx expo export --platform android --output-dir /tmp/export  # JS 번들 확인(CI와 같음)
 npx expo start         # 개발 서버(폰에 development build 필요)
-npm run android:release  # android/를 새로 만든 뒤(prebuild --clean) 릴리스 APK를 폰에 설치
+npm run android          # 개발용 앱(debug)을 폰에 설치. 이후 npx expo start
+npm run android:release  # android/를 새로 만든 뒤(prebuild --clean) 개발용 앱의 릴리스 APK를 폰에 설치
+npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 서명). 사용자가 직접 실행
 ```
 
 ## 경계 규칙
