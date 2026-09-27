@@ -1,4 +1,5 @@
 import type { Course } from './course';
+import { FILTER, type FilterOptions } from './filter';
 import type { ParsedTrack } from './gpx';
 import { elapsedMs, replay, type RunEvent } from './session';
 import type { RunMark, Sample, Split } from './types';
@@ -44,8 +45,8 @@ export interface RunSummary {
   splits: Split[];
 }
 
-export function summarize(src: RunSource & { endedAt: number }): RunSummary {
-  const s = replay(runEvents(src));
+export function summarize(src: RunSource & { endedAt: number }, filter: FilterOptions = FILTER): RunSummary {
+  const s = replay(runEvents(src), filter);
   return { distanceM: s.distanceM, movingMs: elapsedMs(s, src.endedAt), splits: s.splits };
 }
 
