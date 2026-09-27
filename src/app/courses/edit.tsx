@@ -5,7 +5,9 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   addStep,
+  afterCreate,
   blockSec,
+  courseActivity,
   canMove,
   duplicateAt,
   formatStepSec,
@@ -27,9 +29,10 @@ import {
   type DraftErrors,
   type Step,
 } from '../../core/my-course';
-import { createCourse, getCourse, updateCourse } from '../../services/storage';
+import { createCourse, getCourse, listCourses, setPref, updateCourse } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
 import { MoreMenu, type MoreMenuItem } from '../../ui/MoreMenu';
+import { startCourse } from '../../ui/start';
 import { StepSheet } from '../../ui/StepSheet';
 import { color, courseTheme, space } from '../../ui/theme';
 
@@ -78,6 +81,7 @@ export default function CourseEdit() {
   };
 
   const onSave = () => {
+    if (leaving.current) return; // 저장 확인 창이 뜨기 전 두 번 눌러 코스가 둘 생기지 않게
     const e = validateDraft(draft);
     setErrors(e);
     if (Object.keys(e).length > 0) return;
@@ -85,10 +89,37 @@ export default function CourseEdit() {
     if (editingId != null) {
       updateCourse(editingId, draft);
       router.back();
-    } else {
-      // 새 코스는 상세로 바로 간다(홈 그리드가 꽉 차 있으면 새 코스가 홈에 안 보이므로)
-      router.replace(`/courses/${createCourse(draft)}`);
+      return;
     }
+    const id = createCourse(draft);
+    const name = draft.name.trim();
+    // 만들자마자 기록이 시작되면 부담스럽다. 시작할지 묻고, 아니면 내 코스 보기로 돌아간다
+    const goBackToCourses = () => {
+      if (afterCreate(listCourses().length) === 'list') {
+        // 목록이 스택에 없으면(홈 "새 코스"에서 옴) 이 화면을 목록으로 바꾼다
+        router.dismissTo('/courses');
+      } else {
+        setPref('home.tab', 'mine');
+        router.dismissTo('/');
+      }
+    };
+    Alert.alert(
+      '코스를 저장했어요',
+      `"${name}" 코스를 바로 시작할까요?`,
+      [
+        { text: '나중에', style: 'cancel', onPress: goBackToCourses },
+        {
+          text: '바로 시작',
+          onPress: () => {
+            // 먼저 내 코스 보기로 돌아간 뒤 시작한다. 권한 거부 등으로 못 시작해도 편집 화면에 남지 않는다
+            goBackToCourses();
+            void startCourse({ activity: courseActivity(draft.blocks), goalMin: null, custom: { id, name, blocks: draft.blocks } });
+          },
+        },
+      ],
+      // Android에서 바깥을 눌러 닫아도 저장된 코스로 편집 화면에 남지 않게
+      { cancelable: true, onDismiss: goBackToCourses },
+    );
   };
 
   const sheetStep = sheet?.kind === 'edit' ? getStep(blocks, sheet.at) : null;

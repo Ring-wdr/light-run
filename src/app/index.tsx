@@ -43,6 +43,8 @@ export default function Home() {
     useCallback(() => {
       setRecent(listRuns(3));
       setCourses(listCourses());
+      // 다른 화면(코스 저장 뒤 "나중에")이 탭을 바꿔 두었으면 따른다
+      setTab(savedTab());
     }, []),
   );
 

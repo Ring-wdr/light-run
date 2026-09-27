@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { courseLabel, courseProgress } from '../src/core/course';
 import {
   addStep,
+  afterCreate,
   barWidths,
   canMove,
   courseActivity,
@@ -148,6 +149,15 @@ describe('홈 그리드', () => {
     const slots = homeSlots(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
     expect(slots).toHaveLength(6);
     expect(slots[5]).toEqual({ kind: 'more', hidden: 2 });
+  });
+});
+
+describe('새 코스 저장 뒤 돌아갈 곳', () => {
+  it('5개 미만은 홈 내 코스 탭, 5개 이상은 전체 목록', () => {
+    expect(afterCreate(1)).toBe('home');
+    expect(afterCreate(4)).toBe('home');
+    expect(afterCreate(5)).toBe('list');
+    expect(afterCreate(12)).toBe('list');
   });
 });
 

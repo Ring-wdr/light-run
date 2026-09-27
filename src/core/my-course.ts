@@ -227,6 +227,13 @@ export function homeSlots<T>(sorted: T[]): HomeSlot<T>[] {
   return slots;
 }
 
+/**
+ * 새 코스를 저장하고 "나중에"를 고르면 돌아갈 곳. 5개 이상이면 전체 목록(더보기), 아니면 홈 내 코스 탭.
+ * count는 방금 만든 코스를 포함한 개수
+ */
+export const LIST_FROM = 5;
+export const afterCreate = (count: number): 'list' | 'home' => (count >= LIST_FROM ? 'list' : 'home');
+
 // ── 편집 ──────────────────────────────────────────────
 
 /** 편집할 대상 위치. j가 있으면 i번째 반복 블록 안의 j번째 구간 */
