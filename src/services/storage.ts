@@ -61,14 +61,46 @@ const MIGRATIONS: string[] = [
   `ALTER TABLE runs ADD COLUMN voice_on INTEGER NOT NULL DEFAULT 1;`,
 ];
 
+const hasTable = (name: string): boolean =>
+  db.getFirstSync("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", name) != null;
+
+const hasColumn = (table: string, column: string): boolean =>
+  db.getAllSync<{ name: string }>(`PRAGMA table_info(${table})`).some((c) => c.name === column);
+
+/**
+ * 합치기 전 음성 안내 빌드(PR #7 브랜치)를 설치했던 폰의 DB를 main 스키마로 맞춘다.
+ * 그 빌드의 마이그레이션 3은 `settings(key, value)` 테이블 + `runs.voice_on`이었고, main의 3은 `prefs`, voice_on은 5다.
+ * 그대로 두면 prefs가 없고, 5가 "duplicate column name: voice_on"으로 실패해 앱이 켜자마자 죽는다.
+ * user_version이 3 이상인데 prefs가 없으면 그 DB다(5가 실패하기 전 4까지 올라간 경우 포함).
+ */
+function repairVoiceBranchSchema(version: number): void {
+  if (version < 3 || hasTable('prefs')) return;
+  db.withTransactionSync(() => {
+    db.execSync(MIGRATIONS[2]!);
+    // 음성 설정 값은 그대로 옮긴다. settings 테이블은 지우지 않는다(되돌릴 수 없는 일은 하지 않음)
+    if (hasTable('settings') && hasColumn('settings', 'key') && hasColumn('settings', 'value')) {
+      db.execSync(
+        `INSERT OR IGNORE INTO prefs (key, value)
+         SELECT CAST(key AS TEXT), CAST(value AS TEXT) FROM settings WHERE key IS NOT NULL AND value IS NOT NULL;`,
+      );
+    }
+  });
+}
+
+/** 이미 같은 결과가 DB에 있으면 실행하지 않고 버전만 올린다(합치기 전 빌드가 먼저 만든 열) */
+const ALREADY_APPLIED: Record<number, () => boolean> = {
+  4: () => hasColumn('runs', 'voice_on'),
+};
+
 /** PRAGMA user_version으로 스키마 버전을 관리한다. 새 변경은 MIGRATIONS 끝에 추가만 할 것 */
 export function migrate(): void {
   db.execSync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   const row = db.getFirstSync<{ user_version: number }>('PRAGMA user_version');
   const from = row?.user_version ?? 0;
+  repairVoiceBranchSchema(from);
   for (let v = from; v < MIGRATIONS.length; v++) {
     db.withTransactionSync(() => {
-      db.execSync(MIGRATIONS[v]!);
+      if (!ALREADY_APPLIED[v]?.()) db.execSync(MIGRATIONS[v]!);
       db.execSync(`PRAGMA user_version = ${v + 1}`);
     });
   }
