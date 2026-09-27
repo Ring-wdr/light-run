@@ -1,4 +1,4 @@
-import { Link, Redirect, router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
@@ -90,16 +90,16 @@ export default function Home() {
       <View style={styles.sectionHead}>
         <Text style={styles.h2}>최근 기록</Text>
         {recent.length > 0 && (
-          <Link href="/history" asChild>
-            <Pressable
-              style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}
-              accessibilityRole="button"
-              accessibilityLabel="전체 기록 보기"
-            >
-              <Text style={styles.moreText}>전체 보기</Text>
-              <Chevron dir="right" size={20} color={color.accent} />
-            </Pressable>
-          </Link>
+          // Link asChild로 감싸면 함수형 style이 사라져 글자와 아이콘이 두 줄이 된다
+          <Pressable
+            onPress={() => router.push('/history')}
+            style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityLabel="전체 기록 보기"
+          >
+            <Text style={styles.moreText}>전체 보기</Text>
+            <Chevron dir="right" size={20} color={color.accent} />
+          </Pressable>
         )}
       </View>
       {recent.length === 0 ? (
