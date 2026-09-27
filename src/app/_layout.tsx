@@ -10,6 +10,9 @@ import { color } from '../ui/theme';
 
 migrate();
 
+// 링크로 상세·기록 화면을 바로 열어도 홈이 스택 맨 아래에 있게 해서 뒤로 가기가 홈으로 간다
+export const unstable_settings = { initialRouteName: 'index' };
+
 export default function RootLayout() {
   useEffect(() => {
     restoreActiveRun().catch((e) => console.warn('진행 중 기록 복원 실패', e));

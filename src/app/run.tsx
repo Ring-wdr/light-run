@@ -50,7 +50,10 @@ export default function RunScreen() {
   const onStop = async () => {
     setStopping(true);
     const id = await stopRun();
-    router.replace(id != null ? `/history/${id}` : '/');
+    // 기록 복원으로 들어오면 홈이 이 화면으로 교체돼 스택에 없다. 홈까지 되돌린 뒤(없으면 홈으로 교체)
+    // 상세를 올려서, 상세에서 뒤로 가기·삭제하면 항상 홈으로 간다
+    router.dismissTo('/');
+    if (id != null) router.push(`/history/${id}`);
   };
 
   return (
