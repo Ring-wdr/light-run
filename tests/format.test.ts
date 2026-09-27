@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatKm, formatPace, paceSecPerKm, splitCue } from '../src/core/pace';
+import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../src/core/pace';
 import { firstPointTime, gpxDocument, gpxTrack, parseGpx, toGpx } from '../src/core/gpx';
 import { straightTrack } from './helpers';
 
@@ -23,10 +23,6 @@ describe('포맷', () => {
   it('짧은 거리로는 페이스를 계산하지 않는다', () => {
     expect(paceSecPerKm(10, 5000)).toBeNull();
     expect(paceSecPerKm(1000, 300_000)).toBe(300);
-  });
-  it('음성 안내 문구', () => {
-    expect(splitCue(3, 332_400)).toBe('3킬로미터. 구간 페이스 5분 32초');
-    expect(splitCue(1, 300_000)).toBe('1킬로미터. 구간 페이스 5분');
   });
 });
 

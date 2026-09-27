@@ -39,12 +39,3 @@ export function formatDuration(ms: number): string {
 export function formatKm(distanceM: number): string {
   return (Math.floor(Math.max(0, distanceM) / 10) / 100).toFixed(2);
 }
-
-/** 음성 안내 문구. 예: "1킬로미터. 구간 페이스 5분 32초" */
-export function splitCue(km: number, durationMs: number): string {
-  const total = Math.round(durationMs / 1000);
-  const min = Math.floor(total / 60);
-  const sec = total % 60;
-  const pace = sec === 0 ? `${min}분` : `${min}분 ${sec}초`;
-  return `${km}킬로미터. 구간 페이스 ${pace}`;
-}
