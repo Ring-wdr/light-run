@@ -60,7 +60,9 @@
 - EAS 빌드: `eas env:create --name GOOGLE_MAPS_API_KEY --value <키> --visibility sensitive --environment development --environment preview --environment production`
 - 로컬(`npx expo run:android`): 프로젝트 루트 `.env`에 `GOOGLE_MAPS_API_KEY=<키>` (gitignore됨)
 - iOS 출시 때: iOS 앱(번들 ID `com.ringwdr.lightrun`)으로 제한한 키를 따로 발급해 `GOOGLE_MAPS_IOS_API_KEY`로 등록(없으면 Android 키를 넣지만 Android 앱 제한 때문에 iOS에서는 거부된다)
-- Cloud Console 제한: 애플리케이션 = Android 앱(`com.ringwdr.lightrun` + EAS 서명 SHA-1), API = Maps SDK for Android만. 예산 알림 설정.
+- Cloud Console 제한: 애플리케이션 = Android 앱 두 줄, API = Maps SDK for Android만. 예산 알림 설정.
+  - 공유용: `com.ringwdr.lightrun` + EAS 서명 SHA-1 (`npx eas-cli@latest credentials -p android`의 Default)
+  - 개발용: `com.ringwdr.lightrun.dev` + 로컬 디버그 키 SHA-1 (`cd android; .\gradlew signingReport`, 보통 `5E:8F:16:...:F6:25`)
 - 요금: 모바일 지도 표시(Maps SDK SKU)는 무제한. **스트리트 뷰, 지도 ID(클라우드 스타일)는 쓰지 않는다**(유료 SKU).
 
 ## 2-3. 기록 공유
