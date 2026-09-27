@@ -1,8 +1,9 @@
 import * as SQLite from 'expo-sqlite';
 import type { DatedRun } from '../core/calendar';
 import type { Activity, Course } from '../core/course';
+import { runEvents, type ImportedRun, type RunSource, type RunSummary } from '../core/record';
 import type { RunEvent } from '../core/session';
-import type { Sample, Split } from '../core/types';
+import type { RunMark, Sample, Split } from '../core/types';
 
 /**
  * 기록 중에는 SQLite가 원본이다. 백그라운드 위치 태스크가 받은 점을 바로 여기 쓰고,
@@ -39,6 +40,11 @@ const MIGRATIONS: string[] = [
   // 2: 코스(종목 · 시간 목표). 기존 기록은 달리기 · 자유로 본다
   `ALTER TABLE runs ADD COLUMN activity TEXT NOT NULL DEFAULT 'run';
    ALTER TABLE runs ADD COLUMN goal_min INTEGER;`,
+  // 3: 간단한 설정 값(배터리 안내를 닫았는지 등)
+  `CREATE TABLE prefs (
+     key TEXT PRIMARY KEY NOT NULL,
+     value TEXT NOT NULL
+   ) WITHOUT ROWID;`,
 ];
 
 /** PRAGMA user_version으로 스키마 버전을 관리한다. 새 변경은 MIGRATIONS 끝에 추가만 할 것 */
@@ -110,14 +116,18 @@ export function addMark(runId: number, type: 'pause' | 'resume', at: number): vo
 /** 같은 시각 점이 중복으로 와도(배치 재전송) 한 번만 저장한다 */
 export function appendSamples(runId: number, samples: Sample[]): void {
   if (samples.length === 0) return;
-  db.withTransactionSync(() => {
-    for (const p of samples) {
-      db.runSync(
-        'INSERT OR IGNORE INTO samples (run_id, t, lat, lon, accuracy, altitude, speed) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        runId, p.t, p.lat, p.lon, p.accuracy, p.altitude ?? null, p.speed ?? null,
-      );
-    }
-  });
+  db.withTransactionSync(() => appendSamplesTx(runId, samples));
+}
+
+function appendSamplesTx(runId: number, samples: Sample[]): void {
+  const stmt = db.prepareSync(
+    'INSERT OR IGNORE INTO samples (run_id, t, lat, lon, accuracy, altitude, speed) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  try {
+    for (const p of samples) stmt.executeSync(runId, p.t, p.lat, p.lon, p.accuracy, p.altitude ?? null, p.speed ?? null);
+  } finally {
+    stmt.finalizeSync();
+  }
 }
 
 export function getSamples(runId: number, afterT = -Infinity): Sample[] {
@@ -127,31 +137,21 @@ export function getSamples(runId: number, afterT = -Infinity): Sample[] {
   );
 }
 
+export function getMarks(runId: number): RunMark[] {
+  return db.getAllSync<RunMark>('SELECT at, type FROM run_marks WHERE run_id = ? ORDER BY at, rowid', runId);
+}
+
+/** 저장된 원본(시작·종료·일시정지·GPS 점) */
+export function loadSource(runId: number): RunSource | null {
+  const run = db.getFirstSync<RunRecord>('SELECT * FROM runs WHERE id = ?', runId);
+  if (!run) return null;
+  return { startedAt: run.started_at, endedAt: run.ended_at, marks: getMarks(runId), samples: getSamples(runId) };
+}
+
 /** 저장된 원본으로 core 리듀서에 넣을 이벤트 열을 만든다(시각순) */
 export function loadEvents(runId: number): RunEvent[] {
-  const run = db.getFirstSync<RunRecord>('SELECT * FROM runs WHERE id = ?', runId);
-  if (!run) return [];
-  const marks = db.getAllSync<{ at: number; type: 'pause' | 'resume' }>(
-    'SELECT at, type FROM run_marks WHERE run_id = ? ORDER BY at, rowid',
-    runId,
-  );
-  const samples = getSamples(runId);
-
-  const events: RunEvent[] = [{ type: 'start', at: run.started_at }];
-  let i = 0;
-  const flushUntil = (t: number) => {
-    const batch: Sample[] = [];
-    while (i < samples.length && samples[i]!.t <= t) batch.push(samples[i++]!);
-    if (batch.length) events.push({ type: 'samples', samples: batch });
-  };
-  for (const m of marks) {
-    flushUntil(m.at);
-    events.push({ type: m.type, at: m.at });
-  }
-  // 종료 뒤에 늦게 도착한 점(백그라운드 배치 지연)은 기록에 넣지 않는다
-  flushUntil(run.ended_at ?? Infinity);
-  if (run.ended_at != null) events.push({ type: 'stop', at: run.ended_at });
-  return events;
+  const src = loadSource(runId);
+  return src ? runEvents(src) : [];
 }
 
 export function finishRun(runId: number, r: { endedAt: number; distanceM: number; movingMs: number; splits: Split[] }): void {
@@ -199,4 +199,32 @@ export function getRun(id: number): RunRow | null {
 
 export function deleteRun(id: number): void {
   db.runSync('DELETE FROM runs WHERE id = ?', id);
+}
+
+/** 같은 시각에 시작한 기록이 이미 있는지(백업을 두 번 불러와도 중복되지 않게) */
+export function hasRunStartedAt(startedAt: number): boolean {
+  return db.getFirstSync('SELECT 1 FROM runs WHERE started_at = ? LIMIT 1', startedAt) != null;
+}
+
+/** 불러온 기록을 끝난 기록으로 한 번에 저장한다(중간에 실패하면 아무것도 남기지 않음) */
+export function insertImportedRun(r: ImportedRun, summary: RunSummary): number {
+  let id = 0;
+  db.withTransactionSync(() => {
+    id = db.runSync(
+      `INSERT INTO runs (started_at, ended_at, status, distance_m, moving_ms, splits_json, activity, goal_min)
+       VALUES (?, ?, 'finished', ?, ?, ?, ?, ?)`,
+      r.startedAt, r.endedAt, summary.distanceM, summary.movingMs, JSON.stringify(summary.splits), r.activity, r.goalMin,
+    ).lastInsertRowId;
+    for (const m of r.marks) addMark(id, m.type, m.at);
+    appendSamplesTx(id, r.samples);
+  });
+  return id;
+}
+
+export function getPref(key: string): string | null {
+  return db.getFirstSync<{ value: string }>('SELECT value FROM prefs WHERE key = ?', key)?.value ?? null;
+}
+
+export function setPref(key: string, value: string): void {
+  db.runSync('INSERT OR REPLACE INTO prefs (key, value) VALUES (?, ?)', key, value);
 }

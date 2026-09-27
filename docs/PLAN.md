@@ -82,6 +82,24 @@
 - 앱이 없으면 "설치되어 있지 않아요" 안내. 앱을 추가하면 `modules/share-target`의 `<queries>`에도 패키지를 넣는다(Android 11+ 설치 확인).
 - 인스타그램 스토리 직접 공유(`com.instagram.share.ADD_TO_STORY`)는 Facebook 앱 ID가 필요해서 하지 않는다.
 
+## 2-4. 백업과 불러오기
+
+서버가 없으니 폰을 바꾸거나 앱을 다시 깔면(서명 키가 다른 빌드 포함) 기록이 사라진다. 그래서 GPX 파일로 옮긴다.
+
+- **백업**: 기록 화면 › "전체 기록 백업 (GPX)". 기록마다 `<trk>` 하나, 원본 GPS 점, 일시정지마다 `<trkseg>`.
+  트랙마다 `<extensions><lr:run>`(네임스페이스 `https://github.com/Ring-wdr/light-run/gpx/1`)에 시작·종료·일시정지·재개 시각, 종목, 시간 목표를 넣는다. 다른 앱은 확장을 무시한다.
+- **불러오기**: 기록 화면 › "백업 불러오기"(expo-file-system `File.pickFileAsync`). 거리·구간은 파일 값이 아니라 원본 점을 `replay()`해 다시 계산한다(지금 필터 기준).
+  - 같은 시작 시각의 기록이 있으면 건너뛴다. 같은 파일을 여러 번 불러와도 중복되지 않는다.
+  - 확장이 없는 GPX(다른 앱, 확장 추가 전 백업)는 첫 점 = 시작, 마지막 점 = 종료, `<trkseg>` 사이 = 일시정지, 목표 = 자유로 짐작한다. `<type>`이 walking·hiking이면 걷기.
+- 원본 → 이벤트 열 변환(`core/record.ts`의 `runEvents`)은 저장된 기록을 읽을 때와 불러올 때 같은 함수를 쓴다.
+
+## 2-5. 배터리 최적화 안내 (Android)
+
+- 홈 상단 카드. `expo-battery`의 `isBatteryOptimizationEnabledAsync()`가 true일 때만, 설정에서 돌아오면 다시 확인한다.
+- "설정 열기"는 앱 정보 화면(`Linking.openSettings`) → 배터리 › 제한 없음. 예외 요청 대화상자(`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`)는 Play 정책상 허용 용도가 좁아서 쓰지 않는다.
+- One UI의 "절전 앱 / 깊은 절전 앱 / 절전 예외 앱" 목록은 앱에서 확인할 수 없어 문구로만 안내한다.
+- "다시 보지 않기"는 `prefs` 테이블(마이그레이션 3)에 저장. iOS·Expo Go에서는 띄우지 않는다.
+
 ## 3. 구조
 
 ```
@@ -95,27 +113,31 @@ src/
     filter.ts    GPS 필터: 정확도 컷 → 튐 제거 → 칼만 스무딩 → 최소 이동
     session.ts   러닝 상태 머신(리듀서) + replay()
     pace.ts      페이스 계산, 표시 포맷, 음성 안내 문구
-    gpx.ts       GPX 읽기/쓰기(트랙 여러 개·구간·종목·정확도→hdop)
+    gpx.ts       GPX 읽기/쓰기(트랙 여러 개·구간·종목·정확도→hdop, 복원용 <lr:run> 확장)
     share.ts     공유 카드용 경로 모양(상자에 맞춘 선분), 공유 요약 문구
     calendar.ts  기록 달력(월 칸, 기록한 날)과 합계(거리·시간·횟수·날 수)
+    record.ts    저장된 원본 → 이벤트 열(runEvents), 요약 재계산, GPX 트랙 → 기록(불러오기)
   services/    플랫폼 연결(expo-*)
     location.ts        백그라운드 위치 태스크, 권한 요청
     storage.ts         SQLite 스키마·마이그레이션·CRUD
     run-controller.ts  이벤트 저장 + 리듀서 호출 + React 구독(useRun)
     voice.ts           구간 음성 안내
     export.ts          GPX 파일 생성 → 공유 시트(expo-file-system, expo-sharing)
+    import.ts          GPX 파일 고르기 → 기록마다 SQLite에 저장(중복 건너뜀)
+    power.ts           배터리 최적화 확인(expo-battery), 앱 정보 화면 열기
     share.ts           기록 카드 캡처(react-native-view-shot) → 앱으로 바로 공유(없으면 공유 시트)
   app/         화면(Expo Router)
     _layout.tsx        태스크 등록, DB 마이그레이션, 진행 중 기록 복원
-    index.tsx          홈: 종목 탭 + 코스 카드(30분·50분·자유) + 최근 기록 3개(제목 옆 "전체 보기")
+    index.tsx          홈: 배터리 안내 카드(Android) + 종목 탭 + 코스 카드(30분·50분·자유) + 최근 기록 3개(제목 옆 "전체 보기")
     run.tsx            기록 중: 거리·시간·평균/현재 페이스, 일시정지, 길게 눌러 종료
-    history/index.tsx  총 거리 요약 + 달력(제목 누르면 연·월 선택, 기록한 날 O) + 고른 달(또는 날)의 기록 목록
+    history/index.tsx  총 거리 요약 + 달력(제목 누르면 연·월 선택, 기록한 날 O) + 고른 달(또는 날)의 기록 목록 + 백업·불러오기
     history/[id].tsx   상세: 경로 지도 + 요약 + 구간표 + 공유, 헤더 ··· 메뉴(GPX 내보내기·기록 삭제)
   ui/          공용 컴포넌트, 색, 공유 카드·공유 시트
 modules/
   share-target/  로컬 Expo 모듈(Android). 공유 시트 없이 특정 앱(카카오톡 등)에 이미지를 바로 보낸다
 tests/         Vitest(core만) + 합성 GPS 트랙 생성기
-tests/report/  튜닝용 리포트(npm run report:filter)
+tests/fixtures/ 실제 GPX + 정답 거리(.json). 있으면 ±3% 테스트와 오차표에 쓰인다(README 참고)
+tests/report/  튜닝용 리포트(npm run report:filter: 합성 트랙 표 + 실제 GPX 표)
 ```
 
 ### 데이터 흐름
@@ -159,6 +181,7 @@ run-controller: RunState = reduce(RunState, RunEvent)  →  화면(useRun)
 
 q를 줄이면 직선은 좋아지지만 모퉁이를 깎아 과소 측정한다. q=3이 둘 사이의 균형점이다.
 **한계:** 합성 트랙 기준이다. 실제 기기(특히 갤럭시의 Fused Location이 이미 스무딩한 값)로 GPX를 모아 `tests/fixtures/`에 넣고 다시 튜닝해야 한다(1단계 작업).
+받을 준비는 되어 있다: GPX + 정답 거리 JSON을 넣으면 `npm test`가 ±3%를 검사하고 `npm run report:filter`가 필터 값별 실제 오차표를 낸다(`tests/fixtures/README.md`).
 
 ## 5. 플랫폼별 주의
 
@@ -166,7 +189,7 @@ q를 줄이면 직선은 좋아지지만 모퉁이를 깎아 과소 측정한다
 |---|---|---|
 | 권한 | 위치(앱 사용 중) → 백그라운드 위치("항상 허용") 순서로 요청 | 같음. "항상 허용"은 나중에 OS가 다시 물어볼 수 있음 |
 | 백그라운드 | 포그라운드 서비스 + 상시 알림(`FOREGROUND_SERVICE_LOCATION`, 매니페스트 확인 완료) | `UIBackgroundModes: location`, `activityType: Fitness` |
-| 함정 | **One UI 절전 모드**(절전 앱·딥 슬립)가 서비스를 죽일 수 있다. 첫 실행 때 배터리 최적화 예외를 안내해야 함(1단계) | 심사 때 백그라운드 위치 사유 설명 필요 |
+| 함정 | **One UI 절전 모드**(절전 앱·딥 슬립)가 서비스를 죽일 수 있다. 홈에서 배터리 최적화 예외를 안내한다(§2-5) | 심사 때 백그라운드 위치 사유 설명 필요 |
 | 빌드 | `eas build -p android --profile preview` → APK를 폰에 바로 설치 | EAS 클라우드 빌드 → TestFlight. Apple Developer 연 99달러 |
 
 Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **development build**(`eas build --profile development`)를 폰에 설치해서 개발한다.
@@ -184,10 +207,11 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 
 ### 1단계: MVP, 갤럭시 실사용
 - [ ] development build를 폰에 설치하고 실제로 달려 보기(30분 이상, 화면 끔)
-- [ ] 실제 GPX 3~5개 수집 → `tests/fixtures/` → 필터 재튜닝
-- [ ] 배터리 최적화 예외 안내 화면(Android)
+- [ ] 실제 GPX 3~5개 수집 → `tests/fixtures/` → 필터 재튜닝 (수집 절차·±3% 테스트·오차표는 준비됨, GPX 대기)
+- [x] 배터리 최적화 예외 안내(Android, 홈 카드)
 - [ ] 음성 안내 on/off, 단위 설정 화면
 - [x] GPX 내보내기: 기록 상세(한 개), 기록 목록(전체 백업 한 파일). 원본 GPS 점, 일시정지마다 `<trkseg>`, 종목 `<type>`
+- [x] 백업 불러오기: 전체 백업 GPX → 기록 복원(중복 건너뜀, 다른 앱 GPX도)
 - [ ] 앱 아이콘·스플래시
 
 ### 2단계: 쓸 만하게

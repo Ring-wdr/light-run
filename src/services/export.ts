@@ -2,8 +2,9 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { courseLabel } from '../core/course';
 import { firstPointTime, gpxDocument, gpxTrack, type GpxTrack } from '../core/gpx';
+import { runEvents } from '../core/record';
 import { rawSegments } from '../core/track';
-import { getRun, listRuns, loadEvents, type RunRow } from './storage';
+import { getRun, listRuns, loadSource, type RunRow } from './storage';
 
 /**
  * GPX 내보내기. 앱 캐시에 파일을 쓰고 공유 시트(드라이브·메일·메신저·다른 러닝 앱)로 넘긴다.
@@ -33,11 +34,17 @@ export interface GpxFile {
 /** 트랙 사이에 한 번씩 JS 스레드를 넘겨 로딩 표시·진행률이 그려지게 한다 */
 const yieldToUi = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+/** 원본 GPS 점 + 백업 복원용 확장(<lr:run>: 시작·종료·일시정지 시각, 종목, 목표) */
 function trackOf(run: RunRow): GpxTrack {
+  const src = loadSource(run.id);
   return {
     name: `${courseLabel(run)} ${dateLabel(run.startedAt)}`,
     type: run.activity === 'walk' ? 'walking' : 'running',
-    segments: rawSegments(loadEvents(run.id)),
+    segments: src ? rawSegments(runEvents(src)) : [],
+    meta:
+      src && run.endedAt != null
+        ? { startedAt: run.startedAt, endedAt: run.endedAt, activity: run.activity, goalMin: run.goalMin, marks: src.marks }
+        : undefined,
   };
 }
 

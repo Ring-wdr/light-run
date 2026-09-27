@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { courseLabel, goalProgress } from '../../core/course';
@@ -9,6 +9,7 @@ import { deleteRun, getRun, loadEvents } from '../../services/storage';
 import { BusyOverlay } from '../../ui/BusyOverlay';
 import { MoreMenu } from '../../ui/MoreMenu';
 import { RouteMap } from '../../ui/RouteMap';
+import { goBackOrHome } from '../../ui/navigation';
 import { ShareSheet } from '../../ui/ShareSheet';
 import { Stat } from '../../ui/Stat';
 import { activityColor, color, space } from '../../ui/theme';
@@ -50,7 +51,7 @@ export default function RunDetail() {
         style: 'destructive',
         onPress: () => {
           deleteRun(run.id);
-          router.back();
+          goBackOrHome();
         },
       },
     ]);
