@@ -1,6 +1,6 @@
-import { Redirect, router, Stack } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, BackHandler, Platform, Pressable, StyleSheet, Switch, Text, ToastAndroid, View } from 'react-native';
 import { ACTIVITY_DOING, courseLabel, courseProgress } from '../core/course';
 import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot } from '../core/my-course';
 import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
@@ -8,6 +8,7 @@ import { elapsedMs } from '../core/session';
 import { FILTER } from '../core/filter';
 import { pauseRun, resumeRun, setVoiceOn, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
 import { CourseBar } from '../ui/CourseBar';
+import { finishToDetail, goHome } from '../ui/navigation';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Stat } from '../ui/Stat';
 import { activityColor, color, courseTheme, space } from '../ui/theme';
@@ -68,8 +69,32 @@ export default function RunScreen() {
   const { runId, course, run, tracking, gps, voiceOn } = useRun();
   const now = useNow(run.status === 'running');
   const [stopping, setStopping] = useState(false);
+  /** 길게 누르기가 연달아 들어와도 한 번만 종료한다(state는 다음 렌더까지 안 바뀐다) */
+  const stopOnce = useRef(false);
+  const noRun = runId == null && !stopping;
 
-  if (runId == null && !stopping) return <Redirect href="/" />;
+  // 기록이 없는데 이 화면이 열리면(링크 lightrun://run 등) 홈으로. <Redirect href="/">는 이 화면 자리에
+  // 홈을 넣어 [홈, 홈]이 되고 홈에 뒤로 가기가 생긴다
+  useFocusEffect(
+    useCallback(() => {
+      if (noRun) goHome();
+    }, [noRun]),
+  );
+
+  // Android 뒤로 가기 키로 빠져나가면 기록은 계속되는데 홈이 보여 헷갈리고, 스택도 꼬인다.
+  // 기록 중에는 종료 버튼(길게 누르기)으로만 나가게 막는다. iOS는 _layout.tsx에서 제스처를 껐다
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        ToastAndroid.show('끝내려면 종료 버튼을 길게 눌러 주세요', ToastAndroid.SHORT);
+        return true;
+      });
+      return () => sub.remove();
+    }, []),
+  );
+
+  if (noRun) return null;
 
   const ms = elapsedMs(run, now);
   const paused = run.status === 'paused';
@@ -77,12 +102,20 @@ export default function RunScreen() {
   const goal = course ? courseProgress(course, ms) : null;
 
   const onStop = async () => {
+    if (stopOnce.current) return;
+    stopOnce.current = true;
     setStopping(true);
-    const id = await stopRun();
-    // 기록 복원으로 들어오면 홈이 이 화면으로 교체돼 스택에 없다. 홈까지 되돌린 뒤(없으면 홈으로 교체)
-    // 상세를 올려서, 상세에서 뒤로 가기·삭제하면 항상 홈으로 간다
-    router.dismissTo('/');
-    if (id != null) router.push(`/history/${id}`);
+    let id: number | null;
+    try {
+      id = await stopRun();
+    } catch (e) {
+      stopOnce.current = false;
+      setStopping(false);
+      Alert.alert('기록을 끝내지 못했어요', e instanceof Error ? e.message : String(e));
+      return;
+    }
+    // 홈만 남기고 상세를 올린다. 상세에서 뒤로 가기·삭제하면 항상 홈으로 간다
+    finishToDetail(id);
   };
 
   return (

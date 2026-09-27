@@ -1,4 +1,4 @@
-import { Redirect, router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,6 @@ import {
   type MyCourse,
   type Step,
 } from '../../core/my-course';
-import { useRun } from '../../services/run-controller';
 import { createCourse, deleteCourse, getCourse, setCourseFavorite } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
 import { MoreMenu } from '../../ui/MoreMenu';
@@ -24,7 +23,6 @@ import { color, courseTheme, space } from '../../ui/theme';
 export default function CourseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const courseId = Number(id);
-  const { runId } = useRun();
   const insets = useSafeAreaInsets();
   const [course, setCourse] = useState<MyCourse | null | undefined>(undefined);
   const [starting, setStarting] = useState(false);
@@ -32,7 +30,6 @@ export default function CourseDetail() {
   // 편집하고 돌아오면 다시 읽는다
   useFocusEffect(useCallback(() => setCourse(getCourse(courseId)), [courseId]));
 
-  if (runId != null) return <Redirect href="/run" />;
   if (course === undefined) return null;
   if (course === null) return <Text style={styles.empty}>코스를 찾을 수 없어요.</Text>;
 

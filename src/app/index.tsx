@@ -1,13 +1,14 @@
-import { Redirect, router, Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
 import type { MyCourse } from '../core/my-course';
-import { useRun } from '../services/run-controller';
+import { getRunId } from '../services/run-controller';
 import { getPref, listCourses, listRuns, setPref, type RunRow } from '../services/storage';
 import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
+import { openRun } from '../ui/navigation';
 import { SettingsIcon } from '../ui/SettingsIcon';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
@@ -33,7 +34,6 @@ function savedTab(): HomeTab {
 }
 
 export default function Home() {
-  const { runId } = useRun();
   // 마지막으로 고른 탭을 기억한다(내 코스만 쓰는 사람이 매번 탭을 누르지 않게)
   const [tab, setTab] = useState<HomeTab>(savedTab);
   const [recent, setRecent] = useState<RunRow[]>([]);
@@ -46,11 +46,12 @@ export default function Home() {
       setCourses(listCourses());
       // 다른 화면(코스 저장 뒤 "나중에")이 탭을 바꿔 두었으면 따른다
       setTab(savedTab());
+      // 기록이 진행 중인데 홈이 보이면(앱 화면만 새로 만들어진 경우 등) 기록 화면을 홈 위에 올린다.
+      // 포커스될 때만 본다. 시작 중(runId가 막 생긴 때)에는 startCourse가 연다. 여기서 <Redirect>로
+      // 홈을 바꿔 버리면 시작 흐름의 push와 겹쳐 [run, run]이 되고, 종료 뒤 홈에 뒤로 가기가 생긴다
+      if (getRunId() != null) openRun();
     }, []),
   );
-
-  // 진행 중인 기록이 있으면(앱 재시작 등) 바로 기록 화면으로
-  if (runId != null) return <Redirect href="/run" />;
 
   const activity: Activity = tab === 'mine' ? 'run' : tab;
   const tint = tab === 'mine' ? courseTheme.tint : activityColor[activity];

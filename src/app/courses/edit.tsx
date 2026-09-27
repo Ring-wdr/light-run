@@ -32,6 +32,7 @@ import {
 import { createCourse, getCourse, listCourses, setPref, updateCourse } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
 import { MoreMenu, type MoreMenuItem } from '../../ui/MoreMenu';
+import { goBackOrHome, goHome } from '../../ui/navigation';
 import { startCourse } from '../../ui/start';
 import { StepSheet } from '../../ui/StepSheet';
 import { color, courseTheme, space } from '../../ui/theme';
@@ -88,7 +89,7 @@ export default function CourseEdit() {
     leaving.current = true;
     if (editingId != null) {
       updateCourse(editingId, draft);
-      router.back();
+      goBackOrHome();
       return;
     }
     const id = createCourse(draft);
@@ -100,7 +101,7 @@ export default function CourseEdit() {
         router.dismissTo('/courses');
       } else {
         setPref('home.tab', 'mine');
-        router.dismissTo('/');
+        goHome();
       }
     };
     Alert.alert(
