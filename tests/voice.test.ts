@@ -95,6 +95,9 @@ describe('spokenMinutes', () => {
 describe('parseVoiceSettings', () => {
   it('저장값이 없으면 기본값(켬, 5분)', () => {
     expect(parseVoiceSettings({})).toEqual({ enabled: true, intervalMin: 5 });
+    // SQLite에 값이 없으면 null이 온다. Number(null) === 0(끔)으로 읽히면 안 된다
+    expect(parseVoiceSettings({ enabled: null, intervalMin: null })).toEqual({ enabled: true, intervalMin: 5 });
+    expect(parseVoiceSettings({ intervalMin: '' }).intervalMin).toBe(5);
   });
   it('저장값을 읽는다', () => {
     expect(parseVoiceSettings({ enabled: '0', intervalMin: '10' })).toEqual({ enabled: false, intervalMin: 10 });
