@@ -1,11 +1,26 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  activeDays,
+  addMonths,
+  dayKey,
+  inMonth,
+  monthOf,
+  onDay,
+  sameMonth,
+  totals,
+  type DatedRun,
+  type YearMonth,
+} from '../../core/calendar';
 import { ACTIVITY_LABEL, type Activity } from '../../core/course';
+import { formatDuration, formatKm } from '../../core/pace';
 import { exportAllGpx } from '../../services/export';
-import { listRuns, type RunRow } from '../../services/storage';
+import { listRunDates, listRuns, type RunRow } from '../../services/storage';
+import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
 import { Segmented } from '../../ui/Segmented';
+import { Stat } from '../../ui/Stat';
 import { activityColor, color, space } from '../../ui/theme';
 
 type Filter = 'all' | Activity;
@@ -18,6 +33,9 @@ const FILTERS: { value: Filter; label: string }[] = [
 export default function History() {
   const [filter, setFilter] = useState<Filter>('all');
   const [runs, setRuns] = useState<RunRow[]>([]);
+  const [dated, setDated] = useState<DatedRun[]>([]);
+  const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
+  const [day, setDay] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
 
   const onBackup = async () => {
@@ -32,13 +50,33 @@ export default function History() {
     }
   };
   useFocusEffect(
-    useCallback(() => setRuns(listRuns(500, filter === 'all' ? undefined : filter)), [filter]),
+    useCallback(() => {
+      const activity = filter === 'all' ? undefined : filter;
+      setRuns(listRuns(500, activity));
+      setDated(listRunDates(activity));
+    }, [filter]),
   );
+
+  const tint = filter === 'all' ? color.ink : activityColor[filter];
+  const now = Date.now();
+  const thisMonth = monthOf(now);
+  const isThisMonth = sameMonth(month, thisMonth);
+  const all = useMemo(() => totals(dated), [dated]);
+  const monthTotal = useMemo(() => totals(inMonth(dated, month)), [dated, month]);
+  const ranDays = useMemo(() => activeDays(dated, month), [dated, month]);
+  // 삭제 등으로 고른 날의 기록이 사라지면 선택을 풀어 빈 목록이 남지 않게 한다
+  const selected = day != null && ranDays.has(day) ? day : null;
+  const shown = selected == null ? runs : onDay(runs, dayKey(new Date(month.year, month.month, selected).getTime()));
+
+  const changeMonth = (delta: number) => {
+    setMonth((m) => addMonths(m, delta));
+    setDay(null);
+  };
 
   return (
     <FlatList
       contentContainerStyle={styles.wrap}
-      data={runs}
+      data={shown}
       keyExtractor={(r) => String(r.id)}
       renderItem={({ item }) => <RunListItem run={item} />}
       ListHeaderComponent={
@@ -47,8 +85,45 @@ export default function History() {
             options={FILTERS}
             value={filter}
             onChange={setFilter}
-            tint={filter === 'all' ? color.ink : activityColor[filter]}
+            tint={tint}
           />
+
+          <View style={styles.summary}>
+            <Text style={styles.totalKm} numberOfLines={1} adjustsFontSizeToFit>
+              {formatKm(all.distanceM)}
+              <Text style={styles.totalUnit}> km</Text>
+            </Text>
+            <Text style={styles.totalLabel}>총 거리</Text>
+            <View style={styles.statRow}>
+              <Stat label="횟수" value={String(all.count)} />
+              <Stat label="총 시간" value={formatDuration(all.movingMs)} />
+              <Stat label="기록한 날" value={String(all.days)} />
+            </View>
+          </View>
+
+          <RunCalendar
+            month={month}
+            onChangeMonth={changeMonth}
+            canNext={!isThisMonth}
+            activeDays={ranDays}
+            selectedDay={selected}
+            onSelectDay={setDay}
+            today={isThisMonth ? new Date(now).getDate() : null}
+            tint={tint}
+          />
+          <Text style={styles.monthLine}>
+            {month.month + 1}월 {monthTotal.count}회 · {formatKm(monthTotal.distanceM)} km ·{' '}
+            {formatDuration(monthTotal.movingMs)}
+          </Text>
+
+          {selected != null && (
+            <Pressable onPress={() => setDay(null)} style={styles.dayFilter} accessibilityRole="button">
+              <Text style={styles.dayFilterText}>
+                {month.month + 1}월 {selected}일 기록만 보는 중 · <Text style={styles.link}>전체 보기</Text>
+              </Text>
+            </Pressable>
+          )}
+
           {/* 필터와 무관하게 전체 기록을 한 파일로(다른 폰·빌드로 옮길 때) */}
           <Pressable onPress={onBackup} disabled={exporting} style={styles.backup} accessibilityRole="button">
             <Text style={styles.backupText}>{exporting ? '백업 파일 만드는 중…' : '전체 기록 백업 (GPX)'}</Text>
@@ -63,6 +138,24 @@ export default function History() {
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: space.l },
   header: { paddingVertical: space.m, gap: space.s },
+  summary: {
+    backgroundColor: color.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: color.line,
+    paddingVertical: space.m,
+    paddingHorizontal: space.s,
+    alignItems: 'center',
+    marginTop: space.s,
+  },
+  totalKm: { fontSize: 48, fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
+  totalUnit: { fontSize: 20, fontWeight: '700', color: color.sub },
+  totalLabel: { fontSize: 14, color: color.sub, marginBottom: space.m },
+  statRow: { flexDirection: 'row', alignSelf: 'stretch' },
+  monthLine: { textAlign: 'center', color: color.sub, fontVariant: ['tabular-nums'] },
+  dayFilter: { paddingVertical: space.xs },
+  dayFilterText: { color: color.ink, fontWeight: '600' },
+  link: { color: color.sub, textDecorationLine: 'underline' },
   backup: { alignSelf: 'flex-end', paddingVertical: space.xs },
   backupText: { color: color.sub, fontWeight: '600', textDecorationLine: 'underline' },
   empty: { color: color.sub, paddingVertical: space.l },

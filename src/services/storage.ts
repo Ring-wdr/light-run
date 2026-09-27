@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import type { DatedRun } from '../core/calendar';
 import type { Activity, Course } from '../core/course';
 import type { RunEvent } from '../core/session';
 import type { Sample, Split } from '../core/types';
@@ -172,6 +173,15 @@ export function listRuns(limit = 50, activity?: Activity): RunRow[] {
         limit,
       );
   return rows.map(toRun);
+}
+
+/** 달력·합계용: 끝난 기록 전부의 날짜·거리·시간만(가볍게) */
+export function listRunDates(activity?: Activity): DatedRun[] {
+  const sql =
+    "SELECT started_at AS startedAt, distance_m AS distanceM, moving_ms AS movingMs FROM runs WHERE status = 'finished'";
+  return activity
+    ? db.getAllSync<DatedRun>(`${sql} AND activity = ? ORDER BY started_at`, activity)
+    : db.getAllSync<DatedRun>(`${sql} ORDER BY started_at`);
 }
 
 export function getRun(id: number): RunRow | null {
