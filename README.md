@@ -24,3 +24,9 @@ npx expo start --dev-client
 ```
 
 폰에 그냥 설치해서 써 보려면 `--profile preview`로 빌드한다.
+
+### `npx expo start`로 앱이 안 열릴 때
+- `expo-dev-client`가 설치돼 있어서 `npx expo start`는 **development build 모드**로 켜진다. QR은 폰에 설치된 light-run 개발용 앱으로만 열린다(Expo Go·카메라로는 안 열림).
+- 개발용 앱 없이 화면만 보려면 **`npm run start:go`**(= `expo start --go`)로 켜고 Expo Go로 스캔한다. 단, Expo Go에서는 화면 꺼짐 백그라운드 기록과 Google 지도 키가 동작하지 않는다(지도는 OSM으로 표시).
+- 폰과 PC가 다른 네트워크(회사 Wi-Fi, 방화벽)면 `npx expo start --tunnel`.
+- 서버를 켠 터미널에서 `s`를 누르면 development build ↔ Expo Go 모드를 바꿀 수 있다.

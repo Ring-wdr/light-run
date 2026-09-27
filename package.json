@@ -23,12 +23,14 @@
     "react-native-svg": "15.15.4"
   },
   "devDependencies": {
+    "@types/node": "~26.6.2",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3",
     "vitest": "^5.0.1"
   },
   "scripts": {
     "start": "expo start",
+    "start:go": "expo start --go",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test": "vitest run",
