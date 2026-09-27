@@ -42,6 +42,8 @@ export default function Home() {
         );
       }
       router.push('/run');
+    } catch (e) {
+      Alert.alert('기록을 시작하지 못했어요', e instanceof Error ? e.message : String(e));
     } finally {
       setStarting(false);
     }

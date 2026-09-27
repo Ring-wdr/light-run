@@ -21,7 +21,7 @@ function useNow(active: boolean): number {
 }
 
 export default function RunScreen() {
-  const { runId, course, run } = useRun();
+  const { runId, course, run, tracking } = useRun();
   const now = useNow(run.status === 'running');
   const [stopping, setStopping] = useState(false);
 
@@ -62,6 +62,9 @@ export default function RunScreen() {
       </View>
 
       {paused && <Text style={styles.paused}>일시정지됨</Text>}
+      {tracking === 'foreground' && (
+        <Text style={styles.notice}>화면을 켜 둔 동안만 기록돼요{'\n'}(백그라운드 위치를 쓸 수 없는 환경)</Text>
+      )}
 
       <View style={styles.buttons}>
         <Pressable
@@ -94,6 +97,7 @@ const styles = StyleSheet.create({
   btn: { flex: 1, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   secondary: { backgroundColor: color.card, borderWidth: 2, borderColor: color.ink },
   course: { textAlign: 'center', fontSize: 16, fontWeight: '700' },
+  notice: { textAlign: 'center', color: color.sub, fontSize: 13 },
   goalText: { textAlign: 'center', fontSize: 16, color: color.sub, fontVariant: ['tabular-nums'] },
   btnText: { fontSize: 18, fontWeight: '700', color: color.ink },
 });

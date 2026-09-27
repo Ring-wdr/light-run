@@ -1,8 +1,15 @@
 import { useSyncExternalStore } from 'react';
 import { goalCuesBetween, type Course } from '../core/course';
 import { elapsedMs, initialRun, reduce, replay, type RunEvent, type RunState } from '../core/session';
-import { requestPermissions, startTracking, stopTracking, subscribeSamples, type PermissionResult } from './location';
-import { addMark, createRun, finishRun, getActiveRunId, getRun, loadEvents } from './storage';
+import {
+  requestPermissions,
+  startTracking,
+  stopTracking,
+  subscribeSamples,
+  type PermissionResult,
+  type TrackingMode,
+} from './location';
+import { addMark, createRun, deleteRun, finishRun, getActiveRunId, getRun, loadEvents } from './storage';
 import { announceGoal, announceSplit } from './voice';
 
 /**
@@ -13,9 +20,12 @@ export interface RunSnapshot {
   runId: number | null;
   course: Course | null;
   run: RunState;
+  /** foreground면 화면이 켜져 있는 동안만 기록된다(Android Expo Go, 백그라운드 시작 실패) */
+  tracking: TrackingMode | null;
 }
 
-let snap: RunSnapshot = { runId: null, course: null, run: initialRun };
+const EMPTY: RunSnapshot = { runId: null, course: null, run: initialRun, tracking: null };
+let snap: RunSnapshot = EMPTY;
 /** 목표 안내를 마지막으로 확인한 이동 시간(ms). 같은 안내를 두 번 하지 않도록 */
 let goalCheckedMs = 0;
 const subs = new Set<() => void>();
@@ -61,8 +71,8 @@ export async function restoreActiveRun(): Promise<void> {
   const run = replay(loadEvents(runId));
   // 복원 시점까지 지난 안내는 다시 하지 않는다
   goalCheckedMs = elapsedMs(run, Date.now());
-  emit({ runId, course: { activity: row.activity, goalMin: row.goalMin }, run });
-  if (run.status === 'running' || run.status === 'paused') await startTracking();
+  emit({ runId, course: { activity: row.activity, goalMin: row.goalMin }, run, tracking: null });
+  if (run.status === 'running' || run.status === 'paused') emit({ ...snap, tracking: await startTracking() });
 }
 
 export async function startRun(course: Course): Promise<PermissionResult> {
@@ -70,9 +80,17 @@ export async function startRun(course: Course): Promise<PermissionResult> {
   if (perm === 'foreground-denied') return perm;
   const at = Date.now();
   goalCheckedMs = 0;
-  emit({ runId: createRun(at, course), course, run: initialRun });
+  const runId = createRun(at, course);
+  emit({ runId, course, run: initialRun, tracking: null });
   dispatch({ type: 'start', at });
-  await startTracking();
+  try {
+    emit({ ...snap, tracking: await startTracking() });
+  } catch (e) {
+    // 위치 추적을 아예 못 켜면 빈 기록을 남기지 않고 되돌린다
+    deleteRun(runId);
+    emit(EMPTY);
+    throw e;
+  }
   return perm;
 }
 
@@ -99,6 +117,6 @@ export async function stopRun(): Promise<number | null> {
   const r = snap.run;
   finishRun(runId, { endedAt: at, distanceM: r.distanceM, movingMs: elapsedMs(r, at), splits: r.splits });
   await stopTracking();
-  emit({ runId: null, course: null, run: initialRun });
+  emit(EMPTY);
   return runId;
 }
