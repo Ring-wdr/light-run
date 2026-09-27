@@ -1,3 +1,4 @@
+import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { monthGrid, type YearMonth } from '../core/calendar';
 import { color, space } from './theme';
@@ -48,7 +49,12 @@ export function RunCalendar({
           <Text style={styles.title}>
             {month.year}년 {month.month + 1}월
           </Text>
-          <Text style={styles.caret}>▾</Text>
+          <SymbolView
+            name={{ ios: 'chevron.down', android: 'keyboard_arrow_down', web: 'keyboard_arrow_down' }}
+            size={20}
+            tintColor={color.sub}
+            fallback={<Text style={styles.caret}>▾</Text>}
+          />
         </Pressable>
         <Pressable
           onPress={() => onChangeMonth(1)}
