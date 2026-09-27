@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { Course } from '../core/course';
 import { resumePauseAt } from '../core/resume';
 import { elapsedMs, initialRun, reduce, replay, type RunEvent, type RunState } from '../core/session';
-import { DEFAULT_VOICE, timeCueBetween, type VoiceCue, type VoiceSettings } from '../core/voice';
+import { DEFAULT_VOICE, type VoiceCue, type VoiceSettings } from '../core/voice';
 import {
   requestPermissions,
   startTracking,
@@ -22,7 +22,7 @@ import {
   loadEvents,
   setRunVoice,
 } from './storage';
-import { loadVoiceSettings, speak, stopSpeaking } from './voice';
+import { cancelTimeCues, loadVoiceSettings, scheduleTimeCues, speak, stopSpeaking } from './voice';
 
 /**
  * 화면과 서비스 사이의 얇은 상태 저장소.
@@ -43,8 +43,6 @@ export interface RunSnapshot {
 const NO_GPS: RunSnapshot['gps'] = { received: 0, lastAccuracyM: null, lastAt: null };
 const EMPTY: RunSnapshot = { runId: null, course: null, run: initialRun, tracking: null, gps: NO_GPS, voiceOn: false };
 let snap: RunSnapshot = EMPTY;
-/** 시간 안내를 마지막으로 확인한 이동 시간(ms). 같은 안내를 두 번 하지 않도록 */
-let voiceCheckedMs = 0;
 /** 기록을 시작(이어가기)할 때 읽은 설정. 시간 안내 간격에 쓴다 */
 let voice: VoiceSettings = DEFAULT_VOICE;
 const subs = new Set<() => void>();
@@ -58,12 +56,25 @@ function dispatch(e: RunEvent): void {
   emit({ ...snap, run: reduce(snap.run, e) });
 }
 
-/** 토글이 꺼져 있으면 말하지 않는다. 안내 확인은 계속하므로 다시 켜도 밀린 안내를 몰아서 하지 않는다 */
-function say(cue: VoiceCue): void {
-  if (snap.voiceOn && snap.course) speak(cue, snap.course);
+/** 토글이 꺼져 있으면 말하지 않는다 */
+function say(cue: VoiceCue, flush = false): void {
+  if (snap.voiceOn && snap.course) speak(cue, snap.course, flush);
 }
 
-// 위치 태스크는 백그라운드에서도 1초마다 돌기 때문에, 시간 기반 안내도 여기서 확인한다
+/**
+ * 시간 안내 예약을 지금 상태에 맞춘다. GPS와 상관없이 시간대로 말한다.
+ * 달리는 중 + 음성 켬이면 지금 이동 시간 이후의 안내를 예약하고(이미 지난 건 다시 말하지 않음), 아니면 지운다.
+ * 시작·일시정지·재개·이어가기·토글·종료 때마다 부른다.
+ */
+function syncTimeCues(): void {
+  if (snap.runId != null && snap.course && snap.voiceOn && snap.run.status === 'running') {
+    const now = Date.now();
+    scheduleTimeCues(snap.course, voice, elapsedMs(snap.run, now), now);
+  } else {
+    cancelTimeCues();
+  }
+}
+
 subscribeSamples((samples) => {
   if (snap.runId == null || !snap.course) return;
   const last = samples.at(-1);
@@ -73,13 +84,6 @@ subscribeSamples((samples) => {
     gps: { received: snap.gps.received + samples.length, lastAccuracyM: last?.accuracy ?? null, lastAt: last?.t ?? null },
   });
 
-
-  // 앱을 다시 켜서 이어갈 때(replay)는 부르지 않도록 실시간 점에서만 안내한다
-  if (snap.run.status !== 'running') return;
-  const now = elapsedMs(snap.run, Date.now());
-  const cue = timeCueBetween(snap.course.goalMin, voice.intervalMin, voiceCheckedMs, now);
-  if (cue) say(cue);
-  voiceCheckedMs = Math.max(voiceCheckedMs, now);
 });
 
 export function useRun(): RunSnapshot {
@@ -129,9 +133,9 @@ export async function resumeUnfinishedRun(runId: number): Promise<void> {
     run = reduce(run, { type: 'pause', at: pauseAt });
   }
   voice = loadVoiceSettings();
-  // 이어가는 시점까지 지난 안내는 다시 하지 않는다
-  voiceCheckedMs = elapsedMs(run, Date.now());
   emit({ ...EMPTY, runId, course: { activity: row.activity, goalMin: row.goalMin, custom: row.custom }, run, voiceOn: row.voiceOn });
+  // 이어가는 시점까지 지난 안내는 다시 하지 않는다
+  syncTimeCues();
   if (run.status === 'running' || run.status === 'paused') emit({ ...snap, tracking: await startTracking() });
 }
 
@@ -140,6 +144,7 @@ export async function discardUnfinishedRun(runId: number): Promise<void> {
   const row = getRun(runId);
   if (!row || row.status !== 'active') return;
   deleteRun(runId);
+  cancelTimeCues();
   // 백그라운드 위치 서비스가 살아 있으면 끈다
   await stopTracking();
 }
@@ -149,7 +154,6 @@ export async function startRun(course: Course): Promise<PermissionResult> {
   if (perm === 'foreground-denied') return perm;
   const at = Date.now();
   voice = loadVoiceSettings();
-  voiceCheckedMs = 0;
   const runId = createRun(at, course, voice.enabled);
   emit({ ...EMPTY, runId, course, voiceOn: voice.enabled });
   dispatch({ type: 'start', at });
@@ -162,6 +166,7 @@ export async function startRun(course: Course): Promise<PermissionResult> {
     throw e;
   }
   say({ type: 'start' });
+  syncTimeCues();
   return perm;
 }
 
@@ -170,6 +175,7 @@ export function pauseRun(): void {
   const at = Date.now();
   addMark(snap.runId, 'pause', at);
   dispatch({ type: 'pause', at });
+  syncTimeCues();
   say({ type: 'pause' });
 }
 
@@ -179,6 +185,7 @@ export function resumeRun(): void {
   addMark(snap.runId, 'resume', at);
   dispatch({ type: 'resume', at });
   say({ type: 'resume' });
+  syncTimeCues();
 }
 
 /** 기록 중 화면의 음성 안내 토글. 이번 기록에만 적용되고, 끄면 말하던 것도 바로 멈춘다 */
@@ -187,6 +194,8 @@ export function setVoiceOn(on: boolean): void {
   setRunVoice(snap.runId, on);
   emit({ ...snap, voiceOn: on });
   if (!on) stopSpeaking();
+  // 켜면 지금 이후 안내만 다시 예약한다(꺼져 있던 동안 지난 안내는 몰아서 하지 않음)
+  syncTimeCues();
 }
 
 /** 기록을 끝내고 저장한 run id를 돌려준다 */
@@ -197,9 +206,9 @@ export async function stopRun(): Promise<number | null> {
   dispatch({ type: 'stop', at });
   const r = snap.run;
   finishRun(runId, { endedAt: at, distanceM: r.distanceM, movingMs: elapsedMs(r, at), splits: r.splits });
+  syncTimeCues();
   // 밀린 안내는 버리고 종료 멘트만 한다
-  if (snap.voiceOn) stopSpeaking();
-  say({ type: 'finish' });
+  say({ type: 'finish' }, true);
   await stopTracking();
   emit(EMPTY);
   return runId;

@@ -146,8 +146,9 @@ e [더보기]  6개 이상: 5개 + [더보기 +N] → 전체 목록(새 코스�
 ### 원칙
 - **정보는 적게.** 달리는 중에는 시간만 말하고 거리·페이스·GPS 상태 같은 수치는 말하지 않는다. 한 번에 한 문장.
 - **언제·무엇을 말할지는 `core`의 순수 함수가 정한다**(테스트 대상). `services/voice.ts`는 설정 확인과 말하기만 한다.
-- 시간 기준은 **움직인 시간**(일시정지 제외)이다. 지금처럼 위치 태스크가 점을 받을 때(1초) 확인하므로 화면이 꺼져도 동작한다.
-- 앱을 다시 켜서 기록을 이어갈 때(§2-5)는 이미 지난 안내를 다시 말하지 않는다(`voiceCheckedMs`).
+- 시간 기준은 **움직인 시간**(일시정지 제외)이다. **GPS와 상관없이** 시간대로 말한다. 달리는 동안 앞으로의 안내를 벽시계 시각으로 예약하고, 일시정지하면 지우고, 재개하면 다시 예약한다.
+- 화면이 꺼지거나 홈으로 나가도 나와야 한다. JS 타이머와 위치 태스크 전달은 백그라운드에서 멈추거나 늦어지므로, Android는 로컬 모듈(`modules/voice-guide`)이 네이티브에서 시각을 확인하고 직접 말한다(아래 “백그라운드에서 말하기”).
+- 앱을 다시 켜서 기록을 이어갈 때(§2-5)는 이미 지난 안내를 다시 말하지 않는다(지금 이동 시간 이후만 예약).
 - 달리기·걷기 모두 같은 안내를 쓰고, 문구만 종목에 맞춘다.
 
 ### 안내 목록
@@ -168,9 +169,9 @@ e [더보기]  6개 이상: 5개 + [더보기 +N] → 전체 목록(새 코스�
 - 나중에 자동 일시정지(2단계)가 생기면 6을 그대로 쓴다(“자동으로 일시정지했어요.”).
 
 ### 겹칠 때
-**한 번 확인(점 하나 받을 때)에 한 문장만** 말한다(`core/voice.ts`의 `timeCueBetween`).
+**한 시각에 한 문장만** 말한다(`core/voice.ts`의 `upcomingTimeCues`).
 - 목표 안내(절반·5분 전·달성)와 같은 시각의 5분마다 안내는 **목표 안내만** 한다. 예: 30분 코스 25분 → “25분 지났어요” 없이 “5분 남았어요.”만. 15분·30분도 같다.
-- GPS가 끊겼다가 한꺼번에 여러 시점을 지나면 목표 안내가 있으면 그중 마지막, 없으면 마지막 시간 안내 하나만.
+- 프로세스가 잠깐 멈췄다 깨어나 여러 예약이 한꺼번에 밀렸으면 마지막 하나만 말하고, 1분 넘게 지난 예약은 버린다(네이티브 모듈).
 - 이전 말이 끝나기 전에 새 안내가 오면 끊지 않고 뒤에 잇는다(`Speech.speak`의 기본 동작이 큐). 종료(7)만 남은 큐를 비우고(`Speech.stop()`) 말한다.
 - 30분 코스(5분 간격): 시작, 5분, 10분, 절반(15), 20분, 5분 전(25), 달성(30) = 7번.
 
@@ -187,13 +188,27 @@ e [더보기]  6개 이상: 5개 + [더보기 +N] → 전체 목록(새 코스�
   - 앱을 다시 켜서 이어가는 경우에도 이번 기록의 토글 값을 유지한다(`runs`에 저장, 아래 마이그레이션).
 - 기기에 한국어 음성이 없으면(`Speech.getAvailableVoicesAsync()`에 `ko` 없음) 설정 화면에 “기기 설정 → 텍스트 음성 변환에서 한국어를 받아 주세요” 안내.
 
+### 백그라운드에서 말하기 (Android, `modules/voice-guide`)
+처음 구현은 위치 점을 받을 때 시간을 확인했는데, 화면을 끄거나 홈으로 나가면 그 뒤로 안내가 나오지 않았다. 원인:
+- 시간 안내가 GPS 전달에 기댄 것 자체가 잘못이었다. `expo-location`은 앱이 백그라운드면 위치를 JobScheduler 작업으로 모아 넘긴다(`LocationTaskConsumer.kt`). 화면이 꺼지면 늦어지거나 몰린다.
+- RN의 JS 타이머도 백그라운드에서 멈춘다.
+- `expo-speech`는 화면(Activity)이 없어지면 TTS를 `shutdown()`하고 다시 만들지 않는다(`SpeechModule.kt`의 `OnActivityDestroys`). 그 뒤로는 어떤 말도 못 한다.
+
+그래서 Android는 로컬 모듈이 맡는다.
+- JS가 `schedule(시각[], 문구[])`로 예약을 통째로 넘긴다(12시간치, 5분 간격이면 144개). 일시정지·종료·끔이면 `cancel()`.
+- 모듈의 스레드가 1초마다 **벽시계**로 도래한 예약을 확인해 말한다(잠들었던 시간 때문에 밀리지 않도록 uptime 대신 벽시계).
+- 예약이 남아 있는 동안만 `PARTIAL_WAKE_LOCK`을 잡는다(마지막 예약 + 1분 제한). 프로세스는 위치 포그라운드 서비스가 살려 둔다.
+- TTS는 `applicationContext`로 만들고 화면이 없어져도 끄지 않는다. 오디오 용도는 `USAGE_ASSISTANCE_NAVIGATION_GUIDANCE`.
+- 시작·일시정지·재개·종료 멘트도 이 모듈로 말한다. iOS·Expo Go(모듈 없음)는 `expo-speech` + JS 타이머로 대신한다(앱이 떠 있을 때만).
+
 ### 구현 위치
 ```
-core/voice.ts       VoiceCue, timeCueBetween(겹침 규칙 포함), cueText, 설정 파싱
+core/voice.ts       VoiceCue, upcomingTimeCues(예약 목록, 겹침 규칙 포함), cueText, 설정 파싱
 core/course.ts      goalCuePoints(목표 안내 시각)
-services/voice.ts   설정 읽기·저장, Speech.speak / Speech.stop. 판단 로직 없음
+services/voice.ts   설정 읽기·저장, 말하기·예약(모듈 또는 expo-speech). 판단 로직 없음
+modules/voice-guide Android 네이티브: 예약 시각 확인 + TTS + wake lock
 services/run-controller.ts
-                    점 받을 때 timeCueBetween, 시작·일시정지·재개·종료 안내, 토글(setVoiceOn)
+                    syncTimeCues: 시작·재개·이어가기·토글 켬이면 예약, 일시정지·종료·토글 끔이면 취소
 app/settings.tsx    설정 화면. 홈 헤더 오른쪽 톱니바퀴에서 진입
 app/run.tsx         음성 안내 토글 스위치
 ```
@@ -205,7 +220,8 @@ app/run.tsx         음성 안내 토글 스위치
 - **iOS:** 백그라운드 TTS(`UIBackgroundModes: audio`, `useApplicationAudioSession`)는 3단계 iOS 출시 때 확인한다. 이번 작업은 Android만 확인한다.
 
 ### 실기기 확인 필요 (Android)
-- 화면 끔 30분 동안 5분마다·절반·5분 전·달성 안내가 제시간에 나오는지
+- 화면 끔 30분 동안, 그리고 홈으로 나간 상태로 5분마다·절반·5분 전·달성 안내가 제시간에 나오는지(GPS가 안 잡히는 실내에서도)
+- 기록 중 화면에서 뒤로 가기로 앱을 닫았다가(Activity 종료) 안내가 계속 나오는지
 - TTS는 미디어 볼륨을 따른다. 미디어 볼륨 0이면 안 들림 → 시작 안내(1)로 들리는지 바로 알 수 있다
 - 일시정지 중에는 시간 안내가 없는지, 재개 후 이어지는지
 - 기록 중 토글을 끄면 즉시 조용해지는지
@@ -252,7 +268,7 @@ src/
     location.ts        백그라운드 위치 태스크, 권한 요청
     storage.ts         SQLite 스키마·마이그레이션·CRUD
     run-controller.ts  이벤트 저장 + 리듀서 호출 + React 구독(useRun)
-    voice.ts           음성 안내 말하기, 설정 저장
+    voice.ts           음성 안내 말하기·예약(modules/voice-guide, 없으면 expo-speech), 설정 저장
     export.ts          GPX 파일 생성 → 공유 시트(expo-file-system, expo-sharing)
     import.ts          GPX 파일 고르기 → 기록마다 SQLite에 저장(중복 건너뜀)
     power.ts           배터리 최적화 확인(expo-battery), 앱 정보 화면 열기
@@ -272,6 +288,7 @@ src/
   ui/          공용 컴포넌트, 색, 공유 카드·공유 시트
 modules/
   share-target/  로컬 Expo 모듈(Android). 공유 시트 없이 특정 앱(카카오톡 등)에 이미지를 바로 보낸다
+  voice-guide/   로컬 Expo 모듈(Android). 시간 음성 안내를 예약 시각에 네이티브에서 말한다(화면 꺼짐·백그라운드)
 tests/         Vitest(core만) + 합성 GPS 트랙 생성기
 tests/fixtures/ 실제 GPX + 정답 거리(.json). 있으면 ±3% 테스트와 오차표에 쓰인다(README 참고)
 tests/report/  튜닝용 리포트(npm run report:filter: 합성 트랙 표 + 실제 GPX 표)
