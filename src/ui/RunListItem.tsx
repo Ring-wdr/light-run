@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { courseLabel } from '../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
@@ -14,20 +14,23 @@ const dateFmt = new Intl.DateTimeFormat('ko-KR', {
 });
 
 export function RunListItem({ run }: { run: RunRow }) {
+  // Link asChild(Radix Slot)는 함수형 style을 {}로 합쳐 버려 레이아웃이 풀린다. 그래서 Pressable + router.push
   return (
-    <Link href={`/history/${run.id}`} asChild>
-      <Pressable style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.badge, { color: activityColor[run.activity] }]}>{courseLabel(run)}</Text>
-          <Text style={styles.km}>{formatKm(run.distanceM)} km</Text>
-          <Text style={styles.date}>{dateFmt.format(run.startedAt)}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={styles.meta}>{formatDuration(run.movingMs)}</Text>
-          <Text style={styles.meta}>{formatPace(paceSecPerKm(run.distanceM, run.movingMs))}/km</Text>
-        </View>
-      </Pressable>
-    </Link>
+    <Pressable
+      onPress={() => router.push(`/history/${run.id}`)}
+      style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
+      accessibilityRole="button"
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.badge, { color: activityColor[run.activity] }]}>{courseLabel(run)}</Text>
+        <Text style={styles.km}>{formatKm(run.distanceM)} km</Text>
+        <Text style={styles.date}>{dateFmt.format(run.startedAt)}</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={styles.meta}>{formatDuration(run.movingMs)}</Text>
+        <Text style={styles.meta}>{formatPace(paceSecPerKm(run.distanceM, run.movingMs))}/km</Text>
+      </View>
+    </Pressable>
   );
 }
 
