@@ -1,12 +1,12 @@
 import { Redirect, router, Stack } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { ACTIVITY_DOING, courseLabel, courseProgress } from '../core/course';
 import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot } from '../core/my-course';
 import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
 import { elapsedMs } from '../core/session';
 import { FILTER } from '../core/filter';
-import { pauseRun, resumeRun, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
+import { pauseRun, resumeRun, setVoiceOn, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
 import { CourseBar } from '../ui/CourseBar';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Stat } from '../ui/Stat';
@@ -65,7 +65,7 @@ function CustomCourseStatus({ course, ms, overMs }: { course: CourseSnapshot; ms
 }
 
 export default function RunScreen() {
-  const { runId, course, run, tracking, gps } = useRun();
+  const { runId, course, run, tracking, gps, voiceOn } = useRun();
   const now = useNow(run.status === 'running');
   const [stopping, setStopping] = useState(false);
 
@@ -116,6 +116,17 @@ export default function RunScreen() {
         <Text style={styles.notice}>화면을 켜 둔 동안만 기록돼요{'\n'}(백그라운드 위치를 쓸 수 없는 환경)</Text>
       )}
 
+      {/* 이번 기록에만 적용. 기본값은 홈 → 설정에서 */}
+      <View style={styles.voice}>
+        <Text style={styles.voiceText}>음성 안내</Text>
+        <Switch
+          value={voiceOn}
+          onValueChange={setVoiceOn}
+          trackColor={{ true: tint }}
+          accessibilityLabel="음성 안내"
+        />
+      </View>
+
       <View style={styles.buttons}>
         <Pressable
           style={[styles.btn, styles.secondary]}
@@ -153,5 +164,7 @@ const styles = StyleSheet.create({
   segRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   segNow: { fontSize: 28, fontWeight: '800', color: color.ink },
   segLeft: { fontSize: 28, fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
+  voice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s },
+  voiceText: { fontSize: 15, color: color.sub, fontWeight: '600' },
   btnText: { fontSize: 18, fontWeight: '700', color: color.ink },
 });

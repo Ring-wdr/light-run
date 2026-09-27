@@ -1,4 +1,4 @@
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import { Redirect, router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
@@ -8,6 +8,7 @@ import { getPref, listCourses, listRuns, setPref, type RunRow } from '../service
 import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
+import { SettingsIcon } from '../ui/SettingsIcon';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
 import { startCourse } from '../ui/start';
@@ -70,6 +71,21 @@ export default function Home() {
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={8}
+              style={({ pressed }) => pressed && { opacity: 0.5 }}
+              accessibilityRole="button"
+              accessibilityLabel="설정"
+            >
+              <SettingsIcon size={24} color={color.ink} />
+            </Pressable>
+          ),
+        }}
+      />
       <BatteryGuide />
       <Segmented options={TABS} value={tab} onChange={onTab} tint={tint} />
 

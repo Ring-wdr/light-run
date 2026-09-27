@@ -57,6 +57,8 @@ const MIGRATIONS: string[] = [
    );
    ALTER TABLE runs ADD COLUMN course_id INTEGER;
    ALTER TABLE runs ADD COLUMN course_json TEXT;`,
+  // 5: 기록별 음성 안내 켬/끔(기록 중 화면 토글). 기존 기록은 켬으로 본다. 음성 설정 기본값은 prefs(3)에 둔다
+  `ALTER TABLE runs ADD COLUMN voice_on INTEGER NOT NULL DEFAULT 1;`,
 ];
 
 /** PRAGMA user_version으로 스키마 버전을 관리한다. 새 변경은 MIGRATIONS 끝에 추가만 할 것 */
@@ -80,6 +82,8 @@ export interface RunRow extends Course {
   distanceM: number;
   movingMs: number;
   splits: Split[];
+  /** 이 기록의 음성 안내 켬/끔(기록 중 화면 토글) */
+  voiceOn: boolean;
 }
 
 interface RunRecord {
@@ -94,6 +98,7 @@ interface RunRecord {
   goal_min: number | null;
   course_id: number | null;
   course_json: string | null;
+  voice_on: number;
 }
 
 const toRun = (r: RunRecord): RunRow => ({
@@ -107,6 +112,7 @@ const toRun = (r: RunRecord): RunRow => ({
   activity: r.activity,
   goalMin: r.goal_min,
   custom: toSnapshot(r.course_id, r.course_json),
+  voiceOn: r.voice_on !== 0,
 });
 
 function toSnapshot(id: number | null, json: string | null): CourseSnapshot | null {
@@ -120,13 +126,18 @@ function toSnapshot(id: number | null, json: string | null): CourseSnapshot | nu
   }
 }
 
-export function createRun(startedAt: number, course: Course): number {
+export function createRun(startedAt: number, course: Course, voiceOn: boolean): number {
   const r = db.runSync(
-    "INSERT INTO runs (started_at, status, activity, goal_min, course_id, course_json) VALUES (?, 'active', ?, ?, ?, ?)",
+    "INSERT INTO runs (started_at, status, activity, goal_min, course_id, course_json, voice_on) VALUES (?, 'active', ?, ?, ?, ?, ?)",
     startedAt, course.activity, course.goalMin, course.custom?.id ?? null,
     course.custom ? JSON.stringify({ name: course.custom.name, blocks: course.custom.blocks }) : null,
+    voiceOn ? 1 : 0,
   );
   return r.lastInsertRowId;
+}
+
+export function setRunVoice(runId: number, on: boolean): void {
+  db.runSync('UPDATE runs SET voice_on = ? WHERE id = ?', on ? 1 : 0, runId);
 }
 
 export function getActiveRunId(): number | null {
@@ -173,6 +184,12 @@ export function loadSource(runId: number): RunSource | null {
   const run = db.getFirstSync<RunRecord>('SELECT * FROM runs WHERE id = ?', runId);
   if (!run) return null;
   return { startedAt: run.started_at, endedAt: run.ended_at, marks: getMarks(runId), samples: getSamples(runId) };
+}
+
+/** 마지막으로 받은 GPS 점의 시각. 앱이 꺼져 있던 동안을 가늠할 때 쓴다 */
+export function getLastSampleT(runId: number): number | null {
+  const r = db.getFirstSync<{ t: number | null }>('SELECT MAX(t) AS t FROM samples WHERE run_id = ?', runId);
+  return r?.t ?? null;
 }
 
 /** 저장된 원본으로 core 리듀서에 넣을 이벤트 열을 만든다(시각순) */
