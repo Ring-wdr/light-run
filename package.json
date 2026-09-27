@@ -37,7 +37,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test",
     "report:filter": "vitest run -c vitest.report.config.mts",
-    "doctor": "expo-doctor"
+    "doctor": "expo-doctor",
+    "prebuild:android": "expo prebuild --clean --platform android"
   },
   "private": true,
   "engines": {

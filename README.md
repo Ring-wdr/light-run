@@ -30,3 +30,9 @@ npx expo start --dev-client
 - 개발용 앱 없이 화면만 보려면 **`npm run start:go`**(= `expo start --go`)로 켜고 Expo Go로 스캔한다. 단, Expo Go에서는 화면 꺼짐 백그라운드 기록이 동작하지 않는다(화면을 켜 둔 동안만 기록). 지도는 Expo Go 자체 키로 표시된다.
 - 폰과 PC가 다른 네트워크(회사 Wi-Fi, 방화벽)면 `npx expo start --tunnel`.
 - 서버를 켠 터미널에서 `s`를 누르면 development build ↔ Expo Go 모드를 바꿀 수 있다.
+
+### 로컬 빌드(`npx expo run:android`) 주의
+- `android/` 폴더는 **처음 한 번만** 만들어지고 이후엔 재사용된다. 그래서 `.env`의 키를 바꾸거나, `app.json`/`app.config.ts`·네이티브 패키지를 바꾼 뒤에는
+  **`npm run prebuild:android`**(= `expo prebuild --clean --platform android`)로 다시 만든 뒤 `npx expo run:android --device`.
+- 키가 매니페스트에 들어갔는지 확인: `findstr "geo.API_KEY" android\app\src\main\AndroidManifest.xml` (값이 `MISSING_GOOGLE_MAPS_API_KEY`면 키 없이 만들어진 것)
+- 에뮬레이터가 켜져 있으면 그 기기용(x86_64)으로만 빌드돼 폰에 설치가 안 된다(`INSTALL_FAILED_NO_MATCHING_ABIS`). `--device`로 폰을 고를 것.
