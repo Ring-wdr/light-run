@@ -4,7 +4,8 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
 import { startRun, useRun } from '../services/run-controller';
 import { listRuns, type RunRow } from '../services/storage';
-import { RunListItem } from '../ui/RunListItem';
+import { Chevron } from '../ui/Chevron';
+import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
 import { activityColor, color, space } from '../ui/theme';
 
@@ -19,7 +20,7 @@ export default function Home() {
   const [recent, setRecent] = useState<RunRow[]>([]);
   const [starting, setStarting] = useState(false);
 
-  useFocusEffect(useCallback(() => setRecent(listRuns(5)), []));
+  useFocusEffect(useCallback(() => setRecent(listRuns(3)), []));
 
   // 진행 중인 기록이 있으면(앱 재시작 등) 바로 기록 화면으로
   if (runId != null) return <Redirect href="/run" />;
@@ -85,16 +86,26 @@ export default function Home() {
         ))}
       </View>
 
-      <Text style={styles.h2}>최근 기록</Text>
+      {/* 전체 보기는 제목 옆에 둬서 최근 기록 수와 상관없이 스크롤 없이 닿게 한다 */}
+      <View style={styles.sectionHead}>
+        <Text style={styles.h2}>최근 기록</Text>
+        {recent.length > 0 && (
+          <Link href="/history" asChild>
+            <Pressable
+              style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              accessibilityLabel="전체 기록 보기"
+            >
+              <Text style={styles.moreText}>전체 보기</Text>
+              <Chevron dir="right" size={20} color={color.accent} />
+            </Pressable>
+          </Link>
+        )}
+      </View>
       {recent.length === 0 ? (
         <Text style={styles.empty}>아직 기록이 없어요. 첫 코스를 시작해 보세요.</Text>
       ) : (
-        recent.map((r) => <RunListItem key={r.id} run={r} />)
-      )}
-      {recent.length > 0 && (
-        <Link href="/history" style={styles.more}>
-          전체 기록 보기 →
-        </Link>
+        recent.map((r) => <RecentRunRow key={r.id} run={r} />)
       )}
     </ScrollView>
   );
@@ -115,5 +126,7 @@ const styles = StyleSheet.create({
   cardHint: { marginTop: 2, color: color.sub, fontSize: 15 },
   cardGo: { position: 'absolute', right: space.l, bottom: space.l, fontWeight: '700', fontSize: 16 },
   empty: { color: color.sub, paddingVertical: space.m },
-  more: { color: color.accent, paddingVertical: space.m, fontWeight: '600' },
+  sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  more: { flexDirection: 'row', alignItems: 'center', paddingTop: space.l, paddingLeft: space.m },
+  moreText: { color: color.accent, fontWeight: '600' },
 });
