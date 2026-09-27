@@ -1,6 +1,6 @@
-import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { monthGrid, type YearMonth } from '../core/calendar';
+import { Chevron } from './Chevron';
 import { color, space } from './theme';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -36,8 +36,14 @@ export function RunCalendar({
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Pressable onPress={() => onChangeMonth(-1)} hitSlop={12} accessibilityRole="button" accessibilityLabel="이전 달">
-          <Text style={styles.nav}>‹</Text>
+        <Pressable
+          onPress={() => onChangeMonth(-1)}
+          hitSlop={12}
+          style={styles.nav}
+          accessibilityRole="button"
+          accessibilityLabel="이전 달"
+        >
+          <Chevron dir="left" color={color.ink} />
         </Pressable>
         <Pressable
           onPress={onPressTitle}
@@ -49,21 +55,18 @@ export function RunCalendar({
           <Text style={styles.title}>
             {month.year}년 {month.month + 1}월
           </Text>
-          <SymbolView
-            name={{ ios: 'chevron.down', android: 'keyboard_arrow_down', web: 'keyboard_arrow_down' }}
-            size={20}
-            tintColor={color.sub}
-            fallback={<Text style={styles.caret}>▾</Text>}
-          />
+          <Chevron dir="down" size={20} color={color.sub} />
         </Pressable>
         <Pressable
           onPress={() => onChangeMonth(1)}
           disabled={!canNext}
           hitSlop={12}
+          style={styles.nav}
           accessibilityRole="button"
           accessibilityLabel="다음 달"
+          accessibilityState={{ disabled: !canNext }}
         >
-          <Text style={[styles.nav, !canNext && styles.navOff]}>›</Text>
+          <Chevron dir="right" color={canNext ? color.ink : color.line} />
         </Pressable>
       </View>
 
@@ -129,9 +132,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.s },
   titleBtn: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   title: { fontSize: 17, fontWeight: '700', color: color.ink },
-  caret: { fontSize: 13, color: color.sub },
-  nav: { fontSize: 28, lineHeight: 30, color: color.ink, paddingHorizontal: space.s },
-  navOff: { color: color.line },
+  nav: { paddingHorizontal: space.xs },
   week: { flexDirection: 'row' },
   weekday: { flex: 1, textAlign: 'center', fontSize: 12, color: color.sub },
   cell: { flex: 1, alignItems: 'center', paddingVertical: 2 },

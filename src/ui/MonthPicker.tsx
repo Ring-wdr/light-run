@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { isAfter, type YearMonth } from '../core/calendar';
+import { Chevron } from './Chevron';
 import { color, space } from './theme';
 
 /**
@@ -42,12 +43,26 @@ export function MonthPicker({
         {/* 안쪽을 눌러도 닫히지 않게 이벤트를 여기서 받는다 */}
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.head}>
-            <Pressable onPress={() => setYear(year - 1)} hitSlop={12} accessibilityLabel="이전 해">
-              <Text style={styles.nav}>‹</Text>
+            <Pressable
+              onPress={() => setYear(year - 1)}
+              hitSlop={12}
+              style={styles.nav}
+              accessibilityRole="button"
+              accessibilityLabel="이전 해"
+            >
+              <Chevron dir="left" color={color.ink} />
             </Pressable>
             <Text style={styles.year}>{year}년</Text>
-            <Pressable onPress={() => setYear(year + 1)} disabled={!canNext} hitSlop={12} accessibilityLabel="다음 해">
-              <Text style={[styles.nav, !canNext && styles.navOff]}>›</Text>
+            <Pressable
+              onPress={() => setYear(year + 1)}
+              disabled={!canNext}
+              hitSlop={12}
+              style={styles.nav}
+              accessibilityRole="button"
+              accessibilityLabel="다음 해"
+              accessibilityState={{ disabled: !canNext }}
+            >
+              <Chevron dir="right" color={canNext ? color.ink : color.line} />
             </Pressable>
           </View>
 
@@ -94,8 +109,7 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: color.card, borderRadius: 20, padding: space.m, gap: space.m },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   year: { fontSize: 18, fontWeight: '700', color: color.ink },
-  nav: { fontSize: 28, lineHeight: 30, color: color.ink, paddingHorizontal: space.s },
-  navOff: { color: color.line },
+  nav: { paddingHorizontal: space.xs },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cellWrap: { width: '25%', padding: space.xs },
   cell: { alignItems: 'center', paddingVertical: space.s + 2, borderRadius: 12 },
