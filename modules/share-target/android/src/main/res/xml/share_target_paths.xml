@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 공유 카드 이미지(react-native-view-shot)는 앱 캐시(내부 또는 외부)에 생긴다 -->
+<paths>
+  <cache-path name="cache" path="." />
+  <external-cache-path name="external_cache" path="." />
+</paths>
