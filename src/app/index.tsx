@@ -1,51 +1,66 @@
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
-import { startRun, useRun } from '../services/run-controller';
-import { listRuns, type RunRow } from '../services/storage';
+import type { MyCourse } from '../core/my-course';
+import { useRun } from '../services/run-controller';
+import { getPref, listCourses, listRuns, setPref, type RunRow } from '../services/storage';
 import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
+import { CourseGrid } from '../ui/CourseGrid';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
-import { activityColor, color, space } from '../ui/theme';
+import { startCourse } from '../ui/start';
+import { activityColor, color, COURSE_CARD_GAP, COURSE_CARD_H, courseTheme, space } from '../ui/theme';
 
 const GOAL_HINT: Record<Activity, Record<string, string>> = {
   walk: { '30': '가볍게 동네 한 바퀴', '50': '넉넉하게 산책', free: '시간 제한 없이' },
   run: { '30': '짧고 꾸준하게', '50': '조금 길게', free: '시간 제한 없이' },
 };
 
+/** 홈 탭: 종목 두 개 + 내 코스 */
+type HomeTab = Activity | 'mine';
+const TABS: { value: HomeTab; label: string }[] = [
+  ...ACTIVITIES.map((a) => ({ value: a, label: ACTIVITY_LABEL[a] })),
+  { value: 'mine', label: '내 코스' },
+];
+const TAB_PREF = 'home.tab';
+
+function savedTab(): HomeTab {
+  const v = getPref(TAB_PREF);
+  return v === 'walk' || v === 'run' || v === 'mine' ? v : 'run';
+}
+
 export default function Home() {
   const { runId } = useRun();
-  const [activity, setActivity] = useState<Activity>('run');
+  // 마지막으로 고른 탭을 기억한다(내 코스만 쓰는 사람이 매번 탭을 누르지 않게)
+  const [tab, setTab] = useState<HomeTab>(savedTab);
   const [recent, setRecent] = useState<RunRow[]>([]);
+  const [courses, setCourses] = useState<MyCourse[]>([]);
   const [starting, setStarting] = useState(false);
 
-  useFocusEffect(useCallback(() => setRecent(listRuns(3)), []));
+  useFocusEffect(
+    useCallback(() => {
+      setRecent(listRuns(3));
+      setCourses(listCourses());
+    }, []),
+  );
 
   // 진행 중인 기록이 있으면(앱 재시작 등) 바로 기록 화면으로
   if (runId != null) return <Redirect href="/run" />;
 
-  const tint = activityColor[activity];
+  const activity: Activity = tab === 'mine' ? 'run' : tab;
+  const tint = tab === 'mine' ? courseTheme.tint : activityColor[activity];
+  const onTab = (t: HomeTab) => {
+    setTab(t);
+    setPref(TAB_PREF, t);
+  };
 
   const onStart = async (course: Course) => {
     if (starting) return;
     setStarting(true);
     try {
-      const perm = await startRun(course);
-      if (perm === 'foreground-denied') {
-        Alert.alert('위치 권한이 필요해요', '설정에서 위치 권한을 허용해 주세요.');
-        return;
-      }
-      if (perm === 'background-denied') {
-        Alert.alert(
-          '화면을 켜 두고 움직여 주세요',
-          '위치를 "항상 허용"하지 않으면 화면이 꺼졌을 때 기록이 멈출 수 있어요.',
-        );
-      }
-      router.push('/run');
-    } catch (e) {
-      Alert.alert('기록을 시작하지 못했어요', e instanceof Error ? e.message : String(e));
+      await startCourse(course);
     } finally {
       setStarting(false);
     }
@@ -54,14 +69,12 @@ export default function Home() {
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <BatteryGuide />
-      <Segmented
-        options={ACTIVITIES.map((a) => ({ value: a, label: ACTIVITY_LABEL[a] }))}
-        value={activity}
-        onChange={setActivity}
-        tint={tint}
-      />
+      <Segmented options={TABS} value={tab} onChange={onTab} tint={tint} />
 
       <Text style={styles.h2}>코스 선택</Text>
+      {tab === 'mine' ? (
+        <CourseGrid courses={courses} />
+      ) : (
       <View style={styles.cards}>
         {GOALS.map((goalMin) => (
           <Pressable
@@ -77,16 +90,19 @@ export default function Home() {
             accessibilityRole="button"
             accessibilityLabel={`${ACTIVITY_LABEL[activity]} ${goalLabel(goalMin)} 시작`}
           >
-            <Text style={[styles.cardTitle, { color: goalMin == null ? '#fff' : tint }]}>
+            <Text style={[styles.cardTitle, { color: goalMin == null ? '#fff' : tint }]} maxFontSizeMultiplier={1.3}>
               {goalLabel(goalMin)}
             </Text>
-            <Text style={[styles.cardHint, goalMin == null && { color: '#fff' }]}>
+            <Text style={[styles.cardHint, goalMin == null && { color: '#fff' }]} maxFontSizeMultiplier={1.3}>
               {GOAL_HINT[activity][goalMin == null ? 'free' : String(goalMin)]}
             </Text>
-            <Text style={[styles.cardGo, { color: goalMin == null ? '#fff' : tint }]}>시작 →</Text>
+            <Text style={[styles.cardGo, { color: goalMin == null ? '#fff' : tint }]} maxFontSizeMultiplier={1.3}>
+              시작 →
+            </Text>
           </Pressable>
         ))}
       </View>
+      )}
 
       {/* 전체 보기는 제목 옆에 둬서 최근 기록 수와 상관없이 스크롤 없이 닿게 한다 */}
       <View style={styles.sectionHead}>
@@ -116,17 +132,20 @@ export default function Home() {
 const styles = StyleSheet.create({
   wrap: { padding: space.l, gap: space.s },
   h2: { fontSize: 18, fontWeight: '700', color: color.ink, marginTop: space.l },
-  cards: { gap: space.m },
+  cards: { gap: COURSE_CARD_GAP },
+  // 높이를 고정해 내 코스 칸(같은 높이)과 탭을 오가도 화면이 밀리지 않게 한다
   card: {
+    height: COURSE_CARD_H,
+    justifyContent: 'center',
     backgroundColor: color.card,
     borderWidth: 2,
     borderRadius: 20,
-    paddingVertical: space.l,
+    paddingVertical: space.m,
     paddingHorizontal: space.l,
   },
   cardTitle: { fontSize: 36, fontWeight: '800' },
   cardHint: { marginTop: 2, color: color.sub, fontSize: 15 },
-  cardGo: { position: 'absolute', right: space.l, bottom: space.l, fontWeight: '700', fontSize: 16 },
+  cardGo: { position: 'absolute', right: space.l, bottom: space.m, fontWeight: '700', fontSize: 16 },
   empty: { color: color.sub, paddingVertical: space.m },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   more: { flexDirection: 'row', alignItems: 'center', paddingTop: space.l, paddingLeft: space.m },
