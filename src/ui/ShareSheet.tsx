@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, type ImageSourcePropType, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LatLon } from '../core/geo';
 import { SHARE_TAG, shareSummary } from '../core/share';
@@ -15,8 +15,11 @@ import type { RunRow } from '../services/storage';
 import { CARD_HEIGHT, CARD_WIDTH, ShareCard } from './ShareCard';
 import { color, space } from './theme';
 
-/** 대상별 원형 아이콘(외부 이미지 없이 색과 글자로) */
-const BADGE: Record<ShareTargetId, { bg: string; fg: string; text: string }> = {
+/**
+ * 대상별 원형 아이콘. logo가 있으면 브랜드 가이드에서 받은 공식 로고(assets/share/)를 원 안에 그대로 넣고,
+ * 없으면 색과 글자로 그린다(저장·더보기는 기호).
+ */
+const BADGE: Record<ShareTargetId, { bg: string; fg: string; text: string; logo?: ImageSourcePropType }> = {
   kakao: { bg: '#FEE500', fg: '#191919', text: 'TALK' },
   instagram: { bg: '#E1306C', fg: '#FFFFFF', text: 'IG' },
   x: { bg: '#000000', fg: '#FFFFFF', text: 'X' },
@@ -79,6 +82,8 @@ export function ShareSheet({
                 <View style={[styles.badge, { backgroundColor: b.bg }]}>
                   {busy === t.id ? (
                     <ActivityIndicator color={b.fg} />
+                  ) : b.logo ? (
+                    <Image source={b.logo} style={styles.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
                   ) : (
                     <Text style={[styles.badgeText, { color: b.fg }]}>{b.text}</Text>
                   )}
@@ -114,6 +119,7 @@ const styles = StyleSheet.create({
   target: { alignItems: 'center', width: 64 },
   badge: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 13, fontWeight: '800' },
+  logo: { width: 52, height: 52 },
   targetLabel: { marginTop: space.xs, fontSize: 12, color: color.ink },
   cancel: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m },
   cancelText: { fontSize: 16, color: color.sub },
