@@ -22,9 +22,12 @@ export interface RunSnapshot {
   run: RunState;
   /** foreground면 화면이 켜져 있는 동안만 기록된다(Android Expo Go, 백그라운드 시작 실패) */
   tracking: TrackingMode | null;
+  /** 이번 실행에서 받은 GPS 상태(화면 표시·진단용). 기록 계산에는 쓰지 않는다 */
+  gps: { received: number; lastAccuracyM: number | null; lastAt: number | null };
 }
 
-const EMPTY: RunSnapshot = { runId: null, course: null, run: initialRun, tracking: null };
+const NO_GPS: RunSnapshot['gps'] = { received: 0, lastAccuracyM: null, lastAt: null };
+const EMPTY: RunSnapshot = { runId: null, course: null, run: initialRun, tracking: null, gps: NO_GPS };
 let snap: RunSnapshot = EMPTY;
 /** 목표 안내를 마지막으로 확인한 이동 시간(ms). 같은 안내를 두 번 하지 않도록 */
 let goalCheckedMs = 0;
@@ -43,7 +46,12 @@ function dispatch(e: RunEvent): void {
 subscribeSamples((samples) => {
   if (snap.runId == null || !snap.course) return;
   const before = snap.run.splits.length;
-  dispatch({ type: 'samples', samples });
+  const last = samples.at(-1);
+  emit({
+    ...snap,
+    run: reduce(snap.run, { type: 'samples', samples }),
+    gps: { received: snap.gps.received + samples.length, lastAccuracyM: last?.accuracy ?? null, lastAt: last?.t ?? null },
+  });
   // 앱 재시작 복원(replay) 때는 부르지 않도록 실시간 점에서만 안내한다
   for (const split of snap.run.splits.slice(before)) announceSplit(split);
 
@@ -71,7 +79,7 @@ export async function restoreActiveRun(): Promise<void> {
   const run = replay(loadEvents(runId));
   // 복원 시점까지 지난 안내는 다시 하지 않는다
   goalCheckedMs = elapsedMs(run, Date.now());
-  emit({ runId, course: { activity: row.activity, goalMin: row.goalMin }, run, tracking: null });
+  emit({ ...EMPTY, runId, course: { activity: row.activity, goalMin: row.goalMin }, run });
   if (run.status === 'running' || run.status === 'paused') emit({ ...snap, tracking: await startTracking() });
 }
 
@@ -81,7 +89,7 @@ export async function startRun(course: Course): Promise<PermissionResult> {
   const at = Date.now();
   goalCheckedMs = 0;
   const runId = createRun(at, course);
-  emit({ runId, course, run: initialRun, tracking: null });
+  emit({ ...EMPTY, runId, course });
   dispatch({ type: 'start', at });
   try {
     emit({ ...snap, tracking: await startTracking() });

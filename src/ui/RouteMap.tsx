@@ -9,13 +9,17 @@ import { color } from './theme';
 /**
  * 기록 경로 지도. Google Maps SDK만 쓴다(Android·iOS 모두 PROVIDER_GOOGLE).
  * 키는 빌드 시 app.config.ts가 환경 변수에서 넣는다. 키 없이 빌드하면 지도 대신 안내를 보여 준다.
- * Expo Go는 자체 키가 들어 있어 키 설정 없이도 지도가 뜬다.
+ * Expo Go는 이 앱의 키가 아니라 Expo Go 앱 자체 설정으로 지도를 띄운다(표시가 실제 빌드와 다를 수 있음).
  * 요금이 붙는 기능(스트리트 뷰, 지도 ID 스타일)은 쓰지 않는다.
  */
 const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 const mapAvailable = inExpoGo || Constants.expoConfig?.extra?.hasGoogleMapsKey === true;
 
 const EDGE = { top: 40, right: 40, bottom: 40, left: 40 };
+/** 이보다 좁은 경로(제자리·아주 짧은 기록)는 fitToCoordinates로 끝까지 확대하지 않고 initialRegion(약 300m 폭)을 쓴다 */
+const MIN_FIT_SPAN_DEG = 0.001;
+/** 너무 확대하면 타일이 없는 지역에서 빈 화면이 된다 */
+const MAX_ZOOM = 18;
 const toLatLng = (p: LatLon) => ({ latitude: p.lat, longitude: p.lon });
 
 export function RouteMap({ segments, tint, height = 260 }: { segments: LatLon[][]; tint: string; height?: number }) {
@@ -23,6 +27,13 @@ export function RouteMap({ segments, tint, height = 260 }: { segments: LatLon[][
   const coords = useMemo(() => segments.map((seg) => seg.map(toLatLng)), [segments]);
   const all = useMemo(() => coords.flat(), [coords]);
   const region = useMemo(() => regionFor(segments.flat()), [segments]);
+  const wideEnough = useMemo(() => {
+    const lats = all.map((c) => c.latitude);
+    const lons = all.map((c) => c.longitude);
+    return (
+      Math.max(...lats) - Math.min(...lats) > MIN_FIT_SPAN_DEG || Math.max(...lons) - Math.min(...lons) > MIN_FIT_SPAN_DEG
+    );
+  }, [all]);
 
   if (!mapAvailable) return <Notice height={height} text={'지도 키가 설정되지 않은 빌드예요\n(GOOGLE_MAPS_API_KEY)'} />;
   if (all.length < 2 || !region) return <Notice height={height} text="표시할 경로가 없어요" />;
@@ -35,7 +46,8 @@ export function RouteMap({ segments, tint, height = 260 }: { segments: LatLon[][
         provider={PROVIDER_GOOGLE}
         initialRegion={region}
         // 지도 크기가 정해진 뒤 경로에 딱 맞춘다(initialRegion은 화면 비율을 모르는 근사치)
-        onMapReady={() => ref.current?.fitToCoordinates(all, { edgePadding: EDGE, animated: false })}
+        onMapReady={() => wideEnough && ref.current?.fitToCoordinates(all, { edgePadding: EDGE, animated: false })}
+        maxZoomLevel={MAX_ZOOM}
         toolbarEnabled={false}
         showsPointsOfInterests={false}
         rotateEnabled={false}
