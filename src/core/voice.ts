@@ -1,13 +1,16 @@
 import { ACTIVITY_LABEL, goalCuePoints, goalLabel, type Course, type GoalCue } from './course';
+import { courseDoneText, totalSec } from './my-course';
 
 /**
  * 음성 안내: 언제·무엇을 말할지 정한다. 말하기(expo-speech)는 services/voice.ts가 한다.
- * 달리는 중에는 시간만 말한다. 페이스·거리·GPS 상태는 말하지 않는다(docs/PLAN.md §2-4).
+ * 달리는 중에는 시간만 말한다. 페이스·거리·GPS 상태는 말하지 않는다(docs/PLAN.md §2-7).
  */
 export type VoiceCue =
   | { type: 'start' }
   | { type: 'elapsed'; min: number }
   | { type: 'goal'; cue: GoalCue }
+  /** 내 코스 총 시간을 채움 */
+  | { type: 'courseDone' }
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'finish' };
@@ -49,10 +52,11 @@ export interface TimedCue {
  * fromMs 이후(이동 시간)에 말할 시간 안내 목록(시각순). GPS와 상관없이 시간만으로 정해진다.
  * - 목표 안내(절반·5분 전·달성)와 같은 시각의 "N분 지났어요"는 빼고 목표 안내만 한다(둘 다 말하지 않음).
  * - 0분에는 말하지 않는다(시작 안내가 따로 있다).
+ * - 내 코스는 구간이 짧아 절반·5분 전 없이 코스 완료(총 시간)만 목표 안내로 한다.
  * 달리는 동안 이 목록을 벽시계 시각으로 바꿔 예약하고, 일시정지하면 취소, 재개하면 다시 만든다.
  */
 export function upcomingTimeCues(
-  goalMin: number | null,
+  course: Pick<Course, 'goalMin' | 'custom'>,
   intervalMin: VoiceInterval,
   fromMs: number,
   horizonMs = SCHEDULE_HORIZON_MS,
@@ -63,7 +67,8 @@ export function upcomingTimeCues(
     for (let at = step; at <= horizonMs; at += step) byTime.set(at, { type: 'elapsed', min: at / 60_000 });
   }
   // 목표 안내가 같은 시각의 간격 안내를 덮어쓴다
-  if (goalMin != null) for (const [cue, at] of goalCuePoints(goalMin)) byTime.set(at, { type: 'goal', cue });
+  if (course.custom) byTime.set(totalSec(course.custom.blocks) * 1000, { type: 'courseDone' });
+  else if (course.goalMin != null) for (const [cue, at] of goalCuePoints(course.goalMin)) byTime.set(at, { type: 'goal', cue });
   return [...byTime]
     .filter(([at]) => at > fromMs && at <= horizonMs)
     .sort(([a], [b]) => a - b)
@@ -91,6 +96,8 @@ export function cueText(cue: VoiceCue, course: Course): string {
       return '다시 시작해요.';
     case 'finish':
       return '수고했어요. 기록을 저장했어요.';
+    case 'courseDone':
+      return courseDoneText(course.custom?.name ?? '내');
     case 'goal':
       switch (cue.cue) {
         case 'half':

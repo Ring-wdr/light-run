@@ -17,7 +17,7 @@ migrate();
 export const unstable_settings = { initialRouteName: 'index' };
 
 export default function RootLayout() {
-  // 앱이 강제 종료됐다가 다시 켜지면 이어갈지 묻는다(docs/PLAN.md §2-5).
+  // 앱이 강제 종료됐다가 다시 켜지면 이어갈지 묻는다(docs/PLAN.md §2-8).
   // 이어가면 홈이 진행 중 기록을 보고 기록 중 화면으로 보낸다
   useEffect(() => {
     const pending = findUnfinishedRun();

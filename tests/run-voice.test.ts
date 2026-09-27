@@ -19,8 +19,8 @@ vi.mock('../modules/voice-guide', () => ({
 vi.mock('expo-speech', () => ({ speak: vi.fn(), stop: vi.fn(async () => {}), getAvailableVoicesAsync: vi.fn(async () => []) }));
 vi.mock('../src/services/storage', () => ({
   // SQLite처럼 값이 없으면 null
-  getSetting: (k: string) => settings.get(k) ?? null,
-  setSetting: (k: string, v: string) => settings.set(k, v),
+  getPref: (k: string) => settings.get(k) ?? null,
+  setPref: (k: string, v: string) => settings.set(k, v),
   createRun: () => 1,
   addMark: () => {},
   deleteRun: () => {},

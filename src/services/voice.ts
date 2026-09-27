@@ -9,7 +9,7 @@ import { getPref, setPref } from './storage';
  * - Android(개발·배포 빌드): 로컬 모듈(modules/voice-guide)이 예약 시각에 네이티브에서 직접 말한다.
  *   화면이 꺼지거나 홈으로 나가도 GPS와 상관없이 시간대로 나온다.
  * - iOS·Expo Go: expo-speech + JS 타이머. 앱이 떠 있을 때만 동작한다(iOS 백그라운드는 3단계).
- * 음악 소리 줄이기(오디오 포커스)는 아직 하지 않는다(docs/PLAN.md §2-4).
+ * 음악 소리 줄이기(오디오 포커스)는 아직 하지 않는다(docs/PLAN.md §2-7).
  */
 const KEY = { enabled: 'voice.enabled', intervalMin: 'voice.intervalMin' } as const;
 
@@ -40,7 +40,7 @@ let timers: ReturnType<typeof setTimeout>[] = [];
  * 달리는 중에만 부르고, 일시정지하면 cancelTimeCues로 지운 뒤 재개할 때 다시 부른다.
  */
 export function scheduleTimeCues(course: Course, settings: VoiceSettings, movingMs: number, now: number): void {
-  const cues = upcomingTimeCues(course.goalMin, settings.intervalMin, movingMs);
+  const cues = upcomingTimeCues(course, settings.intervalMin, movingMs);
   const atMs = cues.map((c) => now + (c.atMs - movingMs));
   const texts = cues.map((c) => cueText(c.cue, course));
   if (VoiceGuide) return VoiceGuide.schedule(atMs, texts);
