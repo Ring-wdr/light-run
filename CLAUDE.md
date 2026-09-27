@@ -9,6 +9,7 @@
 - **Expo SDK 57 고정.** 위 AGENTS.md 규칙대로 기억 말고 버전별 문서와 `node_modules`의 타입 정의(`*.d.ts`)를 기준으로 작성한다. 패키지는 `npx expo install`로만 추가.
 - **비밀값(`GOOGLE_MAPS_API_KEY` 등)을 코드·app.json·커밋에 넣지 말 것.** `app.config.ts`가 환경 변수에서 읽는다(EAS env / 로컬 `.env`).
 - `android/`, `ios/`는 생성물(CNG)이다. 커밋하지 말고 직접 고치지 말 것. 네이티브 설정은 `app.json` 플러그인으로.
+  `npx expo run:android`는 `android/`가 이미 있으면 prebuild를 다시 하지 않는다. 아이콘·app.json·플러그인을 바꿨으면 `npm run prebuild:android`(또는 `android:release`)로 다시 만든다.
 
 ## 명령
 ```bash
@@ -17,6 +18,7 @@ npm test               # Vitest (src/core)
 npm run report:filter  # GPS 필터 오차표(튜닝할 때)
 npx expo export --platform android --output-dir /tmp/export  # JS 번들 확인(CI와 같음)
 npx expo start         # 개발 서버(폰에 development build 필요)
+npm run android:release  # android/를 새로 만든 뒤(prebuild --clean) 릴리스 APK를 폰에 설치
 ```
 
 ## 경계 규칙
