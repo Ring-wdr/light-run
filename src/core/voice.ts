@@ -26,7 +26,8 @@ export const DEFAULT_VOICE: VoiceSettings = { enabled: true, intervalMin: 5 };
 
 /** 저장된 문자열 값을 읽는다. 없거나 이상한 값이면 기본값 */
 export function parseVoiceSettings(raw: { enabled?: string | null; intervalMin?: string | null }): VoiceSettings {
-  const interval = Number(raw.intervalMin);
+  // Number(null)은 0(끔)이 되므로, 저장값이 없으면 숫자로 바꾸기 전에 기본값으로 본다
+  const interval = raw.intervalMin == null || raw.intervalMin === '' ? NaN : Number(raw.intervalMin);
   return {
     enabled: raw.enabled == null ? DEFAULT_VOICE.enabled : raw.enabled === '1',
     intervalMin: VOICE_INTERVALS.includes(interval as VoiceInterval)
