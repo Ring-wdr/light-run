@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
 import { startRun, useRun } from '../services/run-controller';
 import { listRuns, type RunRow } from '../services/storage';
+import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
@@ -52,6 +53,7 @@ export default function Home() {
 
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
+      <BatteryGuide />
       <Segmented
         options={ACTIVITIES.map((a) => ({ value: a, label: ACTIVITY_LABEL[a] }))}
         value={activity}
