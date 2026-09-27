@@ -16,7 +16,16 @@ export interface MoreMenuItem {
  * 항목을 누르면 메뉴를 먼저 닫고 동작을 부른다. iOS는 모달이 닫히는 중에 Alert를 띄우면 안 뜰 수 있어서
  * 완전히 닫힌 뒤(onDismiss) 부른다.
  */
-export function MoreMenu({ items, label = '더보기' }: { items: MoreMenuItem[]; label?: string }) {
+export function MoreMenu({
+  items,
+  label = '더보기',
+  glyph = '···',
+}: {
+  items: MoreMenuItem[];
+  label?: string;
+  /** 버튼 모양. 목록 행에서는 ⋮ */
+  glyph?: string;
+}) {
   const button = useRef<View>(null);
   const { width: screenW } = useWindowDimensions();
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
@@ -46,7 +55,7 @@ export function MoreMenu({ items, label = '더보기' }: { items: MoreMenuItem[]
         accessibilityRole="button"
         accessibilityLabel={label}
       >
-        <Text style={styles.dots}>···</Text>
+        <Text style={styles.dots}>{glyph}</Text>
       </Pressable>
 
       <Modal

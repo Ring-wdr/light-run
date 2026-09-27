@@ -1,12 +1,13 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { courseLabel, goalProgress } from '../../core/course';
+import { courseLabel, courseProgress } from '../../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
 import { routeSegments } from '../../core/track';
 import { prepareRunGpx, shareGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
 import { BusyOverlay } from '../../ui/BusyOverlay';
+import { CourseBar } from '../../ui/CourseBar';
 import { MoreMenu } from '../../ui/MoreMenu';
 import { RouteMap } from '../../ui/RouteMap';
 import { goBackOrHome } from '../../ui/navigation';
@@ -25,7 +26,8 @@ export default function RunDetail() {
   const [sharing, setSharing] = useState(false);
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
-  const goal = goalProgress(run.goalMin, run.movingMs);
+  const goal = courseProgress(run, run.movingMs);
+  const goalName = run.custom ? '코스' : `${run.goalMin}분 목표`;
 
   const onExport = async () => {
     setExporting(true);
@@ -75,9 +77,11 @@ export default function RunDetail() {
         />
         {goal && (
           <Text style={[styles.goal, { color: goal.done ? activityColor[run.activity] : color.sub }]}>
-            {goal.done ? `${run.goalMin}분 목표 달성` : `${run.goalMin}분 목표의 ${Math.round(goal.ratio * 100)}%`}
+            {goal.done ? (run.custom ? '코스 완료' : `${goalName} 달성`) : `${goalName}의 ${Math.round(goal.ratio * 100)}%`}
           </Text>
         )}
+        {/* 달릴 때의 코스 사본이라 코스를 고치거나 지워도 그대로다 */}
+        {run.custom && <CourseBar blocks={run.custom.blocks} height={72} elapsedMs={run.movingMs} />}
         <RouteMap segments={segments} tint={activityColor[run.activity]} />
         <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
         <View style={styles.row}>

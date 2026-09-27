@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { goalCuesBetween, type Course } from '../core/course';
+import { courseDoneBetween } from '../core/my-course';
 import { elapsedMs, initialRun, reduce, replay, type RunEvent, type RunState } from '../core/session';
 import {
   requestPermissions,
@@ -10,7 +11,7 @@ import {
   type TrackingMode,
 } from './location';
 import { addMark, createRun, deleteRun, finishRun, getActiveRunId, getRun, loadEvents } from './storage';
-import { announceGoal, announceSplit } from './voice';
+import { announceCourseDone, announceGoal, announceSplit } from './voice';
 
 /**
  * 화면과 서비스 사이의 얇은 상태 저장소.
@@ -52,12 +53,18 @@ subscribeSamples((samples) => {
     run: reduce(snap.run, { type: 'samples', samples }),
     gps: { received: snap.gps.received + samples.length, lastAccuracyM: last?.accuracy ?? null, lastAt: last?.t ?? null },
   });
-  // 앱 재시작 복원(replay) 때는 부르지 않도록 실시간 점에서만 안내한다
-  for (const split of snap.run.splits.slice(before)) announceSplit(split);
+  const { custom } = snap.course;
+  // 앱 재시작 복원(replay) 때는 부르지 않도록 실시간 점에서만 안내한다.
+  // 내 코스는 구간이 짧을 수 있어서(몇십 초~몇 분) 1km·구간 안내 없이 코스 완료만 말한다
+  if (!custom) for (const split of snap.run.splits.slice(before)) announceSplit(split);
 
   if (snap.run.status !== 'running') return;
   const now = elapsedMs(snap.run, Date.now());
-  for (const cue of goalCuesBetween(snap.course.goalMin, goalCheckedMs, now)) announceGoal(cue, snap.course);
+  if (custom) {
+    if (courseDoneBetween(custom.blocks, goalCheckedMs, now)) announceCourseDone(custom.name);
+  } else {
+    for (const cue of goalCuesBetween(snap.course.goalMin, goalCheckedMs, now)) announceGoal(cue, snap.course);
+  }
   goalCheckedMs = Math.max(goalCheckedMs, now);
 });
 
@@ -79,7 +86,7 @@ export async function restoreActiveRun(): Promise<void> {
   const run = replay(loadEvents(runId));
   // 복원 시점까지 지난 안내는 다시 하지 않는다
   goalCheckedMs = elapsedMs(run, Date.now());
-  emit({ ...EMPTY, runId, course: { activity: row.activity, goalMin: row.goalMin }, run });
+  emit({ ...EMPTY, runId, course: { activity: row.activity, goalMin: row.goalMin, custom: row.custom }, run });
   if (run.status === 'running' || run.status === 'paused') emit({ ...snap, tracking: await startTracking() });
 }
 

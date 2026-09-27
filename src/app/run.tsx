@@ -1,14 +1,16 @@
 import { Redirect, router, Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ACTIVITY_DOING, courseLabel, goalProgress } from '../core/course';
+import { ACTIVITY_DOING, courseLabel, courseProgress } from '../core/course';
+import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot } from '../core/my-course';
 import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
 import { elapsedMs } from '../core/session';
 import { FILTER } from '../core/filter';
 import { pauseRun, resumeRun, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
+import { CourseBar } from '../ui/CourseBar';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Stat } from '../ui/Stat';
-import { activityColor, color, space } from '../ui/theme';
+import { activityColor, color, courseTheme, space } from '../ui/theme';
 
 /** 경과 시간 표시용 1초 틱. 거리·페이스는 GPS 점이 올 때 바뀐다 */
 function useNow(active: boolean): number {
@@ -35,6 +37,33 @@ function GpsStatus({ gps, rejected, now }: { gps: RunSnapshot['gps']; rejected: 
   );
 }
 
+/** 내 코스: 지금 구간과 남은 시간, 다음 구간, 차트 위 현재 위치 */
+function CustomCourseStatus({ course, ms, overMs }: { course: CourseSnapshot; ms: number; overMs: number }) {
+  const segments = useMemo(() => expand(course.blocks), [course.blocks]);
+  const pos = segmentAt(segments, ms);
+  return (
+    <View style={{ gap: space.s }}>
+      <CourseBar blocks={course.blocks} height={72} elapsedMs={ms} />
+      {pos.current ? (
+        <>
+          <View style={styles.segRow}>
+            <Text style={styles.segNow}>{INTENSITY_LABEL[pos.current.intensity]}</Text>
+            <Text style={styles.segLeft}>{formatDuration(pos.remainingMs)}</Text>
+          </View>
+          <Text style={styles.goalText}>
+            {pos.next ? `다음: ${INTENSITY_LABEL[pos.next.intensity]} ${formatStepSec(pos.next.sec)}` : '마지막 구간'}
+            {`  ·  ${pos.index + 1}/${segments.length}`}
+          </Text>
+        </>
+      ) : (
+        <Text style={[styles.goalText, { color: courseTheme.tint, fontWeight: '700' }]}>
+          코스 완료! +{formatDuration(overMs)}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 export default function RunScreen() {
   const { runId, course, run, tracking, gps } = useRun();
   const now = useNow(run.status === 'running');
@@ -45,7 +74,7 @@ export default function RunScreen() {
   const ms = elapsedMs(run, now);
   const paused = run.status === 'paused';
   const tint = course ? activityColor[course.activity] : color.accent;
-  const goal = course ? goalProgress(course.goalMin, ms) : null;
+  const goal = course ? courseProgress(course, ms) : null;
 
   const onStop = async () => {
     setStopping(true);
@@ -61,7 +90,9 @@ export default function RunScreen() {
       {course && <Stack.Screen options={{ title: ACTIVITY_DOING[course.activity] }} />}
       {course && <Text style={[styles.course, { color: tint }]}>{courseLabel(course)}</Text>}
 
-      {goal && (
+      {course?.custom ? (
+        <CustomCourseStatus course={course.custom} ms={ms} overMs={goal?.overMs ?? 0} />
+      ) : goal && (
         <View style={{ gap: space.s }}>
           <ProgressBar ratio={goal.ratio} tint={tint} />
           <Text style={[styles.goalText, goal.done && { color: tint }]}>
@@ -119,5 +150,8 @@ const styles = StyleSheet.create({
   gps: { textAlign: 'center', color: color.sub, fontSize: 13, fontVariant: ['tabular-nums'] },
   notice: { textAlign: 'center', color: color.sub, fontSize: 13 },
   goalText: { textAlign: 'center', fontSize: 16, color: color.sub, fontVariant: ['tabular-nums'] },
+  segRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  segNow: { fontSize: 28, fontWeight: '800', color: color.ink },
+  segLeft: { fontSize: 28, fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
   btnText: { fontSize: 18, fontWeight: '700', color: color.ink },
 });

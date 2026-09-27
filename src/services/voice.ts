@@ -1,5 +1,6 @@
 import * as Speech from 'expo-speech';
 import { goalCueText, type Course, type GoalCue } from '../core/course';
+import { courseDoneText } from '../core/my-course';
 import { splitCue } from '../core/pace';
 import type { Split } from '../core/types';
 
@@ -14,4 +15,9 @@ export function announceSplit(split: Split): void {
 /** 시간 목표 절반·5분 전·달성 */
 export function announceGoal(cue: GoalCue, course: Course): void {
   say(goalCueText(cue, course));
+}
+
+/** 내 코스 완료(내 코스는 이것만 말한다) */
+export function announceCourseDone(name: string): void {
+  say(courseDoneText(name));
 }
