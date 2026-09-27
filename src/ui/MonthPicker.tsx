@@ -6,13 +6,12 @@ import { color, space } from './theme';
 /**
  * 연·월 선택 팝업. Android 기본 날짜 선택기에는 월만 고르는 모드가 없어서
  * RN 기본 Modal에 연도 넘기기 + 12달 칸으로 만든다.
- * 오늘보다 뒤의 달은 고를 수 없고, 기록이 있는 달엔 점을 찍는다.
+ * 과거로는 제한 없이 넘길 수 있고, 오늘보다 뒤의 달은 고를 수 없다. 기록이 있는 달엔 점을 찍는다.
  */
 export function MonthPicker({
   visible,
   value,
   max,
-  minYear,
   monthsWithRuns,
   onSelect,
   onClose,
@@ -22,7 +21,6 @@ export function MonthPicker({
   value: YearMonth;
   /** 고를 수 있는 마지막 달(보통 이번 달) */
   max: YearMonth;
-  minYear: number;
   /** 연도를 받아 기록이 있는 달(0~11)을 돌려준다 */
   monthsWithRuns: (year: number) => Set<number>;
   onSelect: (ym: YearMonth) => void;
@@ -36,7 +34,6 @@ export function MonthPicker({
   }, [visible, value.year]);
 
   const ran = monthsWithRuns(year);
-  const canPrev = year > minYear;
   const canNext = year < max.year;
 
   return (
@@ -45,8 +42,8 @@ export function MonthPicker({
         {/* 안쪽을 눌러도 닫히지 않게 이벤트를 여기서 받는다 */}
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.head}>
-            <Pressable onPress={() => setYear(year - 1)} disabled={!canPrev} hitSlop={12} accessibilityLabel="이전 해">
-              <Text style={[styles.nav, !canPrev && styles.navOff]}>‹</Text>
+            <Pressable onPress={() => setYear(year - 1)} hitSlop={12} accessibilityLabel="이전 해">
+              <Text style={styles.nav}>‹</Text>
             </Pressable>
             <Text style={styles.year}>{year}년</Text>
             <Pressable onPress={() => setYear(year + 1)} disabled={!canNext} hitSlop={12} accessibilityLabel="다음 해">

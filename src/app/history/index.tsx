@@ -66,7 +66,6 @@ export default function History() {
     setMonth(ym);
     setDay(null);
   };
-  const minYear = dated.length > 0 ? new Date(dated[0]!.startedAt).getFullYear() : thisMonth.year;
 
   return (
     <>
@@ -128,7 +127,6 @@ export default function History() {
         visible={picking}
         value={month}
         max={thisMonth}
-        minYear={Math.min(minYear, month.year)}
         monthsWithRuns={(y) => activeMonths(dated, y)}
         onSelect={(ym) => {
           setPicking(false);
