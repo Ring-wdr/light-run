@@ -28,7 +28,7 @@
 | **expo-location + expo-task-manager** | 백그라운드 위치. Android는 포그라운드 서비스, iOS는 background location 모드 |
 | **expo-sqlite** | 기록 중 원본 저장소. 앱이 죽어도 이어서 복원 |
 | **expo-speech** | 1km마다 음성 안내(TTS, 음원 없음) |
-| **지도: OSM 타일 + SVG 경로(라이브러리 없음)** | react-native-maps는 Android에서 Google 키가 필요하고, MapLibre는 SDK 57 호환 목록에 없다. 기록 화면에만 쓰는 정적 지도라 타일 이미지를 직접 깔고 `react-native-svg`로 선을 그린다. 키·가입 불필요 |
+| **지도: react-native-maps + OSM 대체** | Android는 Google 지도(키 필요, Maps SDK 모바일 지도 표시는 무제한·무료 SKU), iOS는 Apple 지도(키 불필요). 키가 없는 빌드는 OSM 타일 + SVG 정적 지도로 대체 |
 | **Vitest** | 순수 로직(`src/core`)만 Node에서 빠르게 테스트. 화면은 실기기 확인 |
 
 ## 2-1. 코스
@@ -52,10 +52,24 @@
 
 - 기록 상세(종료 직후 결과 화면 포함)에만 표시한다. 달리는 중에는 그리지 않는다(배터리·데이터 절약).
 - 선은 원본 GPS 점이 아니라 **거리 계산에 쓰인 점**(`core/track.ts`의 `routeSegments`)으로 그린다. 튄 점이 선에 나오지 않고, 선 길이 = 기록 거리(테스트로 보장). 일시정지 구간은 선을 끊는다.
-- 확대·이동 없는 정적 지도. 경로가 여백 안에 들어오는 가장 큰 줌(최대 17)을 고른다. 타일을 128dp로 깔아(한 단계 높은 줌) 고해상도 화면에서도 선명하다. 한 화면에 타일 최대 12장.
-- 시작점 초록 원, 끝점 남색 원. 우측 하단에 `© OpenStreetMap contributors`(탭하면 저작권 페이지).
-- **OSM 타일 사용 정책**: 앱 식별 User-Agent, 저작권 표시, 과도한 요청 금지. 개인 사용은 문제없다. 스토어에 공개해 사용자가 늘면 `src/ui/RouteMap.tsx`의 `TILE_URL`만 MapTiler·Stadia 등(무료 한도 있음, 키 필요)으로 바꾼다.
-- 오프라인이면 타일 자리가 회색으로 남고 경로 선은 그대로 보인다.
+
+| 플랫폼 | 지도 | 조건 |
+|---|---|---|
+| Android | Google 지도(확대·이동) | 빌드 시 `GOOGLE_MAPS_API_KEY`가 있을 때 |
+| Android | OSM 정적 지도(`OsmRouteMap`) | 키가 없을 때(포크·CI·키 문제 시 대체) |
+| iOS | Apple 지도(확대·이동) | 키 불필요 |
+
+### Google Maps 키
+- **코드·git에 넣지 않는다.** `app.config.ts`가 빌드 시 환경 변수에서 읽어 매니페스트(`com.google.android.geo.API_KEY`)에 넣는다. JS에는 "키가 있는지"만 노출(`extra.hasGoogleMapsKey`).
+- EAS 빌드: `eas env:create --name GOOGLE_MAPS_API_KEY --value <키> --visibility sensitive --environment development --environment preview --environment production`
+- 로컬(`npx expo run:android`): 프로젝트 루트 `.env`에 `GOOGLE_MAPS_API_KEY=<키>` (gitignore됨)
+- Cloud Console 제한: 애플리케이션 = Android 앱(`com.ringwdr.lightrun` + EAS 서명 SHA-1), API = Maps SDK for Android만. 예산 알림 설정.
+- 요금: 모바일 지도 표시(Maps SDK SKU)는 무제한. **스트리트 뷰, 지도 ID(클라우드 스타일)는 쓰지 않는다**(유료 SKU).
+
+### OSM 대체 지도
+- 확대·이동 없는 정적 지도. 경로가 여백 안에 들어오는 가장 큰 줌(최대 17), 타일 128dp(선명), 최대 12장.
+- 타일 사용 정책: 앱 식별 User-Agent, `© OpenStreetMap contributors` 표시, 과도한 요청 금지. 서버 교체는 `OsmRouteMap.tsx`의 `TILE_URL`.
+- 오프라인이면 타일 자리가 회색으로 남고 경로 선은 보인다.
 
 ## 3. 구조
 
@@ -144,12 +158,12 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 
 ### 0단계: 뼈대 ✅ (이 커밋)
 - [x] Expo SDK 57 + Router + TS strict
-- [x] core: 필터·상태 머신·페이스·GPX·코스·지도 + 테스트 63개
+- [x] core: 필터·상태 머신·페이스·GPX·코스·지도 + 테스트 66개
 - [x] 백그라운드 위치 태스크, SQLite 스키마, 기록 복원
 - [x] 화면 4개(홈·기록 중·목록·상세)
 - [x] CI: 타입체크 + 테스트 + Android JS 번들
 - [x] 코스: 걷기·달리기 × 30분·50분·자유, 목표 진행 막대와 음성 안내, 기록 필터
-- [x] 기록 상세에 경로 지도(OSM 타일 + SVG)
+- [x] 기록 상세에 경로 지도(Android Google 지도 / iOS Apple 지도, 키 없으면 OSM 정적 지도)
 
 ### 1단계: MVP, 갤럭시 실사용
 - [ ] development build를 폰에 설치하고 실제로 달려 보기(30분 이상, 화면 끔)

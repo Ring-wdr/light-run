@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { haversine } from '../src/core/geo';
 import { replay, type RunEvent } from '../src/core/session';
-import { fitView, project, routePath, TILE_DP, tilesFor, toScreen } from '../src/core/tiles';
+import { fitView, project, regionFor, routePath, TILE_DP, tilesFor, toScreen } from '../src/core/tiles';
 import { routeSegments } from '../src/core/track';
 import { squareTrack, straightTrack } from './helpers';
 
@@ -124,5 +124,21 @@ describe('routeSegments', () => {
 
   it('기록이 없으면 빈 배열', () => {
     expect(routeSegments([{ type: 'start', at: T0 }, { type: 'stop', at: T0 + 1000 }])).toEqual([]);
+  });
+});
+
+describe('regionFor', () => {
+  it('중심과 여백 포함 폭', () => {
+    const r = regionFor([{ lat: 37.5, lon: 127 }, { lat: 37.52, lon: 127.04 }])!;
+    expect(r.latitude).toBeCloseTo(37.51);
+    expect(r.longitude).toBeCloseTo(127.02);
+    expect(r.latitudeDelta).toBeCloseTo(0.026);
+    expect(r.longitudeDelta).toBeCloseTo(0.052);
+  });
+  it('제자리 기록은 최소 폭', () => {
+    expect(regionFor([{ lat: 37.5, lon: 127 }])!.latitudeDelta).toBe(0.003);
+  });
+  it('점이 없으면 null', () => {
+    expect(regionFor([])).toBeNull();
   });
 });

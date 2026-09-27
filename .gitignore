@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# 비밀값(GOOGLE_MAPS_API_KEY 등)
+.env

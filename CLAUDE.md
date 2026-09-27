@@ -7,6 +7,7 @@
 
 - 언어: UI 문구, 주석, 문서는 한국어. 커밋은 Conventional Commits(`feat:`, `fix:` …)
 - **Expo SDK 57 고정.** 위 AGENTS.md 규칙대로 기억 말고 버전별 문서와 `node_modules`의 타입 정의(`*.d.ts`)를 기준으로 작성한다. 패키지는 `npx expo install`로만 추가.
+- **비밀값(`GOOGLE_MAPS_API_KEY` 등)을 코드·app.json·커밋에 넣지 말 것.** `app.config.ts`가 환경 변수에서 읽는다(EAS env / 로컬 `.env`).
 - `android/`, `ios/`는 생성물(CNG)이다. 커밋하지 말고 직접 고치지 말 것. 네이티브 설정은 `app.json` 플러그인으로.
 
 ## 명령
