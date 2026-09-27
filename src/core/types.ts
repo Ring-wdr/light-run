@@ -20,3 +20,10 @@ export interface Split {
   /** 이 구간에 걸린 시간(ms, 일시정지 제외) */
   durationMs: number;
 }
+
+/** 일시정지·재개 표시(SQLite run_marks 한 줄) */
+export interface RunMark {
+  type: 'pause' | 'resume';
+  /** epoch ms */
+  at: number;
+}

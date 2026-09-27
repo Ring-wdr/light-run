@@ -17,6 +17,7 @@ import {
 } from '../../core/calendar';
 import { formatDuration, formatKm } from '../../core/pace';
 import { prepareAllGpx, shareGpx } from '../../services/export';
+import { importGpx, pickGpxFile } from '../../services/import';
 import { listRunDates, listRunsBetween, type RunRow } from '../../services/storage';
 import { BusyOverlay } from '../../ui/BusyOverlay';
 import { MonthPicker } from '../../ui/MonthPicker';
@@ -32,7 +33,14 @@ export default function History() {
   const [day, setDay] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  const reload = useCallback(() => {
+    const { from, to } = monthRange(month);
+    setRuns(listRunsBetween(from, to));
+    setDated(listRunDates());
+  }, [month]);
 
   const onBackup = async () => {
     setExporting(true);
@@ -49,15 +57,40 @@ export default function History() {
       setExporting(false);
     }
   };
-  useFocusEffect(
-    // 목록은 달력에서 보고 있는 달의 기록만
-    useCallback(() => {
-      const { from, to } = monthRange(month);
-      setRuns(listRunsBetween(from, to));
-      setDated(listRunDates());
-    }, [month]),
-  );
+  // 새 폰·새 빌드로 옮길 때: 전체 백업 GPX를 다시 넣는다. 이미 있는 기록은 건너뛴다
+  const onImport = async () => {
+    let xml: string | null;
+    try {
+      xml = await pickGpxFile();
+    } catch (e) {
+      Alert.alert('파일을 열지 못했어요', e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (xml == null) return;
+    setImporting(true);
+    setProgress(0);
+    try {
+      const r = await importGpx(xml, setProgress);
+      setImporting(false);
+      reload();
+      const skipped = [
+        r.duplicates ? `이미 있는 기록 ${r.duplicates}개` : '',
+        r.empty ? `GPS 점 없는 기록 ${r.empty}개` : '',
+      ].filter(Boolean);
+      Alert.alert(
+        r.imported ? `기록 ${r.imported}개를 불러왔어요` : '새로 불러온 기록이 없어요',
+        skipped.length ? `건너뜀: ${skipped.join(', ')}` : undefined,
+      );
+    } catch (e) {
+      Alert.alert('불러오지 못했어요', e instanceof Error ? e.message : String(e));
+    } finally {
+      setImporting(false);
+    }
+  };
+  // 목록은 달력에서 보고 있는 달의 기록만
+  useFocusEffect(reload);
 
+  const busy = exporting || importing;
   const now = Date.now();
   const thisMonth = monthOf(now);
   const isThisMonth = sameMonth(month, thisMonth);
@@ -119,10 +152,15 @@ export default function History() {
               </Pressable>
             )}
 
-            {/* 전체 기록을 한 파일로(다른 폰·빌드로 옮길 때) */}
-            <Pressable onPress={onBackup} disabled={exporting} style={styles.backup} accessibilityRole="button">
-              <Text style={styles.backupText}>전체 기록 백업 (GPX)</Text>
-            </Pressable>
+            {/* 전체 기록을 한 파일로 내보내고 다시 넣기(다른 폰·빌드로 옮길 때) */}
+            <View style={styles.backupRow}>
+              <Pressable onPress={onImport} disabled={busy} style={styles.backup} accessibilityRole="button">
+                <Text style={styles.backupText}>백업 불러오기</Text>
+              </Pressable>
+              <Pressable onPress={onBackup} disabled={busy} style={styles.backup} accessibilityRole="button">
+                <Text style={styles.backupText}>전체 기록 백업 (GPX)</Text>
+              </Pressable>
+            </View>
           </View>
         }
         ListEmptyComponent={
@@ -141,7 +179,11 @@ export default function History() {
         onClose={() => setPicking(false)}
         tint={color.ink}
       />
-      <BusyOverlay visible={exporting} label="백업 파일 만드는 중" progress={progress} />
+      <BusyOverlay
+        visible={busy}
+        label={importing ? '기록 불러오는 중' : '백업 파일 만드는 중'}
+        progress={progress}
+      />
     </View>
   );
 }
@@ -167,7 +209,8 @@ const styles = StyleSheet.create({
   dayFilter: { paddingVertical: space.xs },
   dayFilterText: { color: color.ink, fontWeight: '600' },
   link: { color: color.sub, textDecorationLine: 'underline' },
-  backup: { alignSelf: 'flex-end', paddingVertical: space.xs },
+  backupRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.l },
+  backup: { paddingVertical: space.xs },
   backupText: { color: color.sub, fontWeight: '600', textDecorationLine: 'underline' },
   empty: { color: color.sub, paddingVertical: space.l },
 });
