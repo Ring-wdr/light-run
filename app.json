@@ -36,7 +36,8 @@
     ],
     "scheme": "lightrun",
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     }
   }
 }
