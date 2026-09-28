@@ -19,7 +19,7 @@ npm run check          # 타입체크 + 린트 + 테스트. 작업 끝나기 전
 npm test               # Jest(jest-expo). Android·iOS 두 프로젝트로 돈다
 npm run lint           # ESLint(eslint-config-expo + 프로젝트 규칙)
 npm run report:filter  # GPS 필터 오차표(튜닝할 때)
-maestro test .maestro  # E2E(Maestro). 기기·에뮬레이터에 개발용 릴리스 앱 필요. PR마다 EAS Workflows로도 돈다(README "E2E")
+maestro test .maestro  # E2E(Maestro). 기기·에뮬레이터에 개발용 릴리스 앱 필요. EAS Workflows는 손으로만(유료 요금제 필요, README "E2E")
 npx expo export --platform android --output-dir /tmp/export  # JS 번들 확인(CI와 같음)
 npx expo start         # 개발 서버(폰에 development build 필요)
 npm run android          # 개발용 앱(debug)을 폰에 설치. 이후 npx expo start
@@ -38,7 +38,7 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
   기록 화면으로 가거나 나오는 이동을 직접 하지 않는다. `<Redirect>`·`router.push`·`dangerouslySingular` 대신 `router.navigate`,
   홈으로는 `goHome()`. 새 화면은 가드 안에 넣는다(금지 호출은 `eslint.config.js`, 스택 동작은 `tests/navigation.test.tsx`가 검사).
 - 화면 흐름을 바꾸면 `.maestro/` 흐름도 맞춘다. 흐름은 화면 문구·접근성 라벨로 찾으므로 문구를 바꾸면 같이 고친다.
-  에이전트는 에뮬레이터가 없어 E2E를 돌릴 수 없다. `maestro check-syntax`로 문법만 확인하고 PR에 적는다.
+  에이전트는 에뮬레이터가 없어 E2E를 돌릴 수 없다. `maestro check-syntax`로 문법만 확인하고, PR의 "실기기 확인 필요"에 `maestro test .maestro`를 넣는다.
 - 화면 동작 테스트는 `tests/navigation.test.tsx`처럼 실제 `src/app`을 `renderRouter('src/app')`로 띄우고 RNTL로 누른다.
   가짜는 기기 경계(SQLite → `tests/support/sqlite.ts`, 위치 서비스, 네이티브 뷰 → `tests/setup.tsx`)에만 둔다. 테스트 파일은 `src/app/` 밖에.
 - **React Compiler가 켜져 있다**(`app.json`의 `experiments.reactCompiler`). 대상은 `src/`만(`babel.config.js`), 테스트도 같은 설정으로 컴파일된 코드를 돈다(`jest.config.js`).

@@ -60,27 +60,36 @@ npx expo start --dev-client
 | 종류 | 명령 | 어디서 |
 |---|---|---|
 | 단위·화면 흐름(Jest) | `npm test` (`npm run check`에 포함) | 로컬, GitHub Actions |
-| E2E(Maestro) | 아래 | 에뮬레이터·시뮬레이터, EAS Workflows |
+| E2E(Maestro) | 아래 | 로컬 기기·에뮬레이터. EAS Workflows는 손으로(유료 요금제 필요) |
 
 ### E2E(Maestro)
 실제 앱을 설치해 누르는 테스트다. Jest가 못 보는 Android 뒤로 가기 키, 위치 권한, 포그라운드 서비스를 확인한다.
 흐름은 `.maestro/`(맨 위 파일이 흐름, `subflows/`는 흐름이 부르는 조각). 대상은 개발용 앱(`com.ringwdr.lightrun.dev`).
+PR마다 자동으로 돌지 않는다. 화면 흐름을 바꾼 PR은 머지 전에 로컬에서 돌린다.
 
-**EAS에서(PR마다 자동)**: `.eas/workflows/e2e-test-android.yml`·`e2e-test-ios.yml`이 `eas.json`의 `e2e-test` 프로필로
-빌드한 뒤 흐름을 돌린다. 결과는 expo.dev 대시보드에서 본다. 처음 한 번 준비가 필요하다.
-1. `npx eas-cli@latest init` → 프로젝트를 EAS에 연결(`app.json`에 `extra.eas.projectId`가 들어간다. 커밋할 것)
-2. expo.dev → 프로젝트 → Settings → GitHub에서 저장소를 연결. 두 단계다
-   - Expo GitHub 앱을 설치하고 이 저장소에 접근을 허용한다
-   - 같은 화면으로 돌아와 저장소를 골라 **Connect**를 누른다. 허용만 하고 Connect를 안 누르면 PR을 올려도 아무 일도 안 일어난다
-   - 연결 전에 연 PR은 새 커밋이 올라가야(또는 다시 열어야) 워크플로가 돈다
-3. PR마다 Android·iOS 빌드와 테스트가 돌아 EAS 빌드 사용량이 든다. 줄이려면 워크플로 `on:`을 조정
-
-손으로 돌리기: `npx eas-cli@latest workflow:run .eas/workflows/e2e-test-android.yml`
-
-**로컬에서**: [Maestro CLI](https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli) 설치 후
+**로컬에서(기본)**: [Maestro CLI](https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli) 설치 후
 ```bash
 npm run android:release        # 개발용 앱 릴리스 빌드를 기기·에뮬레이터에 설치
 maestro test .maestro          # 맨 위 흐름 전부. 하나만: maestro test .maestro/home.yml
 ```
 debug 빌드(`npm run android`)는 development build 런처가 먼저 떠서 흐름이 맞지 않는다. 릴리스 빌드로 돌린다.
 흐름은 기록·코스를 지우고 시작한다(`clearState`). 쓰던 개발용 앱의 데이터가 사라지니 테스트용 기기·에뮬레이터에서 돌릴 것.
+
+**EAS에서(손으로)**: `.eas/workflows/e2e-test-android.yml`·`e2e-test-ios.yml`이 `eas.json`의 `e2e-test` 프로필로
+빌드한 뒤 흐름을 돌린다. 결과는 expo.dev 대시보드에서 본다.
+```bash
+npx eas-cli@latest workflow:run .eas/workflows/e2e-test-android.yml
+```
+- **`maestro` 작업은 EAS 유료 요금제에서만 돈다.** 무료 계정은 빌드까지만 되고
+  "Subscription to EAS is required to run maestro_test jobs"로 멈춘다(빌드 사용량만 든다).
+  그래서 워크플로에 `on:`(PR 트리거)을 두지 않았다. 구독하면 문서대로 아래를 넣어 PR마다 돌릴 수 있다.
+  ```yaml
+  on:
+    pull_request:
+      branches: ['*']
+  ```
+- 준비(한 번): `npx eas-cli@latest init`으로 프로젝트 연결(`app.json`의 `extra.eas.projectId`, 커밋됨).
+  PR 트리거를 쓸 때는 expo.dev → 프로젝트 → Settings → GitHub에서 저장소 연결도 필요하다. 두 단계다
+  - Expo GitHub 앱을 설치하고 이 저장소에 접근을 허용한다
+  - 같은 화면으로 돌아와 저장소를 골라 **Connect**를 누른다. 허용만 하고 Connect를 안 누르면 PR을 올려도 아무 일도 안 일어난다
+  - 연결 전에 연 PR은 새 커밋이 올라가야(또는 다시 열어야) 워크플로가 돈다
