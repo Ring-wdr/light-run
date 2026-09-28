@@ -1,6 +1,7 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatTotalSec, totalSec, type MyCourse } from '../../core/my-course';
 import { listCourses } from '../../services/storage';
 import { Chevron } from '../../ui/Chevron';
@@ -9,6 +10,7 @@ import { color, courseTheme, space } from '../../ui/theme';
 
 /** 홈 그리드의 "더보기": 내 코스 전부(홈과 같은 순서) + 새 코스 */
 export default function CourseList() {
+  const insets = useSafeAreaInsets();
   const [courses, setCourses] = useState<MyCourse[]>([]);
   useFocusEffect(useCallback(() => setCourses(listCourses()), []));
 
@@ -32,7 +34,7 @@ export default function CourseList() {
       <FlatList
         data={courses}
         keyExtractor={(c) => String(c.id)}
-        contentContainerStyle={styles.wrap}
+        contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}
         ListEmptyComponent={<Text style={styles.empty}>아직 만든 코스가 없어요.</Text>}
         renderItem={({ item: c }) => (
           <Pressable

@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { courseLabel, courseProgress } from '../../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
 import { routeSegments } from '../../core/track';
@@ -24,6 +25,7 @@ export default function RunDetail() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [sharing, setSharing] = useState(false);
+  const insets = useSafeAreaInsets();
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
   const goal = courseProgress(run, run.movingMs);
@@ -100,7 +102,10 @@ export default function RunDetail() {
             ))}
           </View>
         )}
+      </ScrollView>
 
+      {/* 구간이 길어도 스크롤 없이 누르도록 아래에 고정. 3버튼 내비게이션 바만큼 띄운다 */}
+      <View style={[styles.footer, { paddingBottom: space.l + insets.bottom }]}>
         <Pressable
           onPress={() => setSharing(true)}
           style={({ pressed }) => [
@@ -112,9 +117,9 @@ export default function RunDetail() {
         >
           <Text style={styles.shareText}>공유하기</Text>
         </Pressable>
+      </View>
 
-        <ShareSheet run={run} segments={segments} visible={sharing} onClose={() => setSharing(false)} />
-      </ScrollView>
+      <ShareSheet run={run} segments={segments} visible={sharing} onClose={() => setSharing(false)} />
       <BusyOverlay
         visible={exporting}
         label="GPX 파일 만드는 중"
@@ -127,7 +132,7 @@ export default function RunDetail() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  wrap: { padding: space.l, gap: space.l },
+  wrap: { padding: space.l, gap: space.l, paddingBottom: space.xl },
   row: { flexDirection: 'row' },
   goal: { textAlign: 'center', fontSize: 16, fontWeight: '700' },
   h2: { fontSize: 18, fontWeight: '700', color: color.ink, marginBottom: space.s },
@@ -140,6 +145,7 @@ const styles = StyleSheet.create({
   },
   splitKm: { color: color.sub },
   splitPace: { color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  footer: { paddingHorizontal: space.l, paddingTop: space.s },
   share: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m, borderRadius: 999 },
   shareText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   empty: { padding: space.l, color: color.sub },

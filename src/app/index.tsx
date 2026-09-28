@@ -1,6 +1,7 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
 import type { MyCourse } from '../core/my-course';
 import { getPref, listCourses, listRuns, setPref, type RunRow } from '../services/storage';
@@ -33,6 +34,7 @@ function savedTab(): HomeTab {
 }
 
 export default function Home() {
+  const insets = useSafeAreaInsets();
   // 마지막으로 고른 탭을 기억한다(내 코스만 쓰는 사람이 매번 탭을 누르지 않게)
   const [tab, setTab] = useState<HomeTab>(savedTab);
   const [recent, setRecent] = useState<RunRow[]>([]);
@@ -68,7 +70,7 @@ export default function Home() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
+    <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}>
       <Stack.Screen
         options={{
           headerRight: () => (
