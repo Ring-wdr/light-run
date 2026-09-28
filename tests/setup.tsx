@@ -49,3 +49,11 @@ const { View } = jest.requireActual<typeof import('react-native')>('react-native
 jest
   .mocked((View as unknown as { prototype: { measureInWindow: (cb: Measure) => void } }).prototype.measureInWindow)
   .mockImplementation((cb) => cb(0, 0, 0, 0));
+
+// Android 물결(Pressable android_ripple)은 누를 때 네이티브 뷰 명령(hotspotUpdate·setPressed)을 보낸다.
+// RN 프리셋의 ViewNativeComponent 모의 객체는 스스로 "불완전"하다고 적어 두었고 Commands가 없다.
+// 프리셋 모의 객체는 그대로 두고, Node에서는 할 일이 없는 명령만 채운다
+jest.mock('react-native/Libraries/Components/View/ViewNativeComponent', () => ({
+  ...jest.requireActual('@react-native/jest-preset/jest/mocks/ViewNativeComponent'),
+  Commands: { hotspotUpdate: () => {}, setPressed: () => {} },
+}));
