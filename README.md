@@ -54,3 +54,30 @@ npx expo start --dev-client
   `cd android; .\gradlew --stop` 후 다시 실행(Android Studio·VS Code가 `android/`를 열고 있어도 같은 증상).
 - 키가 매니페스트에 들어갔는지 확인: `findstr "geo.API_KEY" android\app\src\main\AndroidManifest.xml` (값이 `MISSING_GOOGLE_MAPS_API_KEY`면 키 없이 만들어진 것)
 - 에뮬레이터가 켜져 있으면 그 기기용(x86_64)으로만 빌드돼 폰에 설치가 안 된다(`INSTALL_FAILED_NO_MATCHING_ABIS`). `--device`로 폰을 고를 것.
+
+## 테스트
+
+| 종류 | 명령 | 어디서 |
+|---|---|---|
+| 단위·화면 흐름(Jest) | `npm test` (`npm run check`에 포함) | 로컬, GitHub Actions |
+| E2E(Maestro) | 아래 | 에뮬레이터·시뮬레이터, EAS Workflows |
+
+### E2E(Maestro)
+실제 앱을 설치해 누르는 테스트다. Jest가 못 보는 Android 뒤로 가기 키, 위치 권한, 포그라운드 서비스를 확인한다.
+흐름은 `.maestro/`(맨 위 파일이 흐름, `subflows/`는 흐름이 부르는 조각). 대상은 개발용 앱(`com.ringwdr.lightrun.dev`).
+
+**EAS에서(PR마다 자동)**: `.eas/workflows/e2e-test-android.yml`·`e2e-test-ios.yml`이 `eas.json`의 `e2e-test` 프로필로
+빌드한 뒤 흐름을 돌린다. 결과는 expo.dev 대시보드에서 본다. 처음 한 번 준비가 필요하다.
+1. `npx eas-cli@latest init` → 프로젝트를 EAS에 연결(`app.json`에 `extra.eas.projectId`가 들어간다. 커밋할 것)
+2. expo.dev → 프로젝트 → Settings → GitHub에서 이 저장소를 연결
+3. PR마다 Android·iOS 빌드와 테스트가 돌아 EAS 빌드 사용량이 든다. 줄이려면 워크플로 `on:`을 조정
+
+손으로 돌리기: `npx eas-cli@latest workflow:run .eas/workflows/e2e-test-android.yml`
+
+**로컬에서**: [Maestro CLI](https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli) 설치 후
+```bash
+npm run android:release        # 개발용 앱 릴리스 빌드를 기기·에뮬레이터에 설치
+maestro test .maestro          # 맨 위 흐름 전부. 하나만: maestro test .maestro/home.yml
+```
+debug 빌드(`npm run android`)는 development build 런처가 먼저 떠서 흐름이 맞지 않는다. 릴리스 빌드로 돌린다.
+흐름은 기록·코스를 지우고 시작한다(`clearState`). 쓰던 개발용 앱의 데이터가 사라지니 테스트용 기기·에뮬레이터에서 돌릴 것.

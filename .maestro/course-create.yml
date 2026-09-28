@@ -1,0 +1,24 @@
+# 내 코스 만들기: 템플릿으로 채우고 저장 → "나중에" → 홈 내 코스 탭 → 코스 상세.
+# Android의 inputText는 ASCII만 확실히 입력되므로 코스 이름은 영문으로 쓴다
+appId: com.ringwdr.lightrun.dev
+name: 내 코스 만들기
+---
+- launchApp:
+    clearState: true
+- runFlow: subflows/dismiss-battery-guide.yml
+- tapOn: '내 코스'
+- tapOn: '코스 만들기'
+- assertVisible: '새 코스'
+
+- tapOn: '걷기-달리기 입문'
+- tapOn: '예: 걷뛰 30분'
+- inputText: 'E2E course'
+- hideKeyboard
+- tapOn: '저장'
+
+- assertVisible: '코스를 저장했어요'
+- tapOn: '나중에'
+# 코스가 적으면 홈의 내 코스 탭으로 돌아간다(src/app/courses/edit.tsx)
+- assertVisible: '코스 선택'
+- tapOn: 'E2E course'
+- assertVisible: 'E2E course 시작'

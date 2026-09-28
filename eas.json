@@ -10,6 +10,12 @@
       "android": { "buildType": "apk" },
       "env": { "APP_VARIANT": "development" }
     },
+    "e2e-test": {
+      "withoutCredentials": true,
+      "ios": { "simulator": true },
+      "android": { "buildType": "apk" },
+      "env": { "APP_VARIANT": "development" }
+    },
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },

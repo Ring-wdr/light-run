@@ -1,0 +1,9 @@
+# Android 홈의 배터리 최적화 안내 카드가 떠 있으면 닫는다(src/ui/BatteryGuide.tsx).
+# 카드가 코스 카드를 아래로 밀어내므로, 흐름마다 홈에 들어오면 먼저 부른다
+appId: com.ringwdr.lightrun.dev
+---
+- runFlow:
+    when:
+      visible: '다시 보지 않기'
+    commands:
+      - tapOn: '다시 보지 않기'
