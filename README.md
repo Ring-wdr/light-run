@@ -69,7 +69,10 @@ npx expo start --dev-client
 **EAS에서(PR마다 자동)**: `.eas/workflows/e2e-test-android.yml`·`e2e-test-ios.yml`이 `eas.json`의 `e2e-test` 프로필로
 빌드한 뒤 흐름을 돌린다. 결과는 expo.dev 대시보드에서 본다. 처음 한 번 준비가 필요하다.
 1. `npx eas-cli@latest init` → 프로젝트를 EAS에 연결(`app.json`에 `extra.eas.projectId`가 들어간다. 커밋할 것)
-2. expo.dev → 프로젝트 → Settings → GitHub에서 이 저장소를 연결
+2. expo.dev → 프로젝트 → Settings → GitHub에서 저장소를 연결. 두 단계다
+   - Expo GitHub 앱을 설치하고 이 저장소에 접근을 허용한다
+   - 같은 화면으로 돌아와 저장소를 골라 **Connect**를 누른다. 허용만 하고 Connect를 안 누르면 PR을 올려도 아무 일도 안 일어난다
+   - 연결 전에 연 PR은 새 커밋이 올라가야(또는 다시 열어야) 워크플로가 돈다
 3. PR마다 Android·iOS 빌드와 테스트가 돌아 EAS 빌드 사용량이 든다. 줄이려면 워크플로 `on:`을 조정
 
 손으로 돌리기: `npx eas-cli@latest workflow:run .eas/workflows/e2e-test-android.yml`
