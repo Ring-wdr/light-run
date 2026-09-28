@@ -8,6 +8,7 @@ import { elapsedMs } from '../core/session';
 import { FILTER } from '../core/filter';
 import { pauseRun, resumeRun, setVoiceOn, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
 import { CourseBar } from '../ui/CourseBar';
+import { HoldButton } from '../ui/HoldButton';
 import { setDetailAfterStop } from '../ui/navigation';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Stat } from '../ui/Stat';
@@ -143,16 +144,8 @@ export default function RunScreen() {
         >
           <Text style={styles.btnText}>{paused ? '재개' : '일시정지'}</Text>
         </Pressable>
-        {/* 주머니 속 오작동을 막으려고 종료는 길게 눌러야 한다 */}
-        <Pressable
-          style={[styles.btn, { backgroundColor: tint }]}
-          onLongPress={onStop}
-          delayLongPress={800}
-          accessibilityRole="button"
-          accessibilityHint="길게 눌러서 종료"
-        >
-          <Text style={[styles.btnText, { color: '#fff' }]}>길게 눌러 종료</Text>
-        </Pressable>
+        {/* 주머니 속 오작동을 막으려고 종료는 길게 눌러야 한다. 누르는 동안 버튼이 차오른다 */}
+        <HoldButton label="길게 눌러 종료" onHold={onStop} tint={tint} style={styles.btn} accessibilityHint="길게 눌러서 종료" />
       </View>
     </View>
   );
