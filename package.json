@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "babel-preset-expo": "^57.0.13",
     "expo": "~57.0.24",
+    "expo-asset": "~57.0.18",
     "expo-battery": "~57.0.3",
     "expo-constants": "~57.0.19",
     "expo-dev-client": "~57.0.19",
@@ -27,27 +29,50 @@
     "react-native-view-shot": "5.1.0"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.14",
     "@types/node": "~26.6.2",
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3",
-    "vitest": "^5.0.1"
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.2",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.5",
+    "react-test-renderer": "19.2.3",
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
     "start:go": "expo start --go",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test",
-    "report:filter": "vitest run -c vitest.report.config.mts",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "report:filter": "jest --testMatch '<rootDir>/tests/report/**/*.report.ts'",
     "doctor": "expo-doctor",
     "prebuild:android": "expo prebuild --clean --platform android",
-    "android:release": "expo prebuild --clean --platform android && expo run:android --variant release --device"
+    "android:release": "expo prebuild --clean --platform android && expo run:android --variant release --device",
+    "lint": "expo lint"
   },
   "private": true,
   "engines": {
     "node": ">=22"
+  },
+  "jest": {
+    "projects": [
+      {
+        "preset": "jest-expo/android",
+        "setupFilesAfterEnv": [
+          "<rootDir>/tests/setup.tsx"
+        ]
+      },
+      {
+        "preset": "jest-expo/ios",
+        "setupFilesAfterEnv": [
+          "<rootDir>/tests/setup.tsx"
+        ]
+      }
+    ]
   }
 }

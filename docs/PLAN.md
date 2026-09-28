@@ -29,7 +29,8 @@
 | **expo-sqlite** | 기록 중 원본 저장소. 앱이 죽어도 이어서 복원 |
 | **expo-speech** | 음성 안내(TTS, 음원 없음, §2-7). Android 백그라운드는 로컬 모듈 `modules/voice-guide` |
 | **지도: Google Maps SDK만(react-native-maps `PROVIDER_GOOGLE`)** | Android·iOS 모두 Google 지도. Maps SDK 모바일 지도 표시는 무제한·무료 SKU. 키 없는 빌드는 지도 대신 안내 문구 |
-| **Vitest** | 순수 로직(`src/core`)만 Node에서 빠르게 테스트. 화면은 실기기 확인 |
+| **Jest + jest-expo** (Expo 권장) | 순수 로직(`src/core`) 단위 테스트, 그리고 `expo-router/testing-library`로 실제 화면·가드를 메모리에 띄우는 흐름 테스트. Android·iOS 프리셋 두 벌로 돈다. 백그라운드·GPS 품질은 실기기 확인 |
+| **ESLint** (`eslint-config-expo`) | 경계 규칙(core import 금지, 화면 이동 금지 호출)을 린트로 막는다 |
 
 ## 2-1. 코스
 
@@ -253,7 +254,7 @@ app/run.tsx         음성 안내 토글 스위치
 
 ```
 src/
-  core/        순수 TS. react·expo import 금지(tests/boundary.test.ts가 막음)
+  core/        순수 TS. react·expo import 금지(eslint.config.js가 막음)
     types.ts     Sample(GPS 점), Split(1km 구간)
     course.ts    코스(종목 × 시간 목표), 목표 진행률, 목표 안내 시점
     my-course.ts 내 코스: 구간·반복 블록, 펼치기, 현재 구간, 차트 폭, 홈 칸 정렬, 편집 연산, 검증
@@ -292,7 +293,10 @@ src/
 modules/
   share-target/  로컬 Expo 모듈(Android). 공유 시트 없이 특정 앱(카카오톡 등)에 이미지를 바로 보낸다
   voice-guide/   로컬 Expo 모듈(Android). 시간 음성 안내를 예약 시각에 네이티브에서 말한다(화면 꺼짐·백그라운드)
-tests/         Vitest(core + run-controller 음성 예약 흐름은 모의 모듈로) + 합성 GPS 트랙 생성기
+tests/         Jest. core 단위 테스트, run-controller 음성 예약(모의 모듈), 합성 GPS 트랙 생성기
+  navigation.test.tsx  실제 앱(src/app)을 renderRouter로 띄워 버튼을 눌러 보는 화면 스택 테스트
+  setup.tsx            모든 테스트 앞: Node에 없는 네이티브 뷰(지도)·레이아웃·iOS Modal 동작을 채운다
+  support/sqlite.ts    expo-sqlite 대신 Node 내장 SQLite. 저장소 코드는 진짜로 돈다
 tests/fixtures/ 실제 GPX + 정답 거리(.json). 있으면 ±3% 테스트와 오차표에 쓰인다(README 참고)
 tests/report/  튜닝용 리포트(npm run report:filter: 합성 트랙 표 + 실제 GPX 표)
 ```
@@ -358,7 +362,7 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 - [x] core: 필터·상태 머신·페이스·GPX·코스·경로 + 테스트 57개
 - [x] 백그라운드 위치 태스크, SQLite 스키마, 기록 복원
 - [x] 화면 4개(홈·기록 중·목록·상세)
-- [x] CI: 타입체크 + 테스트 + Android JS 번들
+- [x] CI: 타입체크 + 린트 + 테스트 + Android JS 번들
 - [x] 코스: 걷기·달리기 × 30분·50분·자유, 목표 진행 막대와 음성 안내, 기록 필터
 - [x] 기록 상세에 경로 지도(Google Maps SDK)
 

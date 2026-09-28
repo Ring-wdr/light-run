@@ -8,7 +8,7 @@ export const VARIANTS = [
   { ...FILTER, minMoveM: 3 },
 ];
 
-/** vitest가 console 출력을 가로채서 stdout에 직접 쓴다 */
+/** Jest는 console 출력마다 호출 위치를 붙여 표가 깨진다. 그래서 stdout에 직접 쓴다 */
 export function printTable(title: string, rows: Record<string, string>[]): void {
   const cols = Object.keys(rows[0]!);
   const line = (r: Record<string, string>) => cols.map((c) => (r[c] ?? '').padStart(c.length > 9 ? c.length : 9)).join(' ');

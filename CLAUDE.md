@@ -15,8 +15,9 @@
 
 ## 명령
 ```bash
-npm run check          # 타입체크 + 테스트. 작업 끝나기 전에 반드시
-npm test               # Vitest (src/core)
+npm run check          # 타입체크 + 린트 + 테스트. 작업 끝나기 전에 반드시
+npm test               # Jest(jest-expo). Android·iOS 두 프로젝트로 돈다
+npm run lint           # ESLint(eslint-config-expo + 프로젝트 규칙)
 npm run report:filter  # GPS 필터 오차표(튜닝할 때)
 npx expo export --platform android --output-dir /tmp/export  # JS 번들 확인(CI와 같음)
 npx expo start         # 개발 서버(폰에 development build 필요)
@@ -26,7 +27,7 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
 ```
 
 ## 경계 규칙
-- `src/core/`는 순수 TS다. react·react-native·expo를 import하지 않는다(`tests/boundary.test.ts`가 검사).
+- `src/core/`는 순수 TS다. react·react-native·expo를 import하지 않는다(`eslint.config.js`가 막는다).
   계산 로직(거리, 페이스, 구간, 필터, 자동 일시정지 등)은 전부 여기에 두고 테스트한다.
 - `src/services/`만 expo 모듈을 부른다. `src/app/` 화면은 services와 core를 조합만 한다.
 - 기록의 원본은 SQLite의 이벤트(runs, run_marks, samples)다. 거리·구간은 저장값이 아니라 `replay()` 결과로 본다.
@@ -34,7 +35,9 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
 - DB 스키마 변경은 `storage.ts`의 `MIGRATIONS` 배열 **끝에 추가만** 한다. 기존 항목 수정 금지.
 - 화면 스택 규칙은 `src/ui/navigation.ts` 머리 주석. 기록 중/아님은 `_layout.tsx`의 `Stack.Protected` 가드가 정하고,
   기록 화면으로 가거나 나오는 이동을 직접 하지 않는다. `<Redirect>`·`router.push`·`dangerouslySingular` 대신 `router.navigate`,
-  홈으로는 `goHome()`. 새 화면은 가드 안에 넣는다(`tests/navigation.test.ts`가 검사).
+  홈으로는 `goHome()`. 새 화면은 가드 안에 넣는다(금지 호출은 `eslint.config.js`, 스택 동작은 `tests/navigation.test.tsx`가 검사).
+- 화면 동작 테스트는 `tests/navigation.test.tsx`처럼 실제 `src/app`을 `renderRouter('src/app')`로 띄우고 RNTL로 누른다.
+  가짜는 기기 경계(SQLite → `tests/support/sqlite.ts`, 위치 서비스, 네이티브 뷰 → `tests/setup.tsx`)에만 둔다. 테스트 파일은 `src/app/` 밖에.
 - `location.ts`의 `defineTask`는 모듈 최상위에 있어야 하고, `_layout.tsx`가 가장 먼저 import한다. 순서를 바꾸지 말 것.
 
 ## 튜닝 수치

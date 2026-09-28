@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { haversine } from '../src/core/geo';
 import { regionFor } from '../src/core/region';
 import { replay, type RunEvent } from '../src/core/session';

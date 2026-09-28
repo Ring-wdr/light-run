@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import type { Course } from '../src/core/course';
 import { step } from '../src/core/my-course';
 import { cueText, parseVoiceSettings, spokenMinutes, upcomingTimeCues, type TimedCue } from '../src/core/voice';

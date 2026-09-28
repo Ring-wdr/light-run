@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { courseLabel, goalCuePoints, goalProgress } from '../src/core/course';
 
 const MIN = 60_000;
