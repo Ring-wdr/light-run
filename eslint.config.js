@@ -4,6 +4,7 @@ const expoConfig = require('eslint-config-expo/flat');
 
 /*
  * 프로젝트 규칙(CLAUDE.md "경계 규칙")은 테스트가 아니라 린트로 막는다. 어기면 편집기에서 바로 보이고 CI에서 실패한다.
+ * React Compiler 규칙(react-hooks/*)은 낮추거나 끄지 않는다. 지키기 어려우면 코드를 고치기 전에 먼저 보고한다(CLAUDE.md).
  * no-restricted-syntax는 파일마다 마지막으로 맞은 설정의 목록 하나만 쓰므로, 예외 파일에는 목록을 다시 조합해 넣는다.
  */
 
@@ -34,14 +35,6 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ['dist/*', 'android/*', 'ios/*', 'coverage/*'],
-  },
-  {
-    rules: {
-      // TODO: 기존 화면 코드가 React Compiler 규칙 몇 개를 어긴다(렌더 중 Date.now, effect 안의 setState).
-      // 동작을 바꾸는 수정이라 실기기 확인과 함께 따로 고친다. 그때까지 경고로 두어 새 코드에서는 보이게 한다.
-      'react-hooks/purity': 'warn',
-      'react-hooks/set-state-in-effect': 'warn',
-    },
   },
   {
     files: ['src/**/*.{ts,tsx}'],
@@ -82,6 +75,13 @@ module.exports = defineConfig([
           ],
         },
       ],
+    },
+  },
+  {
+    // jest.mock 팩토리는 파일 맨 위로 끌어올려져 import를 못 쓴다. 팩토리 안에서 모듈을 부르는 require는 Jest의 정해진 방식이다
+    files: ['tests/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 ]);

@@ -53,7 +53,7 @@
     "doctor": "expo-doctor",
     "prebuild:android": "expo prebuild --clean --platform android",
     "android:release": "expo prebuild --clean --platform android && expo run:android --variant release --device",
-    "lint": "expo lint"
+    "lint": "expo lint src tests --max-warnings 0"
   },
   "private": true,
   "engines": {

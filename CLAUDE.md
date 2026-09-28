@@ -38,6 +38,9 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
   홈으로는 `goHome()`. 새 화면은 가드 안에 넣는다(금지 호출은 `eslint.config.js`, 스택 동작은 `tests/navigation.test.tsx`가 검사).
 - 화면 동작 테스트는 `tests/navigation.test.tsx`처럼 실제 `src/app`을 `renderRouter('src/app')`로 띄우고 RNTL로 누른다.
   가짜는 기기 경계(SQLite → `tests/support/sqlite.ts`, 위치 서비스, 네이티브 뷰 → `tests/setup.tsx`)에만 둔다. 테스트 파일은 `src/app/` 밖에.
+- **React Compiler 규칙(`react-hooks/*` 린트)은 지킨다.** 걸리면 린트 설정(끄기·경고로 낮추기·`eslint-disable`)을 건드리지 말고 코드를 고친다.
+  렌더 중 Date.now 같은 순수하지 않은 호출 금지, effect 안에서 바로 setState 대신 렌더 중 조정·key로 다시 마운트·이벤트 핸들러로.
+  규칙을 지키면서 구현하기 어려우면 우회하기 전에 사용자에게 먼저 보고하고 정한다.
 - `location.ts`의 `defineTask`는 모듈 최상위에 있어야 하고, `_layout.tsx`가 가장 먼저 import한다. 순서를 바꾸지 말 것.
 
 ## 튜닝 수치
