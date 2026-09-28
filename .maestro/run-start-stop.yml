@@ -1,0 +1,50 @@
+# 기록 시작 → 일시정지·재개 → 종료 → 상세 → 홈.
+# 화면 스택 규칙(src/ui/navigation.ts)을 실제 앱에서 확인한다. Jest(tests/navigation.test.tsx)가 못 보는
+# Android 뒤로 가기 키, 위치 권한, 포그라운드 서비스가 대상이다. GPS 점은 없으니 거리는 0이다
+appId: com.ringwdr.lightrun.dev
+name: 기록 시작·종료
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- runFlow: subflows/dismiss-battery-guide.yml
+- tapOn: '달리기 30분 시작'
+# 백그라운드 위치를 받지 못한 환경이면 안내창이 뜬다(src/ui/start.ts). 기록은 그대로 시작된다
+- runFlow:
+    when:
+      visible: '화면을 켜 두고 움직여 주세요'
+    commands:
+      - tapOn: 'OK'
+- assertVisible: '길게 눌러 종료'
+
+- tapOn: '일시정지'
+- assertVisible: '일시정지됨'
+- tapOn: '재개'
+- assertNotVisible: '일시정지됨'
+
+# Android: 기록 중 뒤로 가기는 스택 맨 아래라 앱을 백그라운드로 보낸다. 다시 열면 기록 화면 그대로
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+      - assertNotVisible: '길게 눌러 종료'
+      - launchApp:
+          stopApp: false
+      - assertVisible: '길게 눌러 종료'
+
+- longPressOn: '길게 눌러 종료'
+# 끝나면 홈 위에 방금 기록의 상세가 열린다(헤더 제목 = 코스 이름)
+- assertVisible: '공유하기'
+- assertVisible: '달리기 · 30분'
+
+# Android: 상세에서 뒤로 가기 = 홈. 방금 기록이 최근 기록에 있다
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+      - assertVisible: '코스 선택'
+      - assertVisible: '달리기 · 30분'
+      - assertNotVisible: '아직 기록이 없어요. 첫 코스를 시작해 보세요.'

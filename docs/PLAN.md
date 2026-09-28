@@ -31,6 +31,7 @@
 | **지도: Google Maps SDK만(react-native-maps `PROVIDER_GOOGLE`)** | Android·iOS 모두 Google 지도. Maps SDK 모바일 지도 표시는 무제한·무료 SKU. 키 없는 빌드는 지도 대신 안내 문구 |
 | **Jest + jest-expo** (Expo 권장) | 순수 로직(`src/core`) 단위 테스트, 그리고 `expo-router/testing-library`로 실제 화면·가드를 메모리에 띄우는 흐름 테스트. Android·iOS 프리셋 두 벌로 돈다. 백그라운드·GPS 품질은 실기기 확인 |
 | **React Compiler** (`app.json` `experiments.reactCompiler`) | 컴포넌트·훅을 자동으로 메모이제이션. SDK 57은 `babel-preset-expo`에 포함되어 켜기만 하면 된다. 대상은 `src/`, 테스트도 같은 설정으로 돈다 |
+| **Maestro** | E2E. 개발용 앱을 기기·에뮬레이터에 설치해 누른다(`.maestro/`). 뒤로 가기 키·권한·포그라운드 서비스처럼 Jest가 못 보는 것. 로컬에서 돌린다. EAS Workflows 파일도 있지만 maestro 작업은 유료 요금제라 PR 트리거 없이 둔다 |
 | **ESLint** (`eslint-config-expo`) | 경계 규칙(core import 금지, 화면 이동 금지 호출)을 린트로 막는다 |
 
 ## 2-1. 코스

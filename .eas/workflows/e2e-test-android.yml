@@ -1,0 +1,21 @@
+# Android E2E 테스트(Maestro). https://docs.expo.dev/eas/workflows/examples/e2e-tests/
+# eas.json의 e2e-test 프로필로 개발용 앱(com.ringwdr.lightrun.dev)을 빌드해 EAS의 에뮬레이터에서 .maestro 흐름을 돌린다.
+# 손으로 돌리기: npx eas-cli@latest workflow:run .eas/workflows/e2e-test-android.yml
+# maestro 작업은 EAS 유료 요금제에서만 돌아서 on:(PR 트리거)을 두지 않았다. 구독하면 문서대로
+#   on: { pull_request: { branches: ['*'] } }
+# 를 넣는다(README "E2E").
+name: e2e-test-android
+
+jobs:
+  build_android_for_e2e:
+    type: build
+    params:
+      platform: android
+      profile: e2e-test
+
+  maestro_test:
+    needs: [build_android_for_e2e]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_android_for_e2e.outputs.build_id }}
+      flow_path: ['.maestro/home.yml', '.maestro/run-start-stop.yml', '.maestro/course-create.yml']

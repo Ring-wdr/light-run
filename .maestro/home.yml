@@ -1,0 +1,10 @@
+# 처음 켠 앱의 홈. 기록·코스가 없는 상태
+appId: com.ringwdr.lightrun.dev
+name: 홈
+---
+- launchApp:
+    clearState: true
+- runFlow: subflows/dismiss-battery-guide.yml
+- assertVisible: '코스 선택'
+- assertVisible: '달리기 30분 시작'
+- assertVisible: '아직 기록이 없어요. 첫 코스를 시작해 보세요.'
