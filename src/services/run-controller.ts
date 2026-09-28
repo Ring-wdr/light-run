@@ -96,11 +96,6 @@ export function useRun(): RunSnapshot {
   );
 }
 
-/** 지금 진행 중인 기록 id. 렌더링과 상관없이 한 번 확인할 때(화면 이동 판단) 쓴다 */
-export function getRunId(): number | null {
-  return snap.runId;
-}
-
 export interface UnfinishedRun {
   runId: number;
   course: Course;

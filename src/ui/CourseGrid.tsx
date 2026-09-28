@@ -21,7 +21,7 @@ export function CourseGrid({ courses }: { courses: MyCourse[] }) {
         <Text style={styles.emptyTitle}>아직 만든 코스가 없어요</Text>
         <Text style={styles.emptyHint}>걷기·달리기 구간을 이어 붙여{'\n'}나만의 코스를 만들어 보세요.</Text>
         <Pressable
-          onPress={() => router.push('/courses/edit')}
+          onPress={() => router.navigate('/courses/edit')}
           style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
         >
@@ -52,7 +52,7 @@ function Cell({ slot }: { slot: HomeSlot<MyCourse> }) {
     case 'new':
       return (
         <Pressable
-          onPress={() => router.push('/courses/edit')}
+          onPress={() => router.navigate('/courses/edit')}
           style={({ pressed }) => [styles.cellBox, styles.cell, styles.dashed, pressed && { opacity: 0.6 }]}
           accessibilityRole="button"
           accessibilityLabel="새 코스 만들기"
@@ -64,7 +64,7 @@ function Cell({ slot }: { slot: HomeSlot<MyCourse> }) {
     case 'more':
       return (
         <Pressable
-          onPress={() => router.push('/courses')}
+          onPress={() => router.navigate('/courses')}
           style={({ pressed }) => [styles.cellBox, styles.cell, styles.center, pressed && { opacity: 0.6 }]}
           accessibilityRole="button"
           accessibilityLabel={`코스 ${slot.hidden}개 더 보기`}
@@ -77,7 +77,7 @@ function Cell({ slot }: { slot: HomeSlot<MyCourse> }) {
       const c = slot.course;
       return (
         <Pressable
-          onPress={() => router.push(`/courses/${c.id}`)}
+          onPress={() => router.navigate(`/courses/${c.id}`)}
           style={({ pressed }) => [styles.cellBox, styles.cell, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel={`${c.favoritedAt != null ? '즐겨찾기, ' : ''}${c.name}`}

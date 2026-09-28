@@ -1,6 +1,6 @@
-import { Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, Platform, Pressable, StyleSheet, Switch, Text, ToastAndroid, View } from 'react-native';
+import { Stack } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { ACTIVITY_DOING, courseLabel, courseProgress } from '../core/course';
 import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot } from '../core/my-course';
 import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
@@ -8,7 +8,7 @@ import { elapsedMs } from '../core/session';
 import { FILTER } from '../core/filter';
 import { pauseRun, resumeRun, setVoiceOn, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
 import { CourseBar } from '../ui/CourseBar';
-import { finishToDetail, goHome } from '../ui/navigation';
+import { setDetailAfterStop } from '../ui/navigation';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Stat } from '../ui/Stat';
 import { activityColor, color, courseTheme, space } from '../ui/theme';
@@ -68,33 +68,11 @@ function CustomCourseStatus({ course, ms, overMs }: { course: CourseSnapshot; ms
 export default function RunScreen() {
   const { runId, course, run, tracking, gps, voiceOn } = useRun();
   const now = useNow(run.status === 'running');
-  const [stopping, setStopping] = useState(false);
-  /** 길게 누르기가 연달아 들어와도 한 번만 종료한다(state는 다음 렌더까지 안 바뀐다) */
+  /** 길게 누르기가 연달아 들어와도 한 번만 종료한다 */
   const stopOnce = useRef(false);
-  const noRun = runId == null && !stopping;
 
-  // 기록이 없는데 이 화면이 열리면(링크 lightrun://run 등) 홈으로. <Redirect href="/">는 이 화면 자리에
-  // 홈을 넣어 [홈, 홈]이 되고 홈에 뒤로 가기가 생긴다
-  useFocusEffect(
-    useCallback(() => {
-      if (noRun) goHome();
-    }, [noRun]),
-  );
-
-  // Android 뒤로 가기 키로 빠져나가면 기록은 계속되는데 홈이 보여 헷갈리고, 스택도 꼬인다.
-  // 기록 중에는 종료 버튼(길게 누르기)으로만 나가게 막는다. iOS는 _layout.tsx에서 제스처를 껐다
-  useFocusEffect(
-    useCallback(() => {
-      if (Platform.OS !== 'android') return;
-      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-        ToastAndroid.show('끝내려면 종료 버튼을 길게 눌러 주세요', ToastAndroid.SHORT);
-        return true;
-      });
-      return () => sub.remove();
-    }, []),
-  );
-
-  if (noRun) return null;
+  // 종료되는 순간 _layout.tsx의 가드가 이 화면을 치운다. 그 사이 한 번 그려질 때 빈 기록을 보이지 않게
+  if (runId == null) return null;
 
   const ms = elapsedMs(run, now);
   const paused = run.status === 'paused';
@@ -104,18 +82,15 @@ export default function RunScreen() {
   const onStop = async () => {
     if (stopOnce.current) return;
     stopOnce.current = true;
-    setStopping(true);
-    let id: number | null;
+    // 끝나면 가드가 이 화면을 치우고 홈을 새로 띄운다. 홈이 이어서 방금 기록의 상세를 연다
+    setDetailAfterStop(runId);
     try {
-      id = await stopRun();
+      await stopRun();
     } catch (e) {
+      setDetailAfterStop(null);
       stopOnce.current = false;
-      setStopping(false);
       Alert.alert('기록을 끝내지 못했어요', e instanceof Error ? e.message : String(e));
-      return;
     }
-    // 홈만 남기고 상세를 올린다. 상세에서 뒤로 가기·삭제하면 항상 홈으로 간다
-    finishToDetail(id);
   };
 
   return (

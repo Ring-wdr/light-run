@@ -2,11 +2,13 @@ import { router } from 'expo-router';
 
 /*
  * 스택 규칙
- * - 홈은 항상 스택 맨 아래 한 번만 있다. 홈 위에 홈이 쌓이거나, 홈 아래에 다른 화면이 깔리면
- *   홈에 뒤로 가기 버튼이 생긴다. 그래서 홈으로 갈 때는 replace('/')나 <Redirect href="/">를 쓰지 않고 goHome()을 쓴다.
- * - 기록 중 화면(/run)은 스택에 하나만, 들어가는 길은 openRun() 하나다.
- *   화면 쪽 <Redirect href="/run">(replace)는 시작 흐름의 push와 겹쳐 [run, run]을 만들었다.
- * - 같은 화면을 두 번 누르면 두 번 쌓이지 않게 _layout.tsx에서 dangerouslySingular를 켠다.
+ * - 기록 중인지 아닌지는 _layout.tsx의 Stack.Protected가 정한다. 기록 중에는 기록 화면만, 아니면 나머지만 열린다.
+ *   가드가 바뀌면 라우터가 스택을 정리한다: 시작하면 [기록], 끝나면 [홈].
+ *   그래서 기록 화면으로 가거나 기록 화면에서 나오는 이동(push, replace, <Redirect>)을 직접 하지 않는다.
+ *   예전엔 <Redirect href="/run">이 시작 흐름의 push와 겹쳐 [run, run]이 되고 종료 뒤 홈에 뒤로 가기가 생겼다.
+ * - 앞으로 가는 이동은 router.navigate. 맨 위가 같은 화면(같은 id)이면 새로 쌓지 않아 연타해도 한 번만 열린다.
+ *   router.push는 쓰지 않는다(tests/navigation.test.ts가 검사).
+ * - 홈으로 갈 때는 goHome(). replace('/')는 홈 아래에 화면을 남겨 홈에 뒤로 가기가 생길 수 있다.
  */
 
 /**
@@ -27,13 +29,22 @@ export function goHome(): void {
   router.dismissTo('/');
 }
 
-/** 기록 중 화면으로. 이미 스택에 있으면 새로 쌓지 않는다(_layout.tsx의 dangerouslySingular) */
-export function openRun(): void {
-  router.push('/run');
+/** 기록을 끝낸 뒤 홈이 열어 줄 상세 */
+let detailAfterStop: number | null = null;
+
+/**
+ * 기록을 끝내기 직전에 부른다(실패하면 null로 되돌린다).
+ * 끝나는 순간 가드가 기록 화면을 치우고 홈을 새로 띄우는데, 그 전에는 상세 화면이 스택에 들어갈 수 없다.
+ * 그래서 홈이 포커스될 때(openDetailAfterStop) 연다. 상세에서 뒤로 가기·삭제하면 항상 홈으로 간다.
+ */
+export function setDetailAfterStop(runId: number | null): void {
+  detailAfterStop = runId;
 }
 
-/** 기록을 끝낸 뒤: 홈만 남기고 그 위에 상세를 올린다. 상세에서 뒤로 가기·삭제하면 항상 홈으로 간다 */
-export function finishToDetail(runId: number | null): void {
-  goHome();
-  if (runId != null) router.push(`/history/${runId}`);
+/** 홈이 포커스될 때 부른다. 방금 끝낸 기록이 있으면 상세를 연다 */
+export function openDetailAfterStop(): void {
+  const id = detailAfterStop;
+  if (id == null) return;
+  detailAfterStop = null;
+  router.navigate(`/history/${id}`);
 }

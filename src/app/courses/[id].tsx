@@ -81,7 +81,7 @@ export default function CourseDetail() {
             <MoreMenu
               items={[
                 { label: favorite ? '즐겨찾기 해제' : '즐겨찾기', onPress: onFavorite },
-                { label: '편집', onPress: () => router.push({ pathname: '/courses/edit', params: { id: String(c.id) } }) },
+                { label: '편집', onPress: () => router.navigate({ pathname: '/courses/edit', params: { id: String(c.id) } }) },
                 { label: '복제', onPress: onDuplicate },
                 { label: '삭제', onPress: onDelete, destructive: true },
               ]}

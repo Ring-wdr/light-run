@@ -3,12 +3,11 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
 import type { MyCourse } from '../core/my-course';
-import { getRunId } from '../services/run-controller';
 import { getPref, listCourses, listRuns, setPref, type RunRow } from '../services/storage';
 import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
-import { openRun } from '../ui/navigation';
+import { openDetailAfterStop } from '../ui/navigation';
 import { SettingsIcon } from '../ui/SettingsIcon';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
@@ -46,10 +45,8 @@ export default function Home() {
       setCourses(listCourses());
       // 다른 화면(코스 저장 뒤 "나중에")이 탭을 바꿔 두었으면 따른다
       setTab(savedTab());
-      // 기록이 진행 중인데 홈이 보이면(앱 화면만 새로 만들어진 경우 등) 기록 화면을 홈 위에 올린다.
-      // 포커스될 때만 본다. 시작 중(runId가 막 생긴 때)에는 startCourse가 연다. 여기서 <Redirect>로
-      // 홈을 바꿔 버리면 시작 흐름의 push와 겹쳐 [run, run]이 되고, 종료 뒤 홈에 뒤로 가기가 생긴다
-      if (getRunId() != null) openRun();
+      // 기록을 막 끝냈으면 그 상세를 홈 위에 연다(src/ui/navigation.ts)
+      openDetailAfterStop();
     }, []),
   );
 
@@ -76,7 +73,7 @@ export default function Home() {
         options={{
           headerRight: () => (
             <Pressable
-              onPress={() => router.push('/settings')}
+              onPress={() => router.navigate('/settings')}
               hitSlop={8}
               style={({ pressed }) => pressed && { opacity: 0.5 }}
               accessibilityRole="button"
@@ -129,7 +126,7 @@ export default function Home() {
         {recent.length > 0 && (
           // Link asChild로 감싸면 함수형 style이 사라져 글자와 아이콘이 두 줄이 된다
           <Pressable
-            onPress={() => router.push('/history')}
+            onPress={() => router.navigate('/history')}
             style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}
             accessibilityRole="button"
             accessibilityLabel="전체 기록 보기"
