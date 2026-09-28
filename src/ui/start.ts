@@ -1,9 +1,8 @@
-import { router } from 'expo-router';
 import { Alert } from 'react-native';
 import type { Course } from '../core/course';
 import { startRun } from '../services/run-controller';
 
-/** 권한 안내까지 포함해 기록을 시작하고 기록 화면으로 간다. 시작했으면 true */
+/** 권한 안내까지 포함해 기록을 시작한다. 시작했으면 true. 기록 화면은 _layout.tsx의 가드가 띄운다 */
 export async function startCourse(course: Course): Promise<boolean> {
   try {
     const perm = await startRun(course);
@@ -17,7 +16,6 @@ export async function startCourse(course: Course): Promise<boolean> {
         '위치를 "항상 허용"하지 않으면 화면이 꺼졌을 때 기록이 멈출 수 있어요.',
       );
     }
-    router.push('/run');
     return true;
   } catch (e) {
     Alert.alert('기록을 시작하지 못했어요', e instanceof Error ? e.message : String(e));

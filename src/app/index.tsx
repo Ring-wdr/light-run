@@ -1,13 +1,13 @@
-import { Redirect, router, Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
 import type { MyCourse } from '../core/my-course';
-import { useRun } from '../services/run-controller';
 import { getPref, listCourses, listRuns, setPref, type RunRow } from '../services/storage';
 import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
+import { openDetailAfterStop } from '../ui/navigation';
 import { SettingsIcon } from '../ui/SettingsIcon';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
@@ -33,7 +33,6 @@ function savedTab(): HomeTab {
 }
 
 export default function Home() {
-  const { runId } = useRun();
   // 마지막으로 고른 탭을 기억한다(내 코스만 쓰는 사람이 매번 탭을 누르지 않게)
   const [tab, setTab] = useState<HomeTab>(savedTab);
   const [recent, setRecent] = useState<RunRow[]>([]);
@@ -46,11 +45,10 @@ export default function Home() {
       setCourses(listCourses());
       // 다른 화면(코스 저장 뒤 "나중에")이 탭을 바꿔 두었으면 따른다
       setTab(savedTab());
+      // 기록을 막 끝냈으면 그 상세를 홈 위에 연다(src/ui/navigation.ts)
+      openDetailAfterStop();
     }, []),
   );
-
-  // 진행 중인 기록이 있으면(앱 재시작 등) 바로 기록 화면으로
-  if (runId != null) return <Redirect href="/run" />;
 
   const activity: Activity = tab === 'mine' ? 'run' : tab;
   const tint = tab === 'mine' ? courseTheme.tint : activityColor[activity];
@@ -75,7 +73,7 @@ export default function Home() {
         options={{
           headerRight: () => (
             <Pressable
-              onPress={() => router.push('/settings')}
+              onPress={() => router.navigate('/settings')}
               hitSlop={8}
               style={({ pressed }) => pressed && { opacity: 0.5 }}
               accessibilityRole="button"
@@ -128,7 +126,7 @@ export default function Home() {
         {recent.length > 0 && (
           // Link asChild로 감싸면 함수형 style이 사라져 글자와 아이콘이 두 줄이 된다
           <Pressable
-            onPress={() => router.push('/history')}
+            onPress={() => router.navigate('/history')}
             style={({ pressed }) => [styles.more, pressed && { opacity: 0.6 }]}
             accessibilityRole="button"
             accessibilityLabel="전체 기록 보기"

@@ -9,10 +9,10 @@ const dateFmt = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric'
 
 /** 홈의 최근 기록용 한 줄 행: 코스 · 거리 · 날짜 */
 export function RecentRunRow({ run }: { run: RunRow }) {
-  // Link asChild(Radix Slot)는 함수형 style을 {}로 합쳐 버려 레이아웃이 풀린다. 그래서 Pressable + router.push
+  // Link asChild(Radix Slot)는 함수형 style을 {}로 합쳐 버려 레이아웃이 풀린다. 그래서 Pressable + router.navigate
   return (
     <Pressable
-      onPress={() => router.push(`/history/${run.id}`)}
+      onPress={() => router.navigate(`/history/${run.id}`)}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
       accessibilityRole="button"
     >

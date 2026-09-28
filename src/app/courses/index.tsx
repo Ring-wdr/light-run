@@ -18,7 +18,7 @@ export default function CourseList() {
         options={{
           headerRight: () => (
             <Pressable
-              onPress={() => router.push('/courses/edit')}
+              onPress={() => router.navigate('/courses/edit')}
               hitSlop={8}
               style={({ pressed }) => pressed && { opacity: 0.5 }}
               accessibilityRole="button"
@@ -36,7 +36,7 @@ export default function CourseList() {
         ListEmptyComponent={<Text style={styles.empty}>아직 만든 코스가 없어요.</Text>}
         renderItem={({ item: c }) => (
           <Pressable
-            onPress={() => router.push(`/courses/${c.id}`)}
+            onPress={() => router.navigate(`/courses/${c.id}`)}
             style={({ pressed }) => [styles.item, pressed && { opacity: 0.7 }]}
             accessibilityRole="button"
             accessibilityLabel={`${c.favoritedAt != null ? '즐겨찾기, ' : ''}${c.name}, ${formatTotalSec(totalSec(c.blocks))}`}

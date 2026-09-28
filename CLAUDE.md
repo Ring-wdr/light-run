@@ -32,6 +32,9 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
 - 기록의 원본은 SQLite의 이벤트(runs, run_marks, samples)다. 거리·구간은 저장값이 아니라 `replay()` 결과로 본다.
   새 사용자 동작(예: 랩 버튼)은 `RunEvent`에 타입을 추가하고 리듀서에서 처리한다.
 - DB 스키마 변경은 `storage.ts`의 `MIGRATIONS` 배열 **끝에 추가만** 한다. 기존 항목 수정 금지.
+- 화면 스택 규칙은 `src/ui/navigation.ts` 머리 주석. 기록 중/아님은 `_layout.tsx`의 `Stack.Protected` 가드가 정하고,
+  기록 화면으로 가거나 나오는 이동을 직접 하지 않는다. `<Redirect>`·`router.push`·`dangerouslySingular` 대신 `router.navigate`,
+  홈으로는 `goHome()`. 새 화면은 가드 안에 넣는다(`tests/navigation.test.ts`가 검사).
 - `location.ts`의 `defineTask`는 모듈 최상위에 있어야 하고, `_layout.tsx`가 가장 먼저 import한다. 순서를 바꾸지 말 것.
 
 ## 튜닝 수치
