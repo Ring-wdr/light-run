@@ -38,6 +38,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "hasGoogleMapsKey": false,
+      "router": {},
+      "eas": {
+        "projectId": "d31e932e-6e10-44bc-9def-cae5518950a7"
+      }
+    },
+    "owner": "ring-wdr"
   }
 }
