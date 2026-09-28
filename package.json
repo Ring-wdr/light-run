@@ -58,21 +58,5 @@
   "private": true,
   "engines": {
     "node": ">=22"
-  },
-  "jest": {
-    "projects": [
-      {
-        "preset": "jest-expo/android",
-        "setupFilesAfterEnv": [
-          "<rootDir>/tests/setup.tsx"
-        ]
-      },
-      {
-        "preset": "jest-expo/ios",
-        "setupFilesAfterEnv": [
-          "<rootDir>/tests/setup.tsx"
-        ]
-      }
-    ]
   }
 }
