@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   activeDays,
   activeMonths,
@@ -27,6 +28,7 @@ import { Stat } from '../../ui/Stat';
 import { color, space } from '../../ui/theme';
 
 export default function History() {
+  const insets = useSafeAreaInsets();
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [dated, setDated] = useState<DatedRun[]>([]);
   const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
@@ -115,7 +117,7 @@ export default function History() {
   return (
     <View style={styles.screen}>
       <FlatList
-        contentContainerStyle={styles.wrap}
+        contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}
         data={shown}
         keyExtractor={(r) => String(r.id)}
         renderItem={({ item }) => <RunListItem run={item} />}

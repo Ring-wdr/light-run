@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ACTIVITY_DOING, courseLabel, courseProgress } from '../core/course';
 import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot } from '../core/my-course';
 import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
@@ -67,6 +68,7 @@ function CustomCourseStatus({ course, ms, overMs }: { course: CourseSnapshot; ms
 }
 
 export default function RunScreen() {
+  const insets = useSafeAreaInsets();
   const { runId, course, run, tracking, gps, voiceOn } = useRun();
   const now = useNow(run.status === 'running');
   /** 길게 누르기가 연달아 들어와도 한 번만 종료한다 */
@@ -95,7 +97,7 @@ export default function RunScreen() {
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}>
       {course && <Stack.Screen options={{ title: ACTIVITY_DOING[course.activity] }} />}
       {course && <Text style={[styles.course, { color: tint }]}>{courseLabel(course)}</Text>}
 

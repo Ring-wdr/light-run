@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VOICE_INTERVALS, type VoiceInterval, type VoiceSettings } from '../core/voice';
 import { hasKoreanVoice, loadVoiceSettings, saveVoiceSettings } from '../services/voice';
 import { Segmented } from '../ui/Segmented';
@@ -9,6 +10,7 @@ const intervalLabel = (m: VoiceInterval) => (m === 0 ? '끔' : `${m}분`);
 
 /** 기본값 관리. 기록 중 화면의 음성 안내 토글은 이번 기록에만 적용되고 여기 값은 바꾸지 않는다 */
 export default function Settings() {
+  const insets = useSafeAreaInsets();
   const [voice, setVoice] = useState<VoiceSettings>(loadVoiceSettings);
   const [koreanMissing, setKoreanMissing] = useState(false);
 
@@ -22,7 +24,7 @@ export default function Settings() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
+    <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}>
       <Text style={styles.h2}>음성 안내</Text>
       <View style={styles.card}>
         <View style={styles.row}>
