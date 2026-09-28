@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { FILTER, moved, smooth, type Smoothed } from '../src/core/filter';
 import { haversine } from '../src/core/geo';
 import { M_PER_DEG_LAT } from './helpers';

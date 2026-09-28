@@ -12,30 +12,24 @@ const SHOW_AFTER_MS = 500;
  * Modal이 아니라 화면 위에 덮는 View다. 끝나자마자 공유 시트를 여는데, iOS는 모달이 닫히는 중이면
  * 공유 시트가 안 뜰 수 있어서. 그래서 화면 최상위(스크롤 밖)에 두어야 한다.
  */
-export function BusyOverlay({
-  visible,
-  label,
-  progress,
-  tint = color.ink,
-}: {
-  visible: boolean;
-  label: string;
-  progress?: number;
-  tint?: string;
-}) {
+export function BusyOverlay({ visible, ...rest }: { visible: boolean } & CoverProps) {
+  // 숨기면 Cover가 사라지고, 다시 보이면 새로 마운트되어 0.5초 대기부터 다시 시작한다
+  return visible ? <Cover {...rest} /> : null;
+}
+
+type CoverProps = { label: string; progress?: number; tint?: string };
+
+function Cover({ label, progress, tint = color.ink }: CoverProps) {
   const [shown, setShown] = useState(false);
 
   useEffect(() => {
-    setShown(false);
-    if (!visible) return;
     const timer = setTimeout(() => setShown(true), SHOW_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [visible]);
+  }, []);
 
   const hasProgress = progress != null;
   const percent = Math.round(Math.min(1, Math.max(0, progress ?? 0)) * 100);
 
-  if (!visible) return null;
   // 0.5초 전에도 투명한 막으로 터치는 막는다(연타로 두 번 실행되지 않게). 보이는 건 0.5초 뒤부터
   if (!shown) return <View style={styles.cover} />;
   return (

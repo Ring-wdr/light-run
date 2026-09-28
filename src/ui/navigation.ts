@@ -7,7 +7,7 @@ import { router } from 'expo-router';
  *   그래서 기록 화면으로 가거나 기록 화면에서 나오는 이동(push, replace, <Redirect>)을 직접 하지 않는다.
  *   예전엔 <Redirect href="/run">이 시작 흐름의 push와 겹쳐 [run, run]이 되고 종료 뒤 홈에 뒤로 가기가 생겼다.
  * - 앞으로 가는 이동은 router.navigate. 맨 위가 같은 화면(같은 id)이면 새로 쌓지 않아 연타해도 한 번만 열린다.
- *   router.push는 쓰지 않는다(tests/navigation.test.ts가 검사).
+ *   router.push는 쓰지 않는다(eslint.config.js가 막는다).
  * - 홈으로 갈 때는 goHome(). replace('/')는 홈 아래에 화면을 남겨 홈에 뒤로 가기가 생길 수 있다.
  */
 

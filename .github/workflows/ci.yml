@@ -16,6 +16,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
       # JS 번들이 실제로 만들어지는지(라우트·import 오류) 확인. 네이티브 빌드는 EAS에서
       - run: npx expo export --platform android --output-dir /tmp/export

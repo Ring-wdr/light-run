@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { parseTrack, splitTracks, toGpx, type GpxTrack } from '../src/core/gpx';
 import { runEvents, summarize, trackToRun, type RunSource } from '../src/core/record';
 import { rawSegments } from '../src/core/track';

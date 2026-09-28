@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { courseLabel, courseProgress } from '../src/core/course';
 import {
   addStep,

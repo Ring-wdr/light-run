@@ -1,6 +1,5 @@
 // 실제 GPX 오차표. `npm run report:filter`에 함께 나온다(tests/fixtures에 파일이 있을 때만).
 // 합성 트랙 표보다 이 표를 우선한다(CLAUDE.md 튜닝 수치). FILTER를 바꿀 땐 전후 표를 PR에 남길 것.
-import { it } from 'vitest';
 import { summarize } from '../../src/core/record';
 import { formatDuration } from '../../src/core/pace';
 import { loadFixtures } from '../fixture-data';

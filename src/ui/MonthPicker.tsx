@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { isAfter, type YearMonth } from '../core/calendar';
 import { Chevron } from './Chevron';
@@ -29,10 +29,12 @@ export function MonthPicker({
   tint: string;
 }) {
   const [year, setYear] = useState(value.year);
-  // 열 때마다 지금 보고 있는 달의 연도에서 시작
-  useEffect(() => {
+  // 열 때마다 지금 보고 있는 달의 연도에서 시작. 열리는 렌더에서 바로 바꿔 첫 화면부터 맞는 연도가 보인다
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
     if (visible) setYear(value.year);
-  }, [visible, value.year]);
+  }
 
   const ran = monthsWithRuns(year);
   const canNext = year < max.year;

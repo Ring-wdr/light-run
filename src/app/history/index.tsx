@@ -35,6 +35,8 @@ export default function History() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  /** 오늘 표시·이번 달 판단 기준. 화면에 들어올 때마다 새로 잰다 */
+  const [today, setToday] = useState(() => Date.now());
 
   const reload = useCallback(() => {
     const { from, to } = monthRange(month);
@@ -88,11 +90,15 @@ export default function History() {
     }
   };
   // 목록은 달력에서 보고 있는 달의 기록만
-  useFocusEffect(reload);
+  useFocusEffect(
+    useCallback(() => {
+      setToday(Date.now());
+      reload();
+    }, [reload]),
+  );
 
   const busy = exporting || importing;
-  const now = Date.now();
-  const thisMonth = monthOf(now);
+  const thisMonth = monthOf(today);
   const isThisMonth = sameMonth(month, thisMonth);
   const all = useMemo(() => totals(dated), [dated]);
   const monthTotal = useMemo(() => totals(inMonth(dated, month)), [dated, month]);
@@ -136,7 +142,7 @@ export default function History() {
               activeDays={ranDays}
               selectedDay={selected}
               onSelectDay={setDay}
-              today={isThisMonth ? new Date(now).getDate() : null}
+              today={isThisMonth ? new Date(today).getDate() : null}
               tint={color.ink}
             />
             <Text style={styles.monthLine}>

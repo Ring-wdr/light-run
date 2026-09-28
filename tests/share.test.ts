@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { routeShape, shareSummary } from '../src/core/share';
 
 const BOX = { width: 300, height: 200, padding: 20 };

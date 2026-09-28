@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../src/core/pace';
 import { firstPointTime, gpxDocument, gpxTrack, parseGpx, toGpx } from '../src/core/gpx';
 import { straightTrack } from './helpers';

@@ -12,7 +12,7 @@
 
 ```bash
 npm install
-npm run check        # 타입체크 + 테스트
+npm run check        # 타입체크 + 린트 + 테스트
 ```
 
 백그라운드 위치는 Expo Go에서 동작하지 않는다. 폰에 development build를 설치해서 개발한다.

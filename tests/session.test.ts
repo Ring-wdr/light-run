@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { elapsedMs, initialRun, reduce, replay, type RunEvent } from '../src/core/session';
 import { currentPace } from '../src/core/pace';
 import { squareTrack, straightTrack } from './helpers';

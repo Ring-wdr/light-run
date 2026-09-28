@@ -15,7 +15,7 @@ import { activityColor, color, courseTheme, space } from '../ui/theme';
 
 /** 경과 시간 표시용 1초 틱. 거리·페이스는 GPS 점이 올 때 바뀐다 */
 function useNow(active: boolean): number {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!active) return;
     const id = setInterval(() => setNow(Date.now()), 1000);

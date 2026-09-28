@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { resumePauseAt } from '../src/core/resume';
 import { elapsedMs, reduce, replay } from '../src/core/session';
 

@@ -1,7 +1,6 @@
 // GPS 필터 오차표. `npm run report:filter`
 // 합성 트랙(직선·100m 정사각형) × 노이즈 수준별로 5개 시드 평균 거리 오차(%)를 출력한다.
 // FILTER 값을 바꾸기 전후로 돌려서 비교할 것. 일반 테스트(npm test)에는 포함되지 않는다.
-import { it } from 'vitest';
 import { replay } from '../../src/core/session';
 import { squareTrack, straightTrack } from '../helpers';
 import { printTable, VARIANTS } from './variants';
