@@ -1,0 +1,12 @@
+# 홈에서 달리기 30분 기록을 시작한다. 기록 화면은 헤더 뒤로 버튼이 없다(가드가 스택을 [기록]만 남김)
+appId: com.ringwdr.lightrun.dev
+---
+- tapOn: '달리기 30분 시작'
+# 백그라운드 위치를 받지 못한 환경이면 안내창이 뜬다(src/ui/start.ts). 기록은 그대로 시작된다
+- runFlow:
+    when:
+      visible: '화면을 켜 두고 움직여 주세요'
+    commands:
+      - tapOn: 'OK'
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: 'Navigate up|위로 이동'

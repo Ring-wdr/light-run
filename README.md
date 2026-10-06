@@ -73,6 +73,22 @@ npm run android:release        # 개발용 앱 릴리스 빌드를 기기·에�
 maestro test .maestro          # 맨 위 흐름 전부. 하나만: maestro test .maestro/home.yml
 ```
 debug 빌드(`npm run android`)는 development build 런처가 먼저 떠서 흐름이 맞지 않는다. 릴리스 빌드로 돌린다.
+
+화면 스택 점검 흐름(`nav-*.yml`, 태그 `nav`)은 앱 밖에서 들어오는 길까지 본다. Android 전용이다.
+```bash
+maestro test --include-tags nav .maestro
+```
+| 흐름 | 보는 것 |
+|---|---|
+| `nav-home.yml` | 홈은 뒤로 버튼 없음·뒤로 가기 = 앱 밖, 설정 연타, 홈 키로 나갔다 오기 |
+| `nav-run.yml` | 기록 중 뒤로·홈 키 = 백그라운드(다시 열면 기록 화면), 종료 → 상세 → 홈, 기록 목록·삭제 |
+| `nav-course.yml` | 코스 상세·"바로 시작"에서 시작해도 종료 뒤 `[홈, 상세]`, 편집 들어갔다 나오기 |
+| `nav-link.yml` | `lightrun-dev://` 링크로 꺼진 앱 열기, 기록 없을 때 기록 화면 링크, 기록 중 다른 화면 링크 |
+| `nav-process-death.yml` | 강제 중지(`stopApp`) 뒤 이어서 하기·삭제, 시스템 정리(`killApp`) 뒤 복귀 |
+
+헤더 뒤로 버튼은 Android 툴바의 시스템 문구("Navigate up" / "위로 이동")로 찾는다(`subflows/assert-home-root.yml`).
+기기 언어가 다르면 Maestro Studio(`maestro studio`)에서 문구를 확인해 두 subflow를 고친다.
+최근 앱 화면에서 지우기는 Maestro에 키가 없어 흐름에 넣지 않았다(필요하면 `adb shell input keyevent KEYCODE_APP_SWITCH`).
 흐름은 기록·코스를 지우고 시작한다(`clearState`). 쓰던 개발용 앱의 데이터가 사라지니 테스트용 기기·에뮬레이터에서 돌릴 것.
 
 **EAS에서(손으로)**: `.eas/workflows/e2e-test-android.yml`·`e2e-test-ios.yml`이 `eas.json`의 `e2e-test` 프로필로

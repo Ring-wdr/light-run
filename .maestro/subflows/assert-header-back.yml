@@ -1,0 +1,4 @@
+# 헤더에 뒤로 버튼이 있다(홈이 아닌 화면). 문구는 assert-home-root.yml 참고
+appId: com.ringwdr.lightrun.dev
+---
+- assertVisible: 'Navigate up|위로 이동'
