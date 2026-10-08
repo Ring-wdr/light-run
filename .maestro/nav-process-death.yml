@@ -1,0 +1,56 @@
+# 화면 스택 점검 ⑤ 앱이 죽었다 살아날 때(docs/PLAN.md §2-8).
+# - 강제 중지(stopApp = 설정의 강제 중지와 같은 am force-stop) → 다시 켜기 → 확인창 → 이어서 하기 = [기록]
+# - 같은 상황에서 삭제 = 뒤로 버튼 없는 홈
+# - 시스템이 프로세스를 정리(killApp = am kill). 위치 포그라운드 서비스가 돌고 있으면 보통 살아남아 확인창 없이
+#   기록 화면이 바로 나온다. 죽었으면 확인창이 뜬다. 어느 쪽이든 기록 화면이어야 한다
+appId: com.ringwdr.lightrun.dev
+name: 스택 - 앱이 죽었다 살아날 때
+tags:
+  - nav
+  - android
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- runFlow: subflows/dismiss-battery-guide.yml
+
+# 강제 중지 → 이어서 하기
+- runFlow: subflows/start-run.yml
+- stopApp
+- launchApp:
+    stopApp: false
+- assertVisible: '진행 중이던 기록이 있어요'
+- tapOn: '이어서 하기'
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: 'Navigate up|위로 이동'
+- runFlow: subflows/stop-run.yml
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 강제 중지 → 삭제
+- runFlow: subflows/start-run.yml
+- stopApp
+- launchApp:
+    stopApp: false
+- assertVisible: '진행 중이던 기록이 있어요'
+- tapOn: '삭제'
+- runFlow: subflows/assert-home-root.yml
+- assertNotVisible: '길게 눌러 종료'
+
+# 백그라운드에서 시스템이 정리
+- runFlow: subflows/start-run.yml
+- pressKey: Home
+- killApp
+- launchApp:
+    stopApp: false
+- runFlow:
+    when:
+      visible: '진행 중이던 기록이 있어요'
+    commands:
+      - tapOn: '이어서 하기'
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: 'Navigate up|위로 이동'
+- runFlow: subflows/stop-run.yml
+- back
+- runFlow: subflows/assert-home-root.yml

@@ -1,0 +1,6 @@
+# 기록 화면에서 종료한다. 끝나면 홈 위에 방금 기록의 상세가 열리고, 상세에는 뒤로 버튼이 있다
+appId: com.ringwdr.lightrun.dev
+---
+- longPressOn: '길게 눌러 종료'
+- assertVisible: '공유하기'
+- runFlow: assert-header-back.yml

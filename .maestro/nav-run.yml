@@ -1,0 +1,91 @@
+# 화면 스택 점검 ② 기록 중과 종료 뒤.
+# - 기록 중: 스택이 [기록]만. 뒤로 버튼 없음, 뒤로 가기 키 = 앱이 백그라운드로(기록 계속), 다시 열면 기록 화면
+# - 종료 뒤: [홈, 상세]. 상세에서 뒤로 = 뒤로 버튼 없는 홈
+# - 기록 목록 → 상세 → 뒤로 = 목록 → 뒤로 = 홈. 상세에서 삭제 = 온 곳으로
+appId: com.ringwdr.lightrun.dev
+name: 스택 - 기록 중과 종료 뒤
+tags:
+  - nav
+  - android
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- runFlow: subflows/dismiss-battery-guide.yml
+- runFlow: subflows/start-run.yml
+
+# 뒤로 가기 키 = 앱 밖으로, 다시 열면 기록 화면
+- back
+- assertNotVisible: '길게 눌러 종료'
+- launchApp:
+    stopApp: false
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: 'Navigate up|위로 이동'
+
+# 홈 키도 같다
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- assertVisible: '길게 눌러 종료'
+
+# 일시정지 중에 나갔다 와도 그대로
+- tapOn: '일시정지'
+- back
+- launchApp:
+    stopApp: false
+- assertVisible: '일시정지됨'
+- tapOn: '재개'
+
+# 종료 → [홈, 상세] → 뒤로 = 홈 → 뒤로 = 앱 밖
+- runFlow: subflows/stop-run.yml
+- back
+- runFlow: subflows/assert-home-root.yml
+- assertVisible: '달리기 · 30분'
+- back
+- assertNotVisible: '코스 선택'
+- launchApp:
+    stopApp: false
+- runFlow: subflows/assert-home-root.yml
+
+# 홈 최근 기록 → 상세(연타해도 한 번) → 뒤로 = 홈
+- doubleTapOn: '달리기 · 30분'
+- assertVisible: '공유하기'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 기록 목록 → 상세 → 뒤로 = 목록 → 뒤로 = 홈
+- tapOn: '전체 기록 보기'
+- assertVisible: '기록'
+- runFlow: subflows/assert-header-back.yml
+- tapOn: '달리기 · 30분'
+- assertVisible: '공유하기'
+- back
+- assertVisible: '기록'
+- assertNotVisible: '공유하기'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 두 번째 기록을 만들고, 목록에서 연 상세를 삭제하면 목록으로 돌아간다
+- runFlow: subflows/start-run.yml
+- runFlow: subflows/stop-run.yml
+- back
+- tapOn: '전체 기록 보기'
+- tapOn:
+    text: '달리기 · 30분'
+    index: 0
+- tapOn: '더보기'
+- tapOn: '기록 삭제'
+- tapOn: '삭제'
+- assertVisible: '기록'
+- assertNotVisible: '공유하기'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 홈에서 연 상세를 삭제하면 홈(뒤로 버튼 없음)
+- tapOn: '달리기 · 30분'
+- tapOn: '더보기'
+- tapOn: '기록 삭제'
+- tapOn: '삭제'
+- runFlow: subflows/assert-home-root.yml
+- assertVisible: '아직 기록이 없어요. 첫 코스를 시작해 보세요.'

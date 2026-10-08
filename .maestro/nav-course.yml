@@ -1,0 +1,78 @@
+# 화면 스택 점검 ③ 내 코스에서 시작.
+# - 코스 상세에서 시작해도 종료 뒤엔 [홈, 상세](코스 상세로 돌아가지 않는다)
+# - 코스 상세 → 편집 → 뒤로 = 코스 상세 → 뒤로 = 홈
+# - 새 코스 저장 → "바로 시작" → 종료 → 상세 → 뒤로 = 홈
+# Android의 inputText는 ASCII만 확실히 입력되므로 코스 이름은 영문(course-create.yml 참고)
+appId: com.ringwdr.lightrun.dev
+name: 스택 - 내 코스에서 시작
+tags:
+  - nav
+  - android
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- runFlow: subflows/dismiss-battery-guide.yml
+
+# 코스 하나 만들고 "나중에" → 홈 내 코스 탭
+- tapOn: '내 코스'
+- tapOn: '코스 만들기'
+- tapOn: '걷기-달리기 입문'
+- tapOn: '예: 걷뛰 30분'
+- inputText: 'Nav course A'
+- hideKeyboard
+- tapOn: '저장'
+- tapOn: '나중에'
+- runFlow: subflows/assert-home-root.yml
+
+# 코스 상세 → 편집 → 뒤로(바꾼 것 없음) = 코스 상세 → 뒤로 = 홈
+- tapOn: 'Nav course A'
+- assertVisible: 'Nav course A 시작'
+- runFlow: subflows/assert-header-back.yml
+- tapOn: '더보기'
+- tapOn: '편집'
+- assertVisible: '코스 편집'
+- back
+- assertVisible: 'Nav course A 시작'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 코스 상세에서 시작 → [기록] → 종료 → [홈, 상세] → 뒤로 = 홈(코스 상세 아님)
+- tapOn: 'Nav course A'
+- tapOn: 'Nav course A 시작'
+- runFlow:
+    when:
+      visible: '화면을 켜 두고 움직여 주세요'
+    commands:
+      - tapOn: 'OK'
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: 'Navigate up|위로 이동'
+- back
+- launchApp:
+    stopApp: false
+- assertVisible: '길게 눌러 종료'
+- runFlow: subflows/stop-run.yml
+- back
+- runFlow: subflows/assert-home-root.yml
+- assertNotVisible: 'Nav course A 시작'
+
+# 새 코스 저장 → "바로 시작" → 종료 → 상세 → 뒤로 = 홈
+- tapOn: '내 코스'
+- tapOn: '새 코스 만들기'
+- tapOn: '걷기-달리기 입문'
+- tapOn: '예: 걷뛰 30분'
+- inputText: 'Nav course B'
+- hideKeyboard
+- tapOn: '저장'
+- tapOn: '바로 시작'
+- runFlow:
+    when:
+      visible: '화면을 켜 두고 움직여 주세요'
+    commands:
+      - tapOn: 'OK'
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: 'Navigate up|위로 이동'
+- runFlow: subflows/stop-run.yml
+- back
+- runFlow: subflows/assert-home-root.yml

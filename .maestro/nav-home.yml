@@ -1,0 +1,47 @@
+# 화면 스택 점검 ① 홈과 앞뒤 이동.
+# - 홈은 맨 아래 한 번만: 뒤로 버튼이 없고, 뒤로 가기 키를 누르면 앱이 닫힌다(백그라운드로)
+# - 설정을 연타해도 한 번만 쌓인다(router.navigate): 뒤로 한 번이면 홈
+appId: com.ringwdr.lightrun.dev
+name: 스택 - 홈과 앞뒤 이동
+tags:
+  - nav
+  - android
+---
+- launchApp:
+    clearState: true
+- runFlow: subflows/dismiss-battery-guide.yml
+- runFlow: subflows/assert-home-root.yml
+
+# 홈에서 뒤로 가기 = 앱 밖으로. 다시 열면 그대로 홈
+- back
+- assertNotVisible: '코스 선택'
+- launchApp:
+    stopApp: false
+- runFlow: subflows/assert-home-root.yml
+
+# 설정 → 뒤로 = 홈
+- tapOn: '설정'
+- assertVisible: '시간 안내 간격'
+- runFlow: subflows/assert-header-back.yml
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 연타: 설정이 두 번 쌓이면 뒤로 한 번에 홈이 안 나온다
+- doubleTapOn: '설정'
+- assertVisible: '시간 안내 간격'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 헤더 뒤로 버튼으로도 같은지
+- tapOn: '설정'
+- tapOn: 'Navigate up|위로 이동'
+- runFlow: subflows/assert-home-root.yml
+
+# 홈 키로 나갔다 돌아와도 스택은 그대로
+- tapOn: '설정'
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- assertVisible: '시간 안내 간격'
+- back
+- runFlow: subflows/assert-home-root.yml

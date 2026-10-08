@@ -1,6 +1,7 @@
 {
   "name": "light-run",
   "version": "1.0.0",
+  "license": "MIT",
   "main": "expo-router/entry",
   "dependencies": {
     "babel-preset-expo": "^57.0.13",

@@ -1,0 +1,57 @@
+# 화면 스택 점검 ④ 링크로 열기(앱 밖에서 들어오는 길).
+# 개발용 앱의 scheme은 lightrun-dev(app.config.ts). 링크로 바로 열어도 홈이 맨 아래에 깔린다(initialRouteName)
+# - 앱이 꺼진 채 링크 → 그 화면 + 뒤로 = 홈
+# - 기록이 없는데 기록 화면 링크 → 가드가 막아 홈
+# - 기록 중에 다른 화면 링크 → 가드가 막아 기록 화면 그대로
+appId: com.ringwdr.lightrun.dev
+name: 스택 - 링크로 열기
+tags:
+  - nav
+  - android
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- runFlow: subflows/dismiss-battery-guide.yml
+
+# 앱이 꺼진 채 설정 링크 → 설정, 뒤로 = 홈
+- stopApp
+- openLink: 'lightrun-dev://settings'
+- assertVisible: '시간 안내 간격'
+- runFlow: subflows/assert-header-back.yml
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 켜진 채 같은 링크를 두 번 → 한 번만 쌓인다
+- openLink: 'lightrun-dev://settings'
+- openLink: 'lightrun-dev://settings'
+- assertVisible: '시간 안내 간격'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 없는 기록 상세 → 안내, 뒤로 = 홈
+- openLink: 'lightrun-dev://history/999999'
+- assertVisible: '기록을 찾을 수 없어요.'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 기록이 없는데 기록 화면 링크 → 홈(홈 위에 홈이 쌓이지 않는다)
+- openLink: 'lightrun-dev://run'
+- runFlow: subflows/assert-home-root.yml
+- back
+- assertNotVisible: '코스 선택'
+- launchApp:
+    stopApp: false
+
+# 기록 중 다른 화면 링크 → 기록 화면 그대로
+- runFlow: subflows/dismiss-battery-guide.yml
+- runFlow: subflows/start-run.yml
+- openLink: 'lightrun-dev://settings'
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: '시간 안내 간격'
+- openLink: 'lightrun-dev://history'
+- assertVisible: '길게 눌러 종료'
+- runFlow: subflows/stop-run.yml
+- back
+- runFlow: subflows/assert-home-root.yml
