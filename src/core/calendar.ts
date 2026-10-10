@@ -1,3 +1,5 @@
+import { pad2 } from './date';
+
 /**
  * 기록 달력과 합계. 날짜는 기기 현지 시각 기준이다(자정을 넘겨 시작한 기록은 시작한 날로 친다).
  */
@@ -26,7 +28,7 @@ export interface YearMonth {
 /** 현지 날짜 키 "2026-09-27" */
 export function dayKey(t: number): string {
   const d = new Date(t);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function monthOf(t: number): YearMonth {

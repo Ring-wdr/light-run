@@ -1,9 +1,11 @@
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { courseLabel } from '../core/course';
+import { fileStamp, formatDateTimeMedium } from '../core/date';
 import { firstPointTime, gpxDocument, gpxTrack, type GpxTrack } from '../core/gpx';
 import { runEvents } from '../core/record';
 import { rawSegments } from '../core/track';
+import { yieldToUi, type OnProgress } from './progress';
 import { getRun, listRuns, loadSource, type RunRow } from './storage';
 
 /**
@@ -13,17 +15,6 @@ import { getRun, listRuns, loadSource, type RunRow } from './storage';
  * 두 단계로 나눈다: prepare*(파일 만들기, 진행률 보고) → shareGpx(공유 시트).
  * 공유 시트는 사용자가 닫을 때까지 기다리므로, 화면의 로딩 표시는 prepare가 끝나면 바로 내린다.
  */
-const pad = (n: number) => String(n).padStart(2, '0');
-const stamp = (t: number) => {
-  const d = new Date(t);
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
-};
-const dateLabel = (t: number) =>
-  new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(t);
-
-/** 0~1 진행률 */
-export type OnProgress = (ratio: number) => void;
-
 export interface GpxFile {
   uri: string;
   title: string;
@@ -31,14 +22,11 @@ export interface GpxFile {
   count: number;
 }
 
-/** 트랙 사이에 한 번씩 JS 스레드를 넘겨 로딩 표시·진행률이 그려지게 한다 */
-const yieldToUi = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-
 /** 원본 GPS 점 + 백업 복원용 확장(<lr:run>: 시작·종료·일시정지 시각, 종목, 목표) */
 function trackOf(run: RunRow): GpxTrack {
   const src = loadSource(run.id);
   return {
-    name: `${courseLabel(run)} ${dateLabel(run.startedAt)}`,
+    name: `${courseLabel(run)} ${formatDateTimeMedium(run.startedAt)}`,
     type: run.activity === 'walk' ? 'walking' : 'running',
     segments: src ? rawSegments(runEvents(src)) : [],
     meta:
@@ -79,7 +67,7 @@ export async function prepareRunGpx(runId: number, onProgress?: OnProgress): Pro
   if (!run) return null;
   const { xml, count } = await buildGpx([run], onProgress);
   if (count === 0) return null;
-  const uri = writeCache(`light-run-${stamp(run.startedAt)}-${run.activity}.gpx`, xml);
+  const uri = writeCache(`light-run-${fileStamp(run.startedAt)}-${run.activity}.gpx`, xml);
   onProgress?.(1);
   return { uri, title: 'GPX 내보내기', count };
 }
@@ -88,7 +76,7 @@ export async function prepareRunGpx(runId: number, onProgress?: OnProgress): Pro
 export async function prepareAllGpx(onProgress?: OnProgress): Promise<GpxFile | null> {
   const { xml, count } = await buildGpx(listRuns(100_000), onProgress);
   if (count === 0) return null;
-  const uri = writeCache(`light-run-backup-${stamp(Date.now())}.gpx`, xml);
+  const uri = writeCache(`light-run-backup-${fileStamp(Date.now())}.gpx`, xml);
   onProgress?.(1);
   return { uri, title: '전체 기록 백업', count };
 }

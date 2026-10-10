@@ -17,15 +17,17 @@ import {
   type YearMonth,
 } from '../../core/calendar';
 import { formatDuration, formatKm } from '../../core/pace';
-import { prepareAllGpx, shareGpx } from '../../services/export';
+import { prepareAllGpx } from '../../services/export';
 import { importGpx, pickGpxFile } from '../../services/import';
 import { listRunDates, listRunsBetween, type RunRow } from '../../services/storage';
+import { alertError } from '../../ui/alert';
 import { BusyOverlay } from '../../ui/BusyOverlay';
 import { MonthPicker } from '../../ui/MonthPicker';
 import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
 import { Stat } from '../../ui/Stat';
 import { color, space } from '../../ui/theme';
+import { useGpxExport } from '../../ui/useGpxExport';
 
 export default function History() {
   const insets = useSafeAreaInsets();
@@ -34,9 +36,8 @@ export default function History() {
   const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
   const [day, setDay] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [importProgress, setImportProgress] = useState(0);
   /** 오늘 표시·이번 달 판단 기준. 화면에 들어올 때마다 새로 잰다 */
   const [today, setToday] = useState(() => Date.now());
 
@@ -46,35 +47,25 @@ export default function History() {
     setDated(listRunDates());
   }, [month]);
 
-  const onBackup = async () => {
-    setExporting(true);
-    setProgress(0);
-    try {
-      const file = await prepareAllGpx(setProgress);
-      // 공유 시트는 사용자가 닫을 때까지 기다리므로 로딩 표시는 파일이 만들어지면 바로 내린다
-      setExporting(false);
-      if (file) await shareGpx(file);
-      else Alert.alert('내보낼 기록이 없어요');
-    } catch (e) {
-      Alert.alert('백업하지 못했어요', e instanceof Error ? e.message : String(e));
-    } finally {
-      setExporting(false);
-    }
-  };
+  const backup = useGpxExport({
+    prepare: prepareAllGpx,
+    emptyMessage: '내보낼 기록이 없어요',
+    failTitle: '백업하지 못했어요',
+  });
   // 새 폰·새 빌드로 옮길 때: 전체 백업 GPX를 다시 넣는다. 이미 있는 기록은 건너뛴다
   const onImport = async () => {
     let xml: string | null;
     try {
       xml = await pickGpxFile();
     } catch (e) {
-      Alert.alert('파일을 열지 못했어요', e instanceof Error ? e.message : String(e));
+      alertError('파일을 열지 못했어요', e);
       return;
     }
     if (xml == null) return;
     setImporting(true);
-    setProgress(0);
+    setImportProgress(0);
     try {
-      const r = await importGpx(xml, setProgress);
+      const r = await importGpx(xml, setImportProgress);
       setImporting(false);
       reload();
       const skipped = [
@@ -86,7 +77,7 @@ export default function History() {
         skipped.length ? `건너뜀: ${skipped.join(', ')}` : undefined,
       );
     } catch (e) {
-      Alert.alert('불러오지 못했어요', e instanceof Error ? e.message : String(e));
+      alertError('불러오지 못했어요', e);
     } finally {
       setImporting(false);
     }
@@ -99,7 +90,7 @@ export default function History() {
     }, [reload]),
   );
 
-  const busy = exporting || importing;
+  const busy = backup.busy || importing;
   const thisMonth = monthOf(today);
   const isThisMonth = sameMonth(month, thisMonth);
   const all = useMemo(() => totals(dated), [dated]);
@@ -165,7 +156,7 @@ export default function History() {
               <Pressable onPress={onImport} disabled={busy} style={styles.backup} accessibilityRole="button">
                 <Text style={styles.backupText}>백업 불러오기</Text>
               </Pressable>
-              <Pressable onPress={onBackup} disabled={busy} style={styles.backup} accessibilityRole="button">
+              <Pressable onPress={backup.start} disabled={busy} style={styles.backup} accessibilityRole="button">
                 <Text style={styles.backupText}>전체 기록 백업 (GPX)</Text>
               </Pressable>
             </View>
@@ -190,7 +181,7 @@ export default function History() {
       <BusyOverlay
         visible={busy}
         label={importing ? '기록 불러오는 중' : '백업 파일 만드는 중'}
-        progress={progress}
+        progress={importing ? importProgress : backup.progress}
       />
     </View>
   );

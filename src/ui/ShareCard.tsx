@@ -1,6 +1,7 @@
 import type { Ref } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { courseLabel } from '../core/course';
+import { formatDateTimeLong } from '../core/date';
 import type { LatLon } from '../core/geo';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
 import { SHARE_TAG } from '../core/share';
@@ -13,9 +14,6 @@ export const CARD_WIDTH = 300;
 export const CARD_HEIGHT = 375;
 const ROUTE_HEIGHT = 150;
 
-const dateLabel = (t: number) =>
-  new Intl.DateTimeFormat('ko-KR', { dateStyle: 'long', timeStyle: 'short' }).format(t);
-
 /** SNS로 보낼 기록 카드. ref로 받은 View를 캡처한다(collapsable=false여야 Android에서 캡처된다) */
 export function ShareCard({ run, segments, ref }: { run: RunRow; segments: LatLon[][]; ref?: Ref<View> }) {
   const hasRoute = segments.some((s) => s.length > 1);
@@ -23,7 +21,7 @@ export function ShareCard({ run, segments, ref }: { run: RunRow; segments: LatLo
     <View ref={ref} collapsable={false} style={[styles.card, { backgroundColor: activityColor[run.activity] }]}>
       <View>
         <Text style={styles.course}>{courseLabel(run)}</Text>
-        <Text style={styles.date}>{dateLabel(run.startedAt)}</Text>
+        <Text style={styles.date}>{formatDateTimeLong(run.startedAt)}</Text>
       </View>
 
       <View style={styles.route}>

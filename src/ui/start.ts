@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 import type { Course } from '../core/course';
 import { startRun } from '../services/run-controller';
+import { alertError } from './alert';
 
 /** 권한 안내까지 포함해 기록을 시작한다. 시작했으면 true. 기록 화면은 _layout.tsx의 가드가 띄운다 */
 export async function startCourse(course: Course): Promise<boolean> {
@@ -18,7 +19,7 @@ export async function startCourse(course: Course): Promise<boolean> {
     }
     return true;
   } catch (e) {
-    Alert.alert('기록을 시작하지 못했어요', e instanceof Error ? e.message : String(e));
+    alertError('기록을 시작하지 못했어요', e);
     return false;
   }
 }

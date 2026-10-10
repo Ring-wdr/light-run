@@ -1,6 +1,7 @@
 import { File } from 'expo-file-system';
 import { parseTrack, splitTracks } from '../core/gpx';
 import { summarize, trackToRun } from '../core/record';
+import { yieldToUi, type OnProgress } from './progress';
 import { hasRunStartedAt, insertImportedRun } from './storage';
 
 /**
@@ -10,8 +11,6 @@ import { hasRunStartedAt, insertImportedRun } from './storage';
  *
  * 두 단계: pickGpxFile(파일 고르기) → importGpx(진행률 보고). 고르는 동안에는 로딩 표시를 띄우지 않는다.
  */
-export type OnProgress = (ratio: number) => void;
-
 export interface ImportResult {
   imported: number;
   /** 이미 있어서 건너뛴 기록 */
@@ -26,8 +25,6 @@ export async function pickGpxFile(): Promise<string | null> {
   if (picked.canceled) return null;
   return picked.result.text();
 }
-
-const yieldToUi = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 export async function importGpx(xml: string, onProgress?: OnProgress): Promise<ImportResult> {
   const chunks = splitTracks(xml);

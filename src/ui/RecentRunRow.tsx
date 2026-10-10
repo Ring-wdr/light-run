@@ -1,11 +1,10 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { courseLabel } from '../core/course';
+import { formatMonthDay } from '../core/date';
 import { formatKm } from '../core/pace';
 import type { RunRow } from '../services/storage';
 import { activityColor, color, space } from './theme';
-
-const dateFmt = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
 
 /** 홈의 최근 기록용 한 줄 행: 코스 · 거리 · 날짜 */
 export function RecentRunRow({ run }: { run: RunRow }) {
@@ -21,7 +20,7 @@ export function RecentRunRow({ run }: { run: RunRow }) {
       </Text>
       <Text style={styles.km}>{formatKm(run.distanceM)} km</Text>
       <Text style={styles.date} numberOfLines={1}>
-        {dateFmt.format(run.startedAt)}
+        {formatMonthDay(run.startedAt)}
       </Text>
     </Pressable>
   );

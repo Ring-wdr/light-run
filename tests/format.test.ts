@@ -1,3 +1,4 @@
+import { fileStamp } from '../src/core/date';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../src/core/pace';
 import { firstPointTime, gpxDocument, gpxTrack, parseGpx, toGpx } from '../src/core/gpx';
 import { straightTrack } from './helpers';
@@ -22,6 +23,10 @@ describe('포맷', () => {
   it('짧은 거리로는 페이스를 계산하지 않는다', () => {
     expect(paceSecPerKm(10, 5000)).toBeNull();
     expect(paceSecPerKm(1000, 300_000)).toBe(300);
+  });
+  it('파일 이름용 시각은 현지 시각 yyyyMMdd-HHmm', () => {
+    expect(fileStamp(new Date(2026, 8, 7, 5, 4).getTime())).toBe('20260907-0504');
+    expect(fileStamp(new Date(2026, 11, 31, 23, 59).getTime())).toBe('20261231-2359');
   });
 });
 

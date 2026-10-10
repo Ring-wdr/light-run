@@ -71,9 +71,7 @@ export function ReplayMap({
   /** 추적 중 사용자가 지도를 만지면 부른다(자유 모드로 바꾸라는 뜻) */
   onUserGesture: () => void;
 }) {
-  const camera = useRef<ComponentRef<typeof Camera>>(null);
-  const heading = useRef<number | null>(null);
-  const lastCamera = useRef({ at: 0, d: 0 });
+  const camera = useReplayCamera(replay, distanceM, cameraMode);
 
   const routeShape: GeoJSON.Feature = {
     type: 'Feature',
@@ -100,47 +98,6 @@ export function ReplayMap({
   const runner = point(here, {});
   const progress = progressAtDist(line, distanceM);
   const box = bounds(replay);
-
-  // 추적: 재생 위치가 바뀔 때마다가 아니라 everyMs마다 짧은 선형 애니메이션으로 따라간다.
-  // 간격 안에 들어온 변경은 남은 시간 뒤에 마지막 값으로 한 번 더 맞춘다(멈췄을 때 카메라가 뒤처지지 않게)
-  useEffect(() => {
-    if (cameraMode !== 'follow') return;
-    const jumped = Math.abs(distanceM - lastCamera.current.d) > SEEK_JUMP_M;
-    const wait = jumped ? 0 : Math.max(0, FOLLOW.everyMs - (Date.now() - lastCamera.current.at));
-    const timer = setTimeout(() => {
-      lastCamera.current = { at: Date.now(), d: distanceM };
-      const target = headingAtDist(replay, distanceM);
-      if (target != null) {
-        heading.current =
-          heading.current == null || jumped ? target : smoothAngle(heading.current, target, FOLLOW.headingAlpha);
-      }
-      camera.current?.setCamera({
-        centerCoordinate: toPosition(positionAtDist(replay, distanceM)),
-        heading: heading.current ?? 0,
-        pitch: FOLLOW.pitch,
-        zoomLevel: FOLLOW.zoom,
-        padding: FOLLOW_PADDING,
-        animationDuration: jumped ? 0 : FOLLOW.animationMs,
-        animationMode: 'linearTo',
-      });
-    }, wait);
-    return () => clearTimeout(timer);
-  }, [cameraMode, distanceM, replay]);
-
-  // 전체: 경로 전체가 보이게
-  useEffect(() => {
-    if (cameraMode !== 'overview') return;
-    heading.current = null;
-    const { ne, sw } = bounds(replay);
-    camera.current?.setCamera({
-      bounds: { ne, sw },
-      padding: OVERVIEW_PADDING,
-      heading: 0,
-      pitch: OVERVIEW_PITCH,
-      animationDuration: 800,
-      animationMode: 'easeTo',
-    });
-  }, [cameraMode, replay]);
 
   if (!mapboxAvailable) {
     return (
@@ -243,6 +200,56 @@ export function ReplayMap({
       </ShapeSource>
     </MapView>
   );
+}
+
+/** 카메라 모드(추적·전체)에 맞춰 카메라를 움직인다. <Camera>에 붙일 ref를 돌려준다 */
+function useReplayCamera(replay: Replay, distanceM: number, cameraMode: CameraMode) {
+  const camera = useRef<ComponentRef<typeof Camera>>(null);
+  const heading = useRef<number | null>(null);
+  const lastCamera = useRef({ at: 0, d: 0 });
+
+  // 추적: 재생 위치가 바뀔 때마다가 아니라 everyMs마다 짧은 선형 애니메이션으로 따라간다.
+  // 간격 안에 들어온 변경은 남은 시간 뒤에 마지막 값으로 한 번 더 맞춘다(멈췄을 때 카메라가 뒤처지지 않게)
+  useEffect(() => {
+    if (cameraMode !== 'follow') return;
+    const jumped = Math.abs(distanceM - lastCamera.current.d) > SEEK_JUMP_M;
+    const wait = jumped ? 0 : Math.max(0, FOLLOW.everyMs - (Date.now() - lastCamera.current.at));
+    const timer = setTimeout(() => {
+      lastCamera.current = { at: Date.now(), d: distanceM };
+      const target = headingAtDist(replay, distanceM);
+      if (target != null) {
+        heading.current =
+          heading.current == null || jumped ? target : smoothAngle(heading.current, target, FOLLOW.headingAlpha);
+      }
+      camera.current?.setCamera({
+        centerCoordinate: toPosition(positionAtDist(replay, distanceM)),
+        heading: heading.current ?? 0,
+        pitch: FOLLOW.pitch,
+        zoomLevel: FOLLOW.zoom,
+        padding: FOLLOW_PADDING,
+        animationDuration: jumped ? 0 : FOLLOW.animationMs,
+        animationMode: 'linearTo',
+      });
+    }, wait);
+    return () => clearTimeout(timer);
+  }, [cameraMode, distanceM, replay]);
+
+  // 전체: 경로 전체가 보이게
+  useEffect(() => {
+    if (cameraMode !== 'overview') return;
+    heading.current = null;
+    const { ne, sw } = bounds(replay);
+    camera.current?.setCamera({
+      bounds: { ne, sw },
+      padding: OVERVIEW_PADDING,
+      heading: 0,
+      pitch: OVERVIEW_PITCH,
+      animationDuration: 800,
+      animationMode: 'easeTo',
+    });
+  }, [cameraMode, replay]);
+
+  return camera;
 }
 
 function point(p: { lat: number; lon: number }, properties: Record<string, string>): GeoJSON.Feature<GeoJSON.Point> {

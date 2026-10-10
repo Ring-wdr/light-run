@@ -1,7 +1,8 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { dismissBatteryGuide, needsBatteryGuide, openAppSettings } from '../services/power';
+import { useOnAppActive } from './hooks';
 import { color, space } from './theme';
 
 /**
@@ -15,10 +16,7 @@ export function BatteryGuide() {
     needsBatteryGuide().then(setVisible, () => setVisible(false));
   }, []);
   useFocusEffect(check);
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => s === 'active' && check());
-    return () => sub.remove();
-  }, [check]);
+  useOnAppActive(check);
 
   if (!visible) return null;
 

@@ -1,9 +1,10 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { courseLabel } from '../../core/course';
+import { formatMonthDay } from '../../core/date';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
 import {
   buildReplay,
@@ -19,6 +20,7 @@ import {
 import { getRun, loadEvents, type RunRow } from '../../services/storage';
 import { Chips } from '../../ui/Chips';
 import { ElevationProfile } from '../../ui/ElevationProfile';
+import { useAnimationFrame } from '../../ui/hooks';
 import { ReplayMap, type CameraMode } from '../../ui/ReplayMap';
 import { Scrubber } from '../../ui/Scrub';
 import { replayTheme as theme, space } from '../../ui/theme';
@@ -33,8 +35,6 @@ const EXAGGERATIONS: number[] = [1, 1.5, 2, 3];
  * 매 프레임 지도 소스를 바꾸면 JS 스레드가 막혀서 약 12Hz로만 넘긴다.
  */
 const EMIT_MS = 80;
-
-const dateFmt = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
 
 export default function ReplayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -71,43 +71,10 @@ function Player({ run, replay }: { run: RunRow; replay: Replay }) {
   const duration = replay.summary.durationMs;
   const totalM = replay.summary.distanceM;
 
-  const [t, setT] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState<Speed>(60);
+  const { t, playing, speed, setSpeed, seekTime, togglePlay } = usePlayback(duration);
   const [cameraMode, setCameraMode] = useState<CameraMode>('follow');
   const [colorMode, setColorMode] = useState<ColorMode>('pace');
   const [exaggeration, setExaggeration] = useState(1.5);
-  /** 재생 시계(ms). 프레임마다 쌓고 화면에는 EMIT_MS마다 t로 넘긴다 */
-  const clock = useRef(0);
-
-  useEffect(() => {
-    if (!playing) return;
-    let frame = 0;
-    let prev: number | null = null;
-    let lastEmit = 0;
-    const tick = (now: number) => {
-      if (prev != null) clock.current = Math.min(duration, clock.current + (now - prev) * speed);
-      prev = now;
-      const ended = clock.current >= duration;
-      if (ended || now - lastEmit >= EMIT_MS) {
-        lastEmit = now;
-        setT(clock.current);
-      }
-      if (ended) setPlaying(false);
-      else frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [playing, speed, duration]);
-
-  const seekTime = (ms: number) => {
-    clock.current = Math.min(duration, Math.max(0, ms));
-    setT(clock.current);
-  };
-  const togglePlay = () => {
-    if (!playing && clock.current >= duration) seekTime(0);
-    setPlaying(!playing);
-  };
 
   const d = distAtTime(replay, t);
   const pace = valueAtDist(replay, replay.pace, d);
@@ -133,7 +100,7 @@ function Player({ run, replay }: { run: RunRow; replay: Replay }) {
             <Text style={styles.title} numberOfLines={1}>
               {courseLabel(run)}
             </Text>
-            <Text style={styles.date}>{dateFmt.format(run.startedAt)}</Text>
+            <Text style={styles.date}>{formatMonthDay(run.startedAt)}</Text>
             {replay.summary.loop && <Text style={styles.badge}>루프</Text>}
           </View>
           <View style={styles.row}>
@@ -213,6 +180,41 @@ function Player({ run, replay }: { run: RunRow; replay: Replay }) {
       </View>
     </>
   );
+}
+
+/**
+ * 재생 시계. 재생 중이면 프레임마다 (흐른 시간 × 배속)만큼 쌓고, 화면(t)에는 EMIT_MS마다 넘긴다.
+ * 끝에 닿으면 멈추고, 끝에서 다시 재생하면 처음부터 돈다.
+ */
+function usePlayback(duration: number) {
+  const [t, setT] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState<Speed>(60);
+  /** 재생 시계(ms). 프레임마다 쌓고 화면에는 EMIT_MS마다 t로 넘긴다 */
+  const clock = useRef(0);
+  const lastEmit = useRef(0);
+
+  useAnimationFrame((dt, now) => {
+    clock.current = Math.min(duration, clock.current + dt * speed);
+    const ended = clock.current >= duration;
+    if (ended || now - lastEmit.current >= EMIT_MS) {
+      lastEmit.current = now;
+      setT(clock.current);
+    }
+    if (ended) setPlaying(false);
+    return !ended;
+  }, playing);
+
+  const seekTime = (ms: number) => {
+    clock.current = Math.min(duration, Math.max(0, ms));
+    setT(clock.current);
+  };
+  const togglePlay = () => {
+    if (!playing && clock.current >= duration) seekTime(0);
+    setPlaying(!playing);
+  };
+
+  return { t, playing, speed, setSpeed, seekTime, togglePlay };
 }
 
 function Value({ label, value, small = false }: { label: string; value: string; small?: boolean }) {

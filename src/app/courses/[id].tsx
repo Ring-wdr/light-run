@@ -15,6 +15,7 @@ import {
 } from '../../core/my-course';
 import { createCourse, deleteCourse, getCourse, setCourseFavorite } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
+import { useBusy } from '../../ui/hooks';
 import { MoreMenu } from '../../ui/MoreMenu';
 import { goBackOrHome } from '../../ui/navigation';
 import { startCourse } from '../../ui/start';
@@ -25,7 +26,7 @@ export default function CourseDetail() {
   const courseId = Number(id);
   const insets = useSafeAreaInsets();
   const [course, setCourse] = useState<MyCourse | null | undefined>(undefined);
-  const [starting, setStarting] = useState(false);
+  const [starting, runStart] = useBusy();
 
   // 편집하고 돌아오면 다시 읽는다
   useFocusEffect(useCallback(() => setCourse(getCourse(courseId)), [courseId]));
@@ -38,15 +39,8 @@ export default function CourseDetail() {
   const activity = courseActivity(c.blocks);
   const segCount = expand(c.blocks).length;
 
-  const onStart = async () => {
-    if (starting) return;
-    setStarting(true);
-    try {
-      await startCourse({ activity, goalMin: null, custom: { id: c.id, name: c.name, blocks: c.blocks } });
-    } finally {
-      setStarting(false);
-    }
-  };
+  const onStart = () =>
+    runStart(() => startCourse({ activity, goalMin: null, custom: { id: c.id, name: c.name, blocks: c.blocks } }));
 
   const onFavorite = () => {
     setCourseFavorite(c.id, !favorite);

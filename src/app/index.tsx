@@ -8,6 +8,7 @@ import { getPref, listCourses, listRuns, setPref, type RunRow } from '../service
 import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
+import { useBusy } from '../ui/hooks';
 import { openDetailAfterStop } from '../ui/navigation';
 import { SettingsIcon } from '../ui/SettingsIcon';
 import { RecentRunRow } from '../ui/RecentRunRow';
@@ -39,7 +40,7 @@ export default function Home() {
   const [tab, setTab] = useState<HomeTab>(savedTab);
   const [recent, setRecent] = useState<RunRow[]>([]);
   const [courses, setCourses] = useState<MyCourse[]>([]);
-  const [starting, setStarting] = useState(false);
+  const [starting, runStart] = useBusy();
 
   useFocusEffect(
     useCallback(() => {
@@ -59,15 +60,7 @@ export default function Home() {
     setPref(TAB_PREF, t);
   };
 
-  const onStart = async (course: Course) => {
-    if (starting) return;
-    setStarting(true);
-    try {
-      await startCourse(course);
-    } finally {
-      setStarting(false);
-    }
-  };
+  const onStart = (course: Course) => runStart(() => startCourse(course));
 
   return (
     <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}>
