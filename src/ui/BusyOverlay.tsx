@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTimeout } from './hooks';
 import { ProgressBar } from './ProgressBar';
 import { color, space } from './theme';
 
@@ -21,11 +22,7 @@ type CoverProps = { label: string; progress?: number; tint?: string };
 
 function Cover({ label, progress, tint = color.ink }: CoverProps) {
   const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShown(true), SHOW_AFTER_MS);
-    return () => clearTimeout(timer);
-  }, []);
+  useTimeout(() => setShown(true), SHOW_AFTER_MS);
 
   const hasProgress = progress != null;
   const percent = Math.round(Math.min(1, Math.max(0, progress ?? 0)) * 100);

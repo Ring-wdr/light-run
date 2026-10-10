@@ -17,35 +17,39 @@ migrate();
 // 가드에 막힌 화면을 열려고 하거나 가드가 바뀌어 스택이 비면 이 화면(기록 중이면 기록 화면)으로 간다
 export const unstable_settings = { initialRouteName: 'index' };
 
+/**
+ * 앱이 강제 종료됐다가 다시 켜지면 이어갈지 묻는다(docs/PLAN.md §2-8).
+ * 이어가면 RootLayout의 가드가 기록 화면으로 바꾼다
+ */
+function askResumeUnfinishedRun(): void {
+  const pending = findUnfinishedRun();
+  if (!pending) return;
+  Alert.alert(
+    '진행 중이던 기록이 있어요',
+    `${courseLabel(pending.course)}, ${formatDuration(pending.movingMs)} 기록됨.\n이어서 할까요?`,
+    [
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => {
+          discardUnfinishedRun(pending.runId).catch((e) => console.warn('기록 삭제 실패', e));
+        },
+      },
+      {
+        text: '이어서 하기',
+        onPress: () => {
+          resumeUnfinishedRun(pending.runId).catch((e) => console.warn('기록 이어가기 실패', e));
+        },
+      },
+    ],
+    { cancelable: false },
+  );
+}
+
 export default function RootLayout() {
   const running = useRun().runId != null;
 
-  // 앱이 강제 종료됐다가 다시 켜지면 이어갈지 묻는다(docs/PLAN.md §2-8).
-  // 이어가면 아래 가드가 기록 화면으로 바꾼다
-  useEffect(() => {
-    const pending = findUnfinishedRun();
-    if (!pending) return;
-    Alert.alert(
-      '진행 중이던 기록이 있어요',
-      `${courseLabel(pending.course)}, ${formatDuration(pending.movingMs)} 기록됨.\n이어서 할까요?`,
-      [
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => {
-            discardUnfinishedRun(pending.runId).catch((e) => console.warn('기록 삭제 실패', e));
-          },
-        },
-        {
-          text: '이어서 하기',
-          onPress: () => {
-            resumeUnfinishedRun(pending.runId).catch((e) => console.warn('기록 이어가기 실패', e));
-          },
-        },
-      ],
-      { cancelable: false },
-    );
-  }, []);
+  useEffect(askResumeUnfinishedRun, []);
 
   return (
     <>

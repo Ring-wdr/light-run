@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { courseLabel, courseProgress } from '../../core/course';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
 import { routeSegments } from '../../core/track';
-import { prepareRunGpx, shareGpx } from '../../services/export';
+import { prepareRunGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
 import { BusyOverlay } from '../../ui/BusyOverlay';
 import { CourseBar } from '../../ui/CourseBar';
@@ -15,6 +15,7 @@ import { goBackOrHome } from '../../ui/navigation';
 import { ShareSheet } from '../../ui/ShareSheet';
 import { Stat } from '../../ui/Stat';
 import { activityColor, color, space } from '../../ui/theme';
+import { useGpxExport } from '../../ui/useGpxExport';
 
 export default function RunDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,30 +23,17 @@ export default function RunDetail() {
   const run = getRun(runId);
   // 저장된 원본 이벤트를 다시 재생해 거리 계산과 같은 경로를 얻는다
   const segments = useMemo(() => routeSegments(loadEvents(runId)), [runId]);
-  const [exporting, setExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
+  const gpx = useGpxExport({
+    prepare: (onProgress) => prepareRunGpx(runId, onProgress),
+    emptyMessage: '내보낼 GPS 기록이 없어요',
+    failTitle: '내보내지 못했어요',
+  });
   const [sharing, setSharing] = useState(false);
   const insets = useSafeAreaInsets();
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
   const goal = courseProgress(run, run.movingMs);
   const goalName = run.custom ? '코스' : `${run.goalMin}분 목표`;
-
-  const onExport = async () => {
-    setExporting(true);
-    setExportProgress(0);
-    try {
-      const file = await prepareRunGpx(run.id, setExportProgress);
-      // 공유 시트는 사용자가 닫을 때까지 기다리므로 로딩 표시는 파일이 만들어지면 바로 내린다
-      setExporting(false);
-      if (file) await shareGpx(file);
-      else Alert.alert('내보낼 GPS 기록이 없어요');
-    } catch (e) {
-      Alert.alert('내보내지 못했어요', e instanceof Error ? e.message : String(e));
-    } finally {
-      setExporting(false);
-    }
-  };
 
   const onDelete = () =>
     Alert.alert('이 기록을 삭제할까요?', '되돌릴 수 없어요.', [
@@ -76,7 +64,7 @@ export default function RunDetail() {
                     onPress: () => router.navigate(`/replay/${run.id}`),
                     disabled: segments.flat().length < 2,
                   },
-                  { label: 'GPX 내보내기', onPress: onExport, disabled: exporting },
+                  { label: 'GPX 내보내기', onPress: gpx.start, disabled: gpx.busy },
                   { label: '기록 삭제', onPress: onDelete, destructive: true },
                 ]}
               />
@@ -127,9 +115,9 @@ export default function RunDetail() {
 
       <ShareSheet run={run} segments={segments} visible={sharing} onClose={() => setSharing(false)} />
       <BusyOverlay
-        visible={exporting}
+        visible={gpx.busy}
         label="GPX 파일 만드는 중"
-        progress={exportProgress}
+        progress={gpx.progress}
         tint={activityColor[run.activity]}
       />
     </View>

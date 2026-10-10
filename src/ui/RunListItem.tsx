@@ -1,17 +1,10 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { courseLabel } from '../core/course';
+import { formatMonthDayTime } from '../core/date';
 import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
 import type { RunRow } from '../services/storage';
 import { activityColor, color, space } from './theme';
-
-const dateFmt = new Intl.DateTimeFormat('ko-KR', {
-  month: 'long',
-  day: 'numeric',
-  weekday: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-});
 
 export function RunListItem({ run }: { run: RunRow }) {
   // Link asChild(Radix Slot)는 함수형 style을 {}로 합쳐 버려 레이아웃이 풀린다. 그래서 Pressable + router.navigate
@@ -24,7 +17,7 @@ export function RunListItem({ run }: { run: RunRow }) {
       <View style={{ flex: 1 }}>
         <Text style={[styles.badge, { color: activityColor[run.activity] }]}>{courseLabel(run)}</Text>
         <Text style={styles.km}>{formatKm(run.distanceM)} km</Text>
-        <Text style={styles.date}>{dateFmt.format(run.startedAt)}</Text>
+        <Text style={styles.date}>{formatMonthDayTime(run.startedAt)}</Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={styles.meta}>{formatDuration(run.movingMs)}</Text>

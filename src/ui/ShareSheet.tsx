@@ -12,6 +12,7 @@ import {
   type ShareTargetInfo,
 } from '../services/share';
 import type { RunRow } from '../services/storage';
+import { errorMessage } from './alert';
 import { CARD_HEIGHT, CARD_WIDTH, ShareCard } from './ShareCard';
 import { color, space } from './theme';
 
@@ -59,7 +60,7 @@ export function ShareSheet({
       if (notice) Alert.alert(notice);
     } catch (e) {
       const known = e instanceof ShareError;
-      Alert.alert(known ? e.message : '공유하지 못했어요', known ? undefined : e instanceof Error ? e.message : String(e));
+      Alert.alert(known ? e.message : '공유하지 못했어요', known ? undefined : errorMessage(e));
     } finally {
       setBusy(null);
     }

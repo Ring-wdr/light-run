@@ -2,6 +2,7 @@ import * as Sharing from 'expo-sharing';
 import type { View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import ShareTarget from '../../modules/share-target';
+import { fileStamp } from '../core/date';
 
 /**
  * 기록 카드 이미지 공유. 카드 View를 PNG로 캡처해 앱으로 보낸다.
@@ -49,12 +50,6 @@ async function shareSheet(fileUri: string, title: string) {
   if (!(await Sharing.isAvailableAsync())) throw new ShareError('이 기기에서는 공유 기능을 쓸 수 없어요.');
   await Sharing.shareAsync(fileUri, { mimeType: MIME, UTI: 'public.png', dialogTitle: title });
 }
-
-const pad = (n: number) => String(n).padStart(2, '0');
-const fileStamp = (t: number) => {
-  const d = new Date(t);
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
-};
 
 /**
  * target으로 카드 이미지를 보낸다. text는 받는 앱이 지원하면 이미지와 함께 붙는다.

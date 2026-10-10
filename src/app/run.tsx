@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useMemo, useRef } from 'react';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ACTIVITY_DOING, courseLabel, courseProgress } from '../core/course';
 import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot } from '../core/my-course';
@@ -8,23 +8,14 @@ import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from 
 import { elapsedMs } from '../core/session';
 import { FILTER } from '../core/filter';
 import { pauseRun, resumeRun, setVoiceOn, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
+import { alertError } from '../ui/alert';
 import { CourseBar } from '../ui/CourseBar';
 import { HoldButton } from '../ui/HoldButton';
+import { useNow } from '../ui/hooks';
 import { setDetailAfterStop } from '../ui/navigation';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Stat } from '../ui/Stat';
 import { activityColor, color, courseTheme, space } from '../ui/theme';
-
-/** 경과 시간 표시용 1초 틱. 거리·페이스는 GPS 점이 올 때 바뀐다 */
-function useNow(active: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [active]);
-  return now;
-}
 
 /** GPS가 잘 잡히는지 한눈에: 정확도, 받은 점, 필터가 버린 점 */
 function GpsStatus({ gps, rejected, now }: { gps: RunSnapshot['gps']; rejected: number; now: number }) {
@@ -70,6 +61,7 @@ function CustomCourseStatus({ course, ms, overMs }: { course: CourseSnapshot; ms
 export default function RunScreen() {
   const insets = useSafeAreaInsets();
   const { runId, course, run, tracking, gps, voiceOn } = useRun();
+  // 경과 시간 표시용 1초 틱. 거리·페이스는 GPS 점이 올 때 바뀐다
   const now = useNow(run.status === 'running');
   /** 길게 누르기가 연달아 들어와도 한 번만 종료한다 */
   const stopOnce = useRef(false);
@@ -92,7 +84,7 @@ export default function RunScreen() {
     } catch (e) {
       setDetailAfterStop(null);
       stopOnce.current = false;
-      Alert.alert('기록을 끝내지 못했어요', e instanceof Error ? e.message : String(e));
+      alertError('기록을 끝내지 못했어요', e);
     }
   };
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { clampSec, formatStepSec, INTENSITIES, INTENSITY_LABEL, LIMITS, step, type Step } from '../core/my-course';
+import { useOpened } from './hooks';
 import { color, courseTheme, space } from './theme';
 
 const QUICK_SEC = [30, 60, 120, 180, 300, 600, 1200];
@@ -35,11 +36,7 @@ export function StepSheet({
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<Step>(initial ?? step('run', 60));
   // 열 때마다 대상 구간으로 초기화. 열리는 렌더에서 바로 바꿔 올라오는 시트에 이전 값이 비치지 않게 한다
-  const [wasVisible, setWasVisible] = useState(visible);
-  if (visible !== wasVisible) {
-    setWasVisible(visible);
-    if (visible) setDraft(initial ?? step('run', 60));
-  }
+  if (useOpened(visible)) setDraft(initial ?? step('run', 60));
 
   const setSec = (sec: number) => setDraft((d) => ({ ...d, sec: clampSec(sec) }));
 
