@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,6 +70,12 @@ export default function RunDetail() {
             headerRight: () => (
               <MoreMenu
                 items={[
+                  // 리플레이는 이 기록의 경로만 쓴다(점이 2개 미만이면 다시 볼 게 없다)
+                  {
+                    label: '3D로 다시 보기',
+                    onPress: () => router.navigate(`/replay/${run.id}`),
+                    disabled: segments.flat().length < 2,
+                  },
                   { label: 'GPX 내보내기', onPress: onExport, disabled: exporting },
                   { label: '기록 삭제', onPress: onDelete, destructive: true },
                 ]}
