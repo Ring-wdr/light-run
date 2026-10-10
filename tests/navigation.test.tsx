@@ -1,13 +1,15 @@
-import { userEvent } from '@testing-library/react-native';
+import { fireEvent, userEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { act, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert, type AlertButton } from 'react-native';
 import type { Course } from '../src/core/course';
 import { step } from '../src/core/my-course';
+import { summarize } from '../src/core/record';
 import { startTracking } from '../src/services/location';
 import { stopRun } from '../src/services/run-controller';
 import * as storage from '../src/services/storage';
 import { goHome } from '../src/ui/navigation';
+import { straightTrack } from './helpers';
 import type { FakeExpoSqlite } from './support/sqlite';
 
 /*
@@ -16,7 +18,7 @@ import type { FakeExpoSqlite } from './support/sqlite';
  * 사람이 하듯 버튼을 눌러 스택이 어떻게 바뀌는지 본다. 바꿔 끼우는 것은 기기에만 있는 것뿐이다.
  *   - SQLite → Node 내장 SQLite(tests/support/sqlite.ts). 저장소 코드는 진짜
  *   - 위치 추적 → 가짜(권한 허용, 추적 시작 성공). GPS 점은 오지 않는다
- *   - 지도 → 빈 View(tests/setup.tsx)
+ *   - 지도(Google Maps·Mapbox) → 빈 View(tests/setup.tsx)
  */
 
 jest.mock('expo-sqlite', () => require('./support/sqlite').createExpoSqlite());
@@ -252,6 +254,41 @@ describe('기록 상세', () => {
     await pressAlertButton('삭제');
     expect(stack(app)).toEqual(['index']);
     expect(storage.getRun(runId)).toBeNull();
+  });
+
+  it('··· 메뉴 "3D로 다시 보기"는 그 기록의 다시 보기를 위에 쌓고, 뒤로 가면 상세', async () => {
+    const samples = straightTrack({ distanceM: 1200, paceSec: 330, startT: Date.now() - 600_000 }).map((p, i) => ({
+      ...p,
+      altitude: 30 + i * 0.1,
+    }));
+    const src = { startedAt: samples[0]!.t, endedAt: samples.at(-1)!.t, marks: [], samples };
+    const runId = storage.insertImportedRun({ ...src, ...RUN_30 }, summarize(src));
+    const app = renderRouter('src/app', { initialUrl: `/history/${runId}` });
+
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '3D로 다시 보기' }));
+    expect(stack(app)).toEqual(['index', `history/[id]:${runId}`, `replay/[id]:${runId}`]);
+    expect(screen.getByTestId('mapbox')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '재생' })).toBeOnTheScreen();
+    // 1.2km라 1K 표시가 하나, 고도가 있어 고도 색을 고를 수 있다
+    expect(screen.getByRole('radio', { name: '고도' })).not.toBeDisabled();
+    // 탐색 막대를 앞으로 옮기면(접근성 조절) 경과 시간이 바뀐다
+    const scrubber = screen.getByRole('adjustable', { name: '재생 위치' });
+    const position = () => String(scrubber.props.accessibilityValue?.text);
+    expect(position()).toMatch(/^0:00 \//);
+    await act(async () => fireEvent(scrubber, 'accessibilityAction', { nativeEvent: { actionName: 'increment' } }));
+    expect(position()).not.toMatch(/^0:00 \//);
+
+    await nav(() => router.back());
+    expect(stack(app)).toEqual(['index', `history/[id]:${runId}`]);
+  });
+
+  it('GPS 점이 없는 기록은 "3D로 다시 보기"를 누를 수 없다', async () => {
+    const runId = storage.createRun(Date.now() - 60_000, RUN_30, true);
+    storage.finishRun(runId, { endedAt: Date.now(), distanceM: 0, movingMs: 60_000, splits: [] });
+    renderRouter('src/app', { initialUrl: `/history/${runId}` });
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    expect(screen.getByRole('menuitem', { name: '3D로 다시 보기' })).toBeDisabled();
   });
 });
 

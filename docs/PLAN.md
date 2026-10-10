@@ -28,7 +28,8 @@
 | **expo-location + expo-task-manager** | 백그라운드 위치. Android는 포그라운드 서비스, iOS는 background location 모드 |
 | **expo-sqlite** | 기록 중 원본 저장소. 앱이 죽어도 이어서 복원 |
 | **expo-speech** | 음성 안내(TTS, 음원 없음, §2-7). Android 백그라운드는 로컬 모듈 `modules/voice-guide` |
-| **지도: Google Maps SDK만(react-native-maps `PROVIDER_GOOGLE`)** | Android·iOS 모두 Google 지도. Maps SDK 모바일 지도 표시는 무제한·무료 SKU. 키 없는 빌드는 지도 대신 안내 문구 |
+| **지도: Google Maps SDK(react-native-maps `PROVIDER_GOOGLE`)** | Android·iOS 모두 Google 지도. Maps SDK 모바일 지도 표시는 무제한·무료 SKU. 키 없는 빌드는 지도 대신 안내 문구 |
+| **3D 다시 보기만 Mapbox(`@rnmapbox/maps`, Maps SDK v11)** | 지형(DEM)·기울인 카메라·선 그라디언트·지나간 구간 자르기(`lineTrimOffset`)가 필요해서. 그 화면에만 쓰고 나머지 지도는 Google 그대로. 공개 토큰만(§2-2-1) |
 | **Jest + jest-expo** (Expo 권장) | 순수 로직(`src/core`) 단위 테스트, 그리고 `expo-router/testing-library`로 실제 화면·가드를 메모리에 띄우는 흐름 테스트. Android·iOS 프리셋 두 벌로 돈다. 백그라운드·GPS 품질은 실기기 확인 |
 | **React Compiler** (`app.json` `experiments.reactCompiler`) | 컴포넌트·훅을 자동으로 메모이제이션. SDK 57은 `babel-preset-expo`에 포함되어 켜기만 하면 된다. 대상은 `src/`, 테스트도 같은 설정으로 돈다 |
 | **Maestro** | E2E. 개발용 앱을 기기·에뮬레이터에 설치해 누른다(`.maestro/`). 뒤로 가기 키·권한·포그라운드 서비스처럼 Jest가 못 보는 것. 로컬에서 돌린다. EAS Workflows 파일도 있지만 maestro 작업은 유료 요금제라 PR 트리거 없이 둔다 |
@@ -55,7 +56,7 @@
 - 기록 상세(종료 직후 결과 화면 포함)에만 표시한다. 달리는 중에는 그리지 않는다(배터리·데이터 절약).
 - 선은 원본 GPS 점이 아니라 **거리 계산에 쓰인 점**(`core/track.ts`의 `routeSegments`)으로 그린다. 튄 점이 선에 나오지 않고, 선 길이 = 기록 거리(테스트로 보장). 일시정지 구간은 선을 끊는다.
 
-- **Google Maps SDK만 쓴다**(Android·iOS 모두 `PROVIDER_GOOGLE`). 확대·이동 가능, 출발(초록)·도착 마커, 흰 테두리 + 종목 색 경로.
+- **Google Maps SDK만 쓴다**(Android·iOS 모두 `PROVIDER_GOOGLE`. 3D 다시 보기만 Mapbox, §2-2-1). 확대·이동 가능, 출발(초록)·도착 마커, 흰 테두리 + 종목 색 경로.
 - 키 없이 빌드하면 지도 자리에 "지도 키가 설정되지 않은 빌드" 안내가 나온다. Expo Go는 자체 키로 지도가 뜬다.
 
 ### Google Maps 키
@@ -67,6 +68,26 @@
   - 공유용: `com.ringwdr.lightrun` + EAS 서명 SHA-1 (`npx eas-cli@latest credentials -p android`의 Default)
   - 개발용: `com.ringwdr.lightrun.dev` + 로컬 디버그 키 SHA-1 (`cd android; .\gradlew signingReport`, 보통 `5E:8F:16:...:F6:25`)
 - 요금: 모바일 지도 표시(Maps SDK SKU)는 무제한. **스트리트 뷰, 지도 ID(클라우드 스타일)는 쓰지 않는다**(유료 SKU).
+
+## 2-2-1. 3D 다시 보기
+
+기록 상세 ··· 메뉴 › "3D로 다시 보기". 그 기록의 경로를 Mapbox 3D 지형 위에서 재생한다(`app/replay/[id].tsx`).
+
+- 점 열은 상세 지도와 같이 **리듀서가 받아들인 기준점**(`core/replay.ts` `trackFromEvents`). 그래서 리플레이의 거리 = 기록 거리이고, 시계는 움직인 시간(일시정지 제외)이다.
+- 가공은 전부 `core/replay.ts`(순수 함수, `tests/replay.test.ts`): 고도 빈 값 선형 보간 → ±3점 이동 평균, 2m 히스테리시스 상승 고도, ±40m 순간 페이스,
+  루프(출발·도착 150m 안), `distAtTime`·`timeAtDist`·`positionAtDist`·`valueAtDist`(이진 탐색), 선 최대 3000점, 그라디언트 지점 최대 256개.
+- 경로 색: 페이스(5~95 퍼센타일, 빠름 청록 → 노랑 → 느림 빨강) / 고도. **심박은 없다**: 앱이 심박을 기록하지 않고, GPX 불러오기도 심박은 저장하지 않는다.
+- 지나간 구간은 진하게(`lineTrimOffset`으로 남은 부분을 잘라 낸 레이어), 남은 구간은 흐리게. line-progress는 그려진 선 길이 기준이라 거리 → progress를 따로 잰다(`routeLine`).
+- 재생: `requestAnimationFrame`으로 시계를 쌓고 화면에는 약 12Hz로만 넘긴다. 배속 10·30·60(기본)·120·300×, 탐색 막대·고도 프로필(누르거나 끌기)로 이동.
+- 카메라: 추적(기본, pitch 60°·zoom 16, ±30m로 진행 방향을 구해 부드럽게 돌림, 250ms마다 300ms `linearTo`) / 자유(추적 중 지도를 만지면 자동 전환) / 전체(경로 맞춤, pitch 45°).
+- 지형 과장 1·1.5(기본)·2·3배, 어두운 스타일 + atmosphere(안개·하늘).
+- 파일을 직접 여는 기능은 없다. 다른 앱(Strava·Garmin) GPX는 기록 › 불러오기로 넣은 뒤 상세에서 다시 본다(시간 없는 점은 불러오기에서 빠진다).
+
+### Mapbox 토큰
+- **공개 토큰(`pk.`)만** 쓴다. `EXPO_PUBLIC_MAPBOX_TOKEN`(로컬 `.env`, EAS 환경 변수)에서 읽어 `Mapbox.setAccessToken()`. 코드·git에 넣지 않는다.
+  `EXPO_PUBLIC_` 값은 빌드 때 JS 번들에 들어간다(공개 토큰은 원래 앱에 들어가는 값).
+- SDK 내려받기용 비밀 토큰(`sk.`, `RNMapboxMapsDownloadToken`)은 rnmapbox 10.3 + Maps SDK v11에서 필요 없다(플러그인이 deprecated 경고를 낸다).
+- 토큰 없는 빌드는 지도 자리에 안내 문구. 요금: 모바일 지도는 월간 활성 사용자 25,000명까지 무료.
 
 ## 2-3. 기록 공유
 
@@ -264,6 +285,7 @@ src/
     resume.ts    강제 종료 후 이어갈 때 일시정지를 넣을 시각
     region.ts    경로를 담는 지도 초기 영역
     track.ts     지도용 경로(리듀서가 받아들인 점) / 내보내기용 원본 점(달린 구간만), 일시정지로 구간 분리
+    replay.ts    3D 다시 보기: 기준점 열(시간·거리·고도), 고도 보간·평활, 상승 고도, 순간 페이스, 보간 헬퍼, 선·그라디언트·km 표시
     geo.ts       haversine 거리
     filter.ts    GPS 필터: 정확도 컷 → 튐 제거 → 칼만 스무딩 → 최소 이동
     session.ts   러닝 상태 머신(리듀서) + replay()
@@ -290,8 +312,9 @@ src/
     settings.tsx       설정: 음성 안내 기본값(켬/끔, 시간 간격)
     run.tsx            기록 중: 거리·시간·평균/현재 페이스, 음성 안내 토글, 일시정지, 길게 눌러 종료
     history/index.tsx  총 거리 요약 + 달력(제목 누르면 연·월 선택, 기록한 날 O) + 고른 달(또는 날)의 기록 목록 + 백업·불러오기
-    history/[id].tsx   상세: 경로 지도 + 요약 + 구간표 + 공유, 헤더 ··· 메뉴(GPX 내보내기·기록 삭제)
-  ui/          공용 컴포넌트, 색, 공유 카드·공유 시트
+    history/[id].tsx   상세: 경로 지도 + 요약 + 구간표 + 공유, 헤더 ··· 메뉴(3D로 다시 보기·GPX 내보내기·기록 삭제)
+    replay/[id].tsx    3D 다시 보기(Mapbox): 지형 위 경로 재생, 요약·실시간 값, 고도 프로필, 배속·카메라·색 모드
+  ui/          공용 컴포넌트, 색, 공유 카드·공유 시트, 3D 다시 보기 지도(ReplayMap)·고도 프로필(react-native-svg)
 modules/
   share-target/  로컬 Expo 모듈(Android). 공유 시트 없이 특정 앱(카카오톡 등)에 이미지를 바로 보낸다
   voice-guide/   로컬 Expo 모듈(Android). 시간 음성 안내를 예약 시각에 네이티브에서 말한다(화면 꺼짐·백그라운드)
@@ -387,6 +410,7 @@ Expo Go에서는 백그라운드 위치를 테스트할 수 없다. **developmen
 - [ ] 자동 일시정지(속력 기반, core 리듀서에 이벤트로 추가)
 - [x] 내 코스: 시간 구간·반복 블록 편집, 홈 2×3 칸, 상세 차트, 기록 중 현재 구간(§2-6)
 - [ ] 내 코스 v2: 드래그 정렬, GPX 백업에 코스 포함
+- [x] 3D 다시 보기(Mapbox 지형, §2-2-1)
 
 ### 3단계: iOS 출시
 - [ ] EAS iOS 빌드, TestFlight

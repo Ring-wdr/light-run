@@ -20,5 +20,15 @@ export const COURSE_CARD_H = 128;
 /** 코스 카드 사이 간격(세로·가로) */
 export const COURSE_CARD_GAP = space.m;
 
+/** 3D 다시 보기: 어두운 지도 위에 얹는 어두운 화면 */
+export const replayTheme = {
+  bg: '#0B0F1A',
+  panel: '#141B2B',
+  line: '#26304A',
+  ink: '#F2F5FA',
+  sub: '#8A96AD',
+  accent: '#FFB547',
+} as const;
+
 /** 내 코스: 모든 구간이 같은 색. 연한 바탕에 진한 막대 */
 export const courseTheme = { tint: color.ink, barBg: '#EAF0F7', bar: color.ink } as const;

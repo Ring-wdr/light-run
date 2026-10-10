@@ -33,6 +33,32 @@ npm run check        # 타입체크 + 린트 + 테스트
 - 공유용 APK는 항상 EAS `preview`로만 만든다. 같은 EAS 키로 서명되므로 받은 사람은 덮어 설치하면 기록이 유지된다.
 - EAS 서명 키(키스토어)는 지우거나 바꾸지 말 것. 바꾸면 이미 받은 사람의 앱을 업데이트할 수 없다.
 
+### 지도 키·토큰
+비밀값은 코드·`app.json`·git에 넣지 않는다. 로컬은 `.env`(gitignore. `.env.example`을 복사해 채운다), EAS 빌드는 EAS 환경 변수에서 읽는다.
+**EAS 빌드는 `.env`를 올리지 않으므로** 공유용 APK를 만들기 전에 EAS에 한 번 등록해야 한다.
+
+| 이름 | 쓰는 곳 | 비고 |
+|---|---|---|
+| `GOOGLE_MAPS_API_KEY` | 기록 상세 지도(Google Maps) | 등록 방법은 [docs/PLAN.md §2-2](docs/PLAN.md) |
+| `EXPO_PUBLIC_MAPBOX_TOKEN` | 3D 다시 보기(Mapbox) | **공개 토큰(`pk.`)만**. 앱 번들에 들어가는 값이다. 비밀 토큰(`sk.`)은 필요 없다 |
+
+```bash
+# Mapbox 공개 토큰을 EAS에 등록(공개 값이라 plaintext). 토큰은 Mapbox 계정 > Tokens
+npx eas-cli@latest env:create --name EXPO_PUBLIC_MAPBOX_TOKEN --value <pk.토큰> --visibility plaintext --environment development --environment preview --environment production
+```
+
+- Mapbox Maps SDK v11(`@rnmapbox/maps` 10.3)은 SDK 내려받기용 비밀 토큰(`RNMapboxMapsDownloadToken`)이 더 이상 필요 없다.
+- 토큰이 없는 빌드는 3D 다시 보기에서 지도 대신 "Mapbox 토큰이 설정되지 않은 빌드" 안내가 나온다.
+- 무료 범위: Mapbox 모바일 지도는 월간 활성 사용자 25,000명까지 무료. 지인 공유로는 넘지 않는다.
+
+### 공유용 APK 만들기(EAS `preview`)
+`eas.json`의 `preview` 프로필은 `distribution: internal`, `android.buildType: "apk"`, `APP_VARIANT=production`이다(스토어용 AAB가 아니라 바로 설치하는 APK).
+
+1. 처음 한 번: `npx eas-cli@latest login`, 위 표의 키·토큰을 `eas env:create`로 등록
+2. `npx eas-cli@latest build -p android --profile preview`
+3. 빌드가 끝나면 나오는 링크(또는 QR)를 공유한다. 받은 사람은 APK를 내려받아 설치(출처를 알 수 없는 앱 허용)
+4. 새 버전은 같은 명령으로 다시 빌드해서 공유. 같은 EAS 키로 서명되므로 덮어 설치하면 기록이 유지된다
+
 EAS에서 개발용 앱을 빌드할 수도 있다(로컬 Android SDK가 없을 때).
 
 ```bash

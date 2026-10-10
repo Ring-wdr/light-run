@@ -67,6 +67,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ title: '가벼운 러닝' }} />
           <Stack.Screen name="history/index" options={{ title: '기록' }} />
           <Stack.Screen name="history/[id]" options={{ title: '상세' }} />
+          <Stack.Screen name="replay/[id]" options={{ title: '3D로 다시 보기' }} />
           <Stack.Screen name="courses/index" options={{ title: '내 코스' }} />
           <Stack.Screen name="courses/[id]" options={{ title: '코스' }} />
           <Stack.Screen name="courses/edit" options={{ title: '새 코스' }} />

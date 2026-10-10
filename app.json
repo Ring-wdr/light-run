@@ -32,7 +32,8 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "@rnmapbox/maps"
     ],
     "scheme": "lightrun",
     "experiments": {

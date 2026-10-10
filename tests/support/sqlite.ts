@@ -38,6 +38,17 @@ export function createExpoSqlite(): FakeExpoSqlite {
           const r = db().prepare(sql).run(...p);
           return { lastInsertRowId: Number(r.lastInsertRowid), changes: Number(r.changes) };
         },
+        // GPS 점을 여러 개 넣을 때(appendSamplesTx) 쓰는 준비된 문장
+        prepareSync: (sql: string) => {
+          const stmt = db().prepare(sql);
+          return {
+            executeSync: (...p: Param[]) => {
+              const r = stmt.run(...p);
+              return { lastInsertRowId: Number(r.lastInsertRowid), changes: Number(r.changes) };
+            },
+            finalizeSync: () => {},
+          };
+        },
         withTransactionSync: (fn: () => void) => {
           db().exec('BEGIN');
           try {
