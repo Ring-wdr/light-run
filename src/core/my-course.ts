@@ -46,6 +46,8 @@ export interface MyCourse {
   createdAt: number;
   /** 즐겨찾기한 시각. null이면 즐겨찾기 아님 */
   favoritedAt: number | null;
+  /** 이 코스가 들어 있는 플랜(core/plan.ts). null이면 홈·목록에 따로 보이는 코스 */
+  planId: number | null;
 }
 
 export const LIMITS = {
@@ -134,6 +136,17 @@ export function formatStepSec(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.round(sec % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * 시간 직접 입력: 분·초 칸의 글자를 초로 바꾼다. 숫자가 아닌 글자는 버리고, 빈 칸은 0으로 본다.
+ * 둘 다 비었으면 null. 초가 60을 넘어도 그대로 더한다(0분 90초 → 90초). 범위 맞추기는 clampSec가 한다
+ */
+export function parseMinSec(min: string, sec: string): number | null {
+  const m = min.replace(/\D/g, '');
+  const s = sec.replace(/\D/g, '');
+  if (!m && !s) return null;
+  return Number(m || 0) * 60 + Number(s || 0);
 }
 
 /** 총 시간 표시: 32분, 1시간 5분, 45초 */

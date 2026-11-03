@@ -44,6 +44,9 @@ function load(seed?: (d: DatabaseSync) => void) {
   return { storage, db };
 }
 
+/** MIGRATIONS 길이(마지막 스키마 버전) */
+const LATEST = 6;
+
 const version = (d: DatabaseSync) => (d.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
 
 /** 음성 브랜치 빌드로 기록 하나(음성 끔)와 설정을 남긴 DB */
@@ -58,7 +61,7 @@ describe('migrate', () => {
   it('새 DB는 마지막 버전까지 만든다', () => {
     const { storage, db } = load();
     storage.migrate();
-    expect(version(db)).toBe(5);
+    expect(version(db)).toBe(LATEST);
     storage.setPref('a', '1');
     expect(storage.getPref('a')).toBe('1');
   });
@@ -67,13 +70,13 @@ describe('migrate', () => {
     const { storage, db } = load();
     storage.migrate();
     storage.migrate();
-    expect(version(db)).toBe(5);
+    expect(version(db)).toBe(LATEST);
   });
 
   it('합치기 전 음성 브랜치 DB(버전 3: settings + voice_on)에서도 켜지고 기록·설정이 남는다', () => {
     const { storage, db } = load(seedVoiceBranch);
     expect(() => storage.migrate()).not.toThrow();
-    expect(version(db)).toBe(5);
+    expect(version(db)).toBe(LATEST);
     expect(storage.getPref('voice.intervalMin')).toBe('10');
     const run = storage.listRuns()[0]!;
     expect(run).toMatchObject({ activity: 'walk', goalMin: 30, voiceOn: false, custom: null });
@@ -91,8 +94,21 @@ describe('migrate', () => {
         PRAGMA user_version = 4;`);
     });
     expect(() => storage.migrate()).not.toThrow();
-    expect(version(db)).toBe(5);
+    expect(version(db)).toBe(LATEST);
     expect(storage.getPref('voice.intervalMin')).toBe('10');
     expect(storage.listRuns()[0]!.voiceOn).toBe(false);
+  });
+
+  it('플랜(6) 전에 만든 코스는 그대로 홈·목록에 남는다', () => {
+    const { storage, db } = load();
+    storage.migrate();
+    db.exec('PRAGMA user_version = 5');
+    db.exec('DROP INDEX courses_plan; DROP TABLE plans;');
+    db.exec('ALTER TABLE courses DROP COLUMN plan_id; ALTER TABLE courses DROP COLUMN plan_pos; ALTER TABLE courses DROP COLUMN done_at;');
+    db.exec(`INSERT INTO courses (name, blocks_json, created_at) VALUES ('옛 코스', '[{"kind":"step","intensity":"run","sec":600}]', 1)`);
+    storage.migrate();
+    expect(version(db)).toBe(LATEST);
+    expect(storage.listCourses()).toMatchObject([{ name: '옛 코스', planId: null }]);
+    expect(storage.listPlans()).toEqual([]);
   });
 });

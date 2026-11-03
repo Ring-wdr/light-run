@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import type { DatedRun } from '../core/calendar';
 import type { Activity, Course } from '../core/course';
 import { parseBlocks, sortCourses, toBlocks, type CourseSnapshot, type Draft, type MyCourse } from '../core/my-course';
+import { finishedCourseIds, insertAfter, planProgress, type CourseRun, type Plan, type PlanDraft, type PlanProgress, type PlanSummary } from '../core/plan';
 import { runEvents, type ImportedRun, type RunSource, type RunSummary } from '../core/record';
 import type { RunEvent } from '../core/session';
 import type { RunMark, Sample, Split } from '../core/types';
@@ -59,6 +60,21 @@ const MIGRATIONS: string[] = [
    ALTER TABLE runs ADD COLUMN course_json TEXT;`,
   // 5: 기록별 음성 안내 켬/끔(기록 중 화면 토글). 기존 기록은 켬으로 본다. 음성 설정 기본값은 prefs(3)에 둔다
   `ALTER TABLE runs ADD COLUMN voice_on INTEGER NOT NULL DEFAULT 1;`,
+  // 6: 플랜(코스 여러 개를 순서대로 묶음, core/plan.ts). 플랜 안 코스는 courses에 plan_id·plan_pos로 둔다.
+  //    진행은 기록(runs.course_id)에서 계산하고, 손 완료 표시(courses.done_at)·고른 다음 코스·다시 시작 시각만 저장한다
+  `CREATE TABLE plans (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     name TEXT NOT NULL,
+     description TEXT NOT NULL DEFAULT '',
+     created_at INTEGER NOT NULL,
+     favorited_at INTEGER,
+     next_course_id INTEGER,
+     progress_from INTEGER NOT NULL DEFAULT 0
+   );
+   ALTER TABLE courses ADD COLUMN plan_id INTEGER;
+   ALTER TABLE courses ADD COLUMN plan_pos INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE courses ADD COLUMN done_at INTEGER;
+   CREATE INDEX courses_plan ON courses (plan_id, plan_pos);`,
 ];
 
 const hasTable = (name: string): boolean =>
@@ -314,6 +330,9 @@ interface CourseRecord {
   blocks_json: string;
   created_at: number;
   favorited_at: number | null;
+  plan_id: number | null;
+  plan_pos: number;
+  done_at: number | null;
 }
 
 const toCourse = (r: CourseRecord): MyCourse => ({
@@ -323,11 +342,12 @@ const toCourse = (r: CourseRecord): MyCourse => ({
   blocks: parseBlocks(r.blocks_json),
   createdAt: r.created_at,
   favoritedAt: r.favorited_at,
+  planId: r.plan_id,
 });
 
-/** 홈·목록 순서(즐겨찾기 먼저, 그다음 오래된 순) */
+/** 홈·목록에 따로 보이는 코스(플랜 안 코스는 빼고). 순서는 즐겨찾기 먼저, 그다음 오래된 순 */
 export function listCourses(): MyCourse[] {
-  return sortCourses(db.getAllSync<CourseRecord>('SELECT * FROM courses').map(toCourse));
+  return sortCourses(db.getAllSync<CourseRecord>('SELECT * FROM courses WHERE plan_id IS NULL').map(toCourse));
 }
 
 export function getCourse(id: number): MyCourse | null {
@@ -335,10 +355,11 @@ export function getCourse(id: number): MyCourse | null {
   return r ? toCourse(r) : null;
 }
 
-export function createCourse(d: Draft, now = Date.now()): number {
+/** planId를 주면 그 플랜의 맨 끝에 넣는다 */
+export function createCourse(d: Draft, now = Date.now(), planId: number | null = null): number {
   return db.runSync(
-    'INSERT INTO courses (name, description, blocks_json, created_at) VALUES (?, ?, ?, ?)',
-    d.name.trim(), d.description.trim(), JSON.stringify(d.blocks), now,
+    'INSERT INTO courses (name, description, blocks_json, created_at, plan_id, plan_pos) VALUES (?, ?, ?, ?, ?, ?)',
+    d.name.trim(), d.description.trim(), JSON.stringify(d.blocks), now, planId, planId == null ? 0 : nextPlanPos(planId),
   ).lastInsertRowId;
 }
 
@@ -349,6 +370,19 @@ export function updateCourse(id: number, d: Draft): void {
   );
 }
 
+/** 복제. 플랜 안 코스면 같은 플랜에서 바로 뒤에 넣는다 */
+export function duplicateCourse(c: MyCourse, name: string, now = Date.now()): number {
+  let id = 0;
+  db.withTransactionSync(() => {
+    id = createCourse({ name, description: c.description, blocks: c.blocks }, now, c.planId);
+    if (c.planId != null) {
+      const others = planCourseIds(c.planId).filter((x) => x !== id);
+      setPlanOrder(c.planId, insertAfter(others, c.id, id));
+    }
+  });
+  return id;
+}
+
 export function setCourseFavorite(id: number, on: boolean, now = Date.now()): void {
   db.runSync('UPDATE courses SET favorited_at = ? WHERE id = ?', on ? now : null, id);
 }
@@ -356,4 +390,128 @@ export function setCourseFavorite(id: number, on: boolean, now = Date.now()): vo
 /** 지난 기록은 course_json 사본을 가지고 있어서 그대로 남는다 */
 export function deleteCourse(id: number): void {
   db.runSync('DELETE FROM courses WHERE id = ?', id);
+}
+
+// ── 플랜 ─────────────────────────────────────────────
+
+interface PlanRecord {
+  id: number;
+  name: string;
+  description: string;
+  created_at: number;
+  favorited_at: number | null;
+  next_course_id: number | null;
+  progress_from: number;
+}
+
+const toPlan = (r: PlanRecord): Plan => ({
+  id: r.id,
+  name: r.name,
+  description: r.description,
+  createdAt: r.created_at,
+  favoritedAt: r.favorited_at,
+  nextCourseId: r.next_course_id,
+  progressFrom: r.progress_from,
+});
+
+function nextPlanPos(planId: number): number {
+  const r = db.getFirstSync<{ pos: number | null }>('SELECT MAX(plan_pos) AS pos FROM courses WHERE plan_id = ?', planId);
+  return (r?.pos ?? -1) + 1;
+}
+
+function planCourseIds(planId: number): number[] {
+  return db.getAllSync<{ id: number }>('SELECT id FROM courses WHERE plan_id = ? ORDER BY plan_pos, id', planId).map((r) => r.id);
+}
+
+/** 홈·목록용: 플랜마다 완료 수와 코스 수 */
+export function listPlans(): PlanSummary[] {
+  return db.getAllSync<PlanRecord>('SELECT * FROM plans').map((r) => {
+    const plan = toPlan(r);
+    const p = planProgressOf(plan);
+    return { ...plan, done: p.done, total: p.total };
+  });
+}
+
+export function getPlan(id: number): Plan | null {
+  const r = db.getFirstSync<PlanRecord>('SELECT * FROM plans WHERE id = ?', id);
+  return r ? toPlan(r) : null;
+}
+
+/** 플랜과 안의 코스(순서대로)·진행 상태 */
+export function getPlanProgress(id: number): { plan: Plan; progress: PlanProgress } | null {
+  const plan = getPlan(id);
+  return plan ? { plan, progress: planProgressOf(plan) } : null;
+}
+
+function planProgressOf(plan: Plan): PlanProgress {
+  const rows = db.getAllSync<CourseRecord>('SELECT * FROM courses WHERE plan_id = ? ORDER BY plan_pos, id', plan.id);
+  const runs = db
+    .getAllSync<{ courseId: number; startedAt: number; movingMs: number; json: string | null }>(
+      `SELECT course_id AS courseId, started_at AS startedAt, moving_ms AS movingMs, course_json AS json FROM runs
+       WHERE status = 'finished' AND course_id IN (SELECT id FROM courses WHERE plan_id = ?)`,
+      plan.id,
+    )
+    .map((r): CourseRun => ({ courseId: r.courseId, startedAt: r.startedAt, movingMs: r.movingMs, blocks: snapshotBlocks(r.json) }));
+  const courses = rows.map((r) => ({ ...toCourse(r), doneAt: r.done_at }));
+  return planProgress(plan, courses, finishedCourseIds(runs, plan.progressFrom));
+}
+
+function snapshotBlocks(json: string | null): unknown {
+  if (!json) return [];
+  try {
+    return (JSON.parse(json) as { blocks?: unknown }).blocks ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function createPlan(d: PlanDraft, now = Date.now()): number {
+  return db.runSync(
+    'INSERT INTO plans (name, description, created_at) VALUES (?, ?, ?)',
+    d.name.trim(), d.description.trim(), now,
+  ).lastInsertRowId;
+}
+
+export function updatePlan(id: number, d: PlanDraft): void {
+  db.runSync('UPDATE plans SET name = ?, description = ? WHERE id = ?', d.name.trim(), d.description.trim(), id);
+}
+
+export function setPlanFavorite(id: number, on: boolean, now = Date.now()): void {
+  db.runSync('UPDATE plans SET favorited_at = ? WHERE id = ?', on ? now : null, id);
+}
+
+/** 다음에 할 코스를 고른다. null이면 순서대로 */
+export function setPlanNext(id: number, courseId: number | null): void {
+  db.runSync('UPDATE plans SET next_course_id = ? WHERE id = ?', courseId, id);
+}
+
+/** 처음부터 다시: 지금 이전의 기록·완료 표시는 진행에 세지 않는다. 기록은 그대로 남는다 */
+export function restartPlan(id: number, now = Date.now()): void {
+  db.runSync('UPDATE plans SET progress_from = ?, next_course_id = NULL WHERE id = ?', now, id);
+}
+
+/** 플랜 안 순서를 ids 순서로 다시 매긴다 */
+export function setPlanOrder(planId: number, ids: number[]): void {
+  db.withTransactionSync(() => {
+    ids.forEach((id, pos) => db.runSync('UPDATE courses SET plan_pos = ? WHERE id = ? AND plan_id = ?', pos, id, planId));
+  });
+}
+
+/** 손으로 완료 표시(끝까지 못 달렸거나 앱 밖에서 했을 때) / 표시 취소 */
+export function setCourseDone(courseId: number, on: boolean, now = Date.now()): void {
+  db.runSync('UPDATE courses SET done_at = ? WHERE id = ?', on ? now : null, courseId);
+}
+
+/** 내 코스(플랜 밖)를 플랜 끝에 복사해 넣는다. 원래 코스는 그대로 남는다 */
+export function copyCourseToPlan(courseId: number, planId: number, now = Date.now()): number | null {
+  const c = getCourse(courseId);
+  return c ? createCourse({ name: c.name, description: c.description, blocks: c.blocks }, now, planId) : null;
+}
+
+/** 플랜과 안의 코스를 지운다. 그 코스로 달린 기록은 사본이 있어 그대로 남는다 */
+export function deletePlan(id: number): void {
+  db.withTransactionSync(() => {
+    db.runSync('DELETE FROM courses WHERE plan_id = ?', id);
+    db.runSync('DELETE FROM plans WHERE id = ?', id);
+  });
 }

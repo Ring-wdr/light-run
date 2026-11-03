@@ -3,8 +3,8 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Course } from '../core/course';
-import type { MyCourse } from '../core/my-course';
-import { getPref, listCourses, listRuns, setPref, type RunRow } from '../services/storage';
+import { shelf, type ShelfItem } from '../core/plan';
+import { getPref, listCourses, listPlans, listRuns, setPref, type RunRow } from '../services/storage';
 import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
@@ -42,13 +42,13 @@ export default function Home() {
   // 마지막으로 고른 탭을 기억한다(내 코스만 쓰는 사람이 매번 탭을 누르지 않게)
   const [tab, setTab] = useState<HomeTab>(savedTab);
   const [recent, setRecent] = useState<RunRow[]>([]);
-  const [courses, setCourses] = useState<MyCourse[]>([]);
+  const [courses, setCourses] = useState<ShelfItem[]>([]);
   const [starting, runStart] = useBusy();
 
   useFocusEffect(
     useCallback(() => {
       setRecent(listRuns(3));
-      setCourses(listCourses());
+      setCourses(shelf(listCourses(), listPlans()));
       // 다른 화면(코스 저장 뒤 "나중에")이 탭을 바꿔 두었으면 따른다
       setTab(savedTab());
       // 기록을 막 끝냈으면 그 상세를 홈 위에 연다(src/ui/navigation.ts)
@@ -87,7 +87,7 @@ export default function Home() {
 
       <Text style={h2}>코스 선택</Text>
       {tab === 'mine' ? (
-        <CourseGrid courses={courses} />
+        <CourseGrid items={courses} />
       ) : (
       <View style={{ gap: L.card.gap }}>
         {GOALS.map((goalMin) => (
