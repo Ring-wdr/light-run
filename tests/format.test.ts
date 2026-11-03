@@ -1,5 +1,5 @@
 import { fileStamp } from '../src/core/date';
-import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../src/core/pace';
+import { formatDuration, formatKm, formatPace, paceSecPerKm, splitBars } from '../src/core/pace';
 import { firstPointTime, gpxDocument, gpxTrack, parseGpx, toGpx } from '../src/core/gpx';
 import { straightTrack } from './helpers';
 
@@ -27,6 +27,28 @@ describe('포맷', () => {
   it('파일 이름용 시각은 현지 시각 yyyyMMdd-HHmm', () => {
     expect(fileStamp(new Date(2026, 8, 7, 5, 4).getTime())).toBe('20260907-0504');
     expect(fileStamp(new Date(2026, 11, 31, 23, 59).getTime())).toBe('20261231-2359');
+  });
+});
+
+describe('구간 막대', () => {
+  const split = (km: number, sec: number) => ({ km, durationMs: sec * 1000 });
+
+  it('가장 빠른 구간이 1, 가장 느린 구간이 0.3, 그 사이는 속력에 비례', () => {
+    const bars = splitBars([split(1, 300), split(2, 330), split(3, 360)]);
+    expect(bars.map((b) => b.fastest)).toEqual([true, false, false]);
+    expect(bars[0]!.ratio).toBe(1);
+    expect(bars[2]!.ratio).toBeCloseTo(0.3);
+    // 페이스로는 한가운데(5'30")지만 속력으로는 느린 쪽: 0.3 + 0.7 × (1/330 − 1/360) / (1/300 − 1/360) ≈ 0.618
+    expect(bars[1]!.ratio).toBeCloseTo(0.618, 3);
+  });
+
+  it('구간이 하나거나 모두 같으면 막대는 꽉 차고 가장 빠른 구간 표시는 없다', () => {
+    expect(splitBars([split(1, 300)])).toEqual([{ ratio: 1, fastest: false }]);
+    expect(splitBars([split(1, 300), split(2, 300)]).map((b) => b.ratio)).toEqual([1, 1]);
+  });
+
+  it('구간이 없으면 빈 배열', () => {
+    expect(splitBars([])).toEqual([]);
   });
 });
 
