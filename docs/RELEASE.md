@@ -46,6 +46,12 @@ npx eas-cli@latest build -p android --profile production
   npx eas-cli@latest submit -p android --profile production --latest
   ```
   트랙 지정은 `eas.json`의 `submit.production.android.track`(`internal`, `alpha`=비공개 테스트, `production`).
+- 릴리스 빌드는 R8(코드 축소·난독화)과 리소스 축소를 켠다(`app.json`의 `expo-build-properties`). 디버그 빌드는 그대로다.
+  2026-11 측정(갤럭시 arm64, bundletool): Play 다운로드 37.2 → 27.5MB, 설치 APK 101 → 71MB. 이 중 Mapbox가 약 10MB/25MB다.
+  R8 매핑 파일은 AAB 안(`BUNDLE-METADATA/.../proguard.map`)에 들어가 Play Console 크래시 보고가 자동으로 원래 이름으로 보인다.
+  축소 때문에 실행 중에 클래스가 없다고 죽으면 `expo-build-properties`의 `android.extraProguardRules`로 keep 규칙을 더한다.
+  지금 있는 규칙: `RNHeadlessAppLoader`(expo-modules-core). 매니페스트 meta-data에 이름으로만 적혀 R8이 지운다.
+  없으면 앱 프로세스 없이 위치 작업이 돌 때 JS를 못 띄운다(`ClassNotFoundException`). 새 라이브러리를 넣으면 릴리스 앱 logcat에서 `ClassNotFound`를 찾아볼 것.
 - 대상 API: 새 앱·업데이트는 **Android 16(API 36) 이상**이어야 한다. Expo SDK 57(RN 0.86)은 `targetSdk 36`이라 맞다.
 
 ## 3. 앱 콘텐츠(정책 → 앱 콘텐츠)
@@ -149,6 +155,7 @@ Mapbox도 같은 성격이다(텔레메트리는 코드에서 껐다, `src/ui/Re
 - [ ] `npm run check` 통과
 - [ ] 개인정보처리방침 문의 이메일 채우고 main에 반영, 링크가 로그인 없이 열리는지
 - [ ] Maps 키에 Play 앱 서명 SHA-1 추가, Play에서 받은 앱으로 지도·3D 다시 보기 확인
+- [ ] R8 켠 릴리스 앱(`npm run android:release`)으로 기록 시작·종료, 기록 상세 지도, 3D 다시 보기, 공유·GPX 내보내기, 음성 안내가 죽지 않는지
 - [ ] 실기기: 화면 끔 30분, 일시정지/재개, 앱 강제 종료 후 복원, 위치 권한 "앱 사용 중에만 허용"만으로 화면 끔 기록
 - [ ] 앱 번들 탐색기에서 권한 목록에 `ACCESS_BACKGROUND_LOCATION`, `AD_ID`, `SYSTEM_ALERT_WINDOW`가 없는지
 - [ ] `maestro test .maestro`
