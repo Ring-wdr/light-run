@@ -89,4 +89,4 @@ export function shareSummary(run: { activity: Activity; distanceM: number; movin
   return `${ACTIVITY_LABEL[run.activity]} ${formatKm(run.distanceM)}km · ${formatDuration(run.movingMs)} · 평균 ${pace}/km`;
 }
 
-export const SHARE_TAG = '#가벼운러닝';
+export const SHARE_TAG = '#라이트런';

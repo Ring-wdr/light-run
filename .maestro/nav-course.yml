@@ -41,6 +41,7 @@ tags:
 # 코스 상세에서 시작 → [기록] → 종료 → [홈, 상세] → 뒤로 = 홈(코스 상세 아님)
 - tapOn: 'Nav course A'
 - tapOn: 'Nav course A 시작'
+- runFlow: subflows/wait-countdown.yml
 - runFlow:
     when:
       visible: '화면을 켜 두고 움직여 주세요'
@@ -66,6 +67,7 @@ tags:
 - hideKeyboard
 - tapOn: '저장'
 - tapOn: '바로 시작'
+- runFlow: subflows/wait-countdown.yml
 - runFlow:
     when:
       visible: '화면을 켜 두고 움직여 주세요'

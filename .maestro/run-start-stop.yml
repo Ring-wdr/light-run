@@ -1,4 +1,4 @@
-# 기록 시작 → 일시정지·재개 → 종료 → 상세 → 홈.
+# 기록 시작(대기 카운트) → 일시정지·재개 → 종료 → 상세 → 홈.
 # 화면 스택 규칙(src/ui/navigation.ts)을 실제 앱에서 확인한다. Jest(tests/navigation.test.tsx)가 못 보는
 # Android 뒤로 가기 키, 위치 권한, 포그라운드 서비스가 대상이다. GPS 점은 없으니 거리는 0이다
 appId: com.ringwdr.lightrun.dev
@@ -10,6 +10,7 @@ name: 기록 시작·종료
       all: allow
 - runFlow: subflows/dismiss-battery-guide.yml
 - tapOn: '달리기 30분 시작'
+- runFlow: subflows/wait-countdown.yml
 # 백그라운드 위치를 받지 못한 환경이면 안내창이 뜬다(src/ui/start.ts). 기록은 그대로 시작된다
 - runFlow:
     when:

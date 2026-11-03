@@ -44,6 +44,14 @@ jest.mock('../src/services/location', () => ({
 
 const lastSchedule = () => mockCalls.filter((c) => c[0] === 'schedule').at(-1) as ['schedule', number[], string[]];
 
+/** 대기 카운트(3, 2, 1)는 건너뛰고 기록을 시작한다. 권한 요청이 끝나 카운트가 시작된 뒤 건너뛴다 */
+async function startRun(course: Parameters<typeof rc.startRun>[0]) {
+  const started = rc.startRun(course);
+  await new Promise((r) => setTimeout(r, 0));
+  rc.skipCountdown();
+  await started;
+}
+
 beforeEach(async () => {
   await rc.stopRun();
   mockCalls.length = 0;
@@ -53,7 +61,7 @@ beforeEach(async () => {
 describe('음성 안내 예약', () => {
   it('설정을 한 번도 저장하지 않아도 5분마다 예약한다(걷기)', async () => {
     const t0 = Date.now();
-    await rc.startRun({ activity: 'walk', goalMin: null });
+    await startRun({ activity: 'walk', goalMin: null });
     expect(mockCalls[0]).toEqual(['speak', '걷기를 시작할게요.', false]);
     const [, at, texts] = lastSchedule();
     expect(texts.slice(0, 2)).toEqual(['5분 지났어요.', '10분 지났어요.']);
@@ -61,7 +69,7 @@ describe('음성 안내 예약', () => {
   });
 
   it('달리기 30분: 25분엔 "5분 남았어요."만 예약된다', async () => {
-    await rc.startRun({ activity: 'run', goalMin: 30 });
+    await startRun({ activity: 'run', goalMin: 30 });
     expect(lastSchedule()[2].slice(0, 7)).toEqual([
       '5분 지났어요.',
       '10분 지났어요.',
@@ -74,7 +82,7 @@ describe('음성 안내 예약', () => {
   });
 
   it('일시정지하면 취소, 재개하면 다시 예약, 종료하면 취소 후 종료 멘트', async () => {
-    await rc.startRun({ activity: 'walk', goalMin: 30 });
+    await startRun({ activity: 'walk', goalMin: 30 });
     mockCalls.length = 0;
     rc.pauseRun();
     expect(mockCalls).toEqual([['cancel'], ['speak', '일시정지했어요.', false]]);
@@ -87,7 +95,7 @@ describe('음성 안내 예약', () => {
   });
 
   it('기록 중 토글을 끄면 취소하고 멈춘다. 켜면 다시 예약한다', async () => {
-    await rc.startRun({ activity: 'run', goalMin: null });
+    await startRun({ activity: 'run', goalMin: null });
     mockCalls.length = 0;
     rc.setVoiceOn(false);
     expect(mockCalls).toEqual([['stop'], ['cancel']]);
@@ -98,13 +106,13 @@ describe('음성 안내 예약', () => {
 
   it('설정에서 간격을 끄면 시간 안내 없이 목표 안내만', async () => {
     mockSettings.set('voice.intervalMin', '0');
-    await rc.startRun({ activity: 'walk', goalMin: 30 });
+    await startRun({ activity: 'walk', goalMin: 30 });
     expect(lastSchedule()[2]).toEqual(['절반 왔어요. 15분 남았어요.', '5분 남았어요.', '30분 걷기 목표 달성! 계속하거나 종료하세요.']);
   });
 
   it('설정에서 음성 안내를 끄면 아무것도 말하거나 예약하지 않는다', async () => {
     mockSettings.set('voice.enabled', '0');
-    await rc.startRun({ activity: 'run', goalMin: 30 });
+    await startRun({ activity: 'run', goalMin: 30 });
     expect(mockCalls).toEqual([['cancel']]);
   });
 });

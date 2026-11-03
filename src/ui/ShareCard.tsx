@@ -37,7 +37,7 @@ export function ShareCard({ run, segments, ref }: { run: RunRow; segments: LatLo
           <Metric label="시간" value={formatDuration(run.movingMs)} />
           <Metric label="평균 페이스" value={formatPace(paceSecPerKm(run.distanceM, run.movingMs))} />
         </View>
-        <Text style={styles.brand}>가벼운 러닝 {SHARE_TAG}</Text>
+        <Text style={styles.brand}>{SHARE_TAG}</Text>
       </View>
     </View>
   );

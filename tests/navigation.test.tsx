@@ -6,7 +6,7 @@ import type { Course } from '../src/core/course';
 import { step } from '../src/core/my-course';
 import { summarize } from '../src/core/record';
 import { startTracking } from '../src/services/location';
-import { stopRun } from '../src/services/run-controller';
+import { cancelCountdown, stopRun } from '../src/services/run-controller';
 import * as storage from '../src/services/storage';
 import { goHome } from '../src/ui/navigation';
 import { straightTrack } from './helpers';
@@ -64,6 +64,17 @@ function activeRunId(): number {
   return id;
 }
 
+/** 시작 버튼을 누르고 대기 카운트(3, 2, 1)는 건너뛴다. 카운트 자체는 '대기 카운트'에서 본다 */
+async function pressStart(name: string) {
+  await user.press(screen.getByRole('button', { name }));
+  await skipCountdown();
+}
+
+/** 대기 카운트 화면에서 건너뛰기를 누른다 */
+async function skipCountdown() {
+  await user.press(screen.getByRole('button', { name: '건너뛰기' }));
+}
+
 /** 테스트에서 router를 직접 부를 때도 화면 갱신이 끝나도록 act로 감싼다 */
 const nav = (fn: () => void) => act(fn);
 
@@ -80,6 +91,7 @@ beforeEach(() => {
 afterEach(async () => {
   // run-controller는 모듈 상태라 테스트 사이에 남는다. 기록 중이면 끝내 둔다
   await act(async () => {
+    cancelCountdown();
     await stopRun();
   });
   jest.restoreAllMocks();
@@ -90,7 +102,7 @@ describe('기록 시작·종료(가드)', () => {
     const app = renderRouter('src/app');
     expect(screen).toHavePathname('/');
 
-    await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+    await pressStart('달리기 30분 시작');
     expect(stack(app)).toEqual(['run']);
     expect(screen.getByText('길게 눌러 종료')).toBeOnTheScreen();
 
@@ -105,7 +117,7 @@ describe('기록 시작·종료(가드)', () => {
 
   it('기록 중에는 뒤로 갈 화면이 없다(Android 뒤로 가기는 앱을 백그라운드로)', async () => {
     const app = renderRouter('src/app');
-    await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+    await pressStart('달리기 30분 시작');
     expect(router.canGoBack()).toBe(false);
     expect(stack(app)).toEqual(['run']);
   });
@@ -118,7 +130,7 @@ describe('기록 시작·종료(가드)', () => {
     await user.press(screen.getByRole('button', { name: '걷뛰 10분' }));
     expect(stack(app)).toEqual(['index', `courses/[id]:${courseId}`]);
 
-    await user.press(screen.getByRole('button', { name: '걷뛰 10분 시작' }));
+    await pressStart('걷뛰 10분 시작');
     expect(stack(app)).toEqual(['run']);
 
     const runId = activeRunId();
@@ -147,7 +159,7 @@ describe('기록 시작·종료(가드)', () => {
   it('시작이 되돌려지면(위치 추적 실패) 홈', async () => {
     jest.mocked(startTracking).mockRejectedValueOnce(new Error('위치 서비스 꺼짐'));
     const app = renderRouter('src/app');
-    await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+    await pressStart('달리기 30분 시작');
     expect(stack(app)).toEqual(['index']);
     expect(Alert.alert).toHaveBeenCalledWith('기록을 시작하지 못했어요', '위치 서비스 꺼짐');
   });
@@ -157,10 +169,60 @@ describe('기록 시작·종료(가드)', () => {
     await nav(() => router.navigate('/run'));
     expect(stack(app)).toEqual(['index']);
 
-    await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+    await pressStart('달리기 30분 시작');
     await nav(() => router.navigate('/history/1'));
     await nav(() => router.navigate('/'));
     expect(stack(app)).toEqual(['run']);
+  });
+});
+
+describe('대기 카운트', () => {
+  it('3초를 센 뒤 기록을 시작한다. 세는 동안은 아무것도 저장하지 않는다', async () => {
+    jest.useFakeTimers();
+    try {
+      const app = renderRouter('src/app');
+      const before = Date.now();
+      // 누른 핸들러는 카운트가 끝날 때까지 기다리므로 그 프라미스는 기다리지 않는다
+      await act(async () => {
+        fireEvent.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+      });
+      expect(stack(app)).toEqual(['run']);
+      expect(screen.getByText('3')).toBeOnTheScreen();
+      expect(screen.queryByText('길게 눌러 종료')).not.toBeOnTheScreen();
+      expect(storage.getActiveRunId()).toBeNull();
+
+      await act(async () => jest.advanceTimersByTime(1000));
+      expect(screen.getByText('2')).toBeOnTheScreen();
+      await act(async () => jest.advanceTimersByTime(1000));
+      expect(screen.getByText('1')).toBeOnTheScreen();
+      await act(async () => jest.advanceTimersByTime(1000));
+
+      expect(stack(app)).toEqual(['run']);
+      expect(screen.getByText('길게 눌러 종료')).toBeOnTheScreen();
+      // 시작 시각은 카운트가 끝난 때다(카운트 3초는 기록에 들어가지 않는다)
+      expect(storage.getRun(activeRunId())?.startedAt).toBeGreaterThanOrEqual(before + 3000);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('취소하면 기록 없이 홈', async () => {
+    const app = renderRouter('src/app');
+    await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+    expect(screen.getByText('3')).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '취소' }));
+    expect(stack(app)).toEqual(['index']);
+    expect(storage.getActiveRunId()).toBeNull();
+    expect(storage.listRuns()).toEqual([]);
+  });
+
+  it('앱을 다시 켜 이어가기는 카운트 없이 바로 기록 화면', async () => {
+    storage.createRun(Date.now() - 60_000, RUN_30, true);
+    renderRouter('src/app');
+    await pressAlertButton('이어서 하기');
+    expect(screen.queryByRole('button', { name: '건너뛰기' })).not.toBeOnTheScreen();
+    expect(screen.getByText('길게 눌러 종료')).toBeOnTheScreen();
   });
 });
 
@@ -184,6 +246,7 @@ describe('새 코스 저장', () => {
     const app = renderRouter('src/app', { initialUrl: '/courses/edit' });
     await saveNewCourse('아침 코스');
     await pressAlertButton('바로 시작');
+    await skipCountdown();
     expect(stack(app)).toEqual(['run']);
   });
 

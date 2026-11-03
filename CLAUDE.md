@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# CLAUDE.md — 가벼운 러닝 (light-run)
+# CLAUDE.md — 라이트런 (light-run)
 
 광고 없는 러닝 기록 앱. React Native + Expo, Android(갤럭시) 먼저, 같은 코드로 iOS.
 기획·로드맵·결정 이유는 `docs/PLAN.md`. 작업 전에 읽을 것.

@@ -7,8 +7,18 @@ import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot 
 import { currentPace, formatDuration, formatKm, formatPace, paceSecPerKm } from '../core/pace';
 import { elapsedMs } from '../core/session';
 import { FILTER } from '../core/filter';
-import { pauseRun, resumeRun, setVoiceOn, stopRun, useRun, type RunSnapshot } from '../services/run-controller';
+import {
+  cancelCountdown,
+  pauseRun,
+  resumeRun,
+  setVoiceOn,
+  skipCountdown,
+  stopRun,
+  useRun,
+  type RunSnapshot,
+} from '../services/run-controller';
 import { alertError } from '../ui/alert';
+import { Countdown } from '../ui/Countdown';
 import { CourseBar } from '../ui/CourseBar';
 import { HoldButton } from '../ui/HoldButton';
 import { useNow } from '../ui/hooks';
@@ -60,18 +70,24 @@ function CustomCourseStatus({ course, ms, overMs }: { course: CourseSnapshot; ms
 
 export default function RunScreen() {
   const insets = useSafeAreaInsets();
-  const { runId, course, run, tracking, gps, voiceOn } = useRun();
+  const { runId, course, run, tracking, gps, voiceOn, countdown } = useRun();
   // 경과 시간 표시용 1초 틱. 거리·페이스는 GPS 점이 올 때 바뀐다
   const now = useNow(run.status === 'running');
   /** 길게 누르기가 연달아 들어와도 한 번만 종료한다 */
   const stopOnce = useRef(false);
+
+  const tint = course ? activityColor[course.activity] : color.accent;
+
+  // 시작 전 대기 카운트. 끝나면 같은 화면에서 바로 기록 화면으로 바뀐다
+  if (countdown != null) {
+    return <Countdown seconds={countdown} course={course} tint={tint} onSkip={skipCountdown} onCancel={cancelCountdown} />;
+  }
 
   // 종료되는 순간 _layout.tsx의 가드가 이 화면을 치운다. 그 사이 한 번 그려질 때 빈 기록을 보이지 않게
   if (runId == null) return null;
 
   const ms = elapsedMs(run, now);
   const paused = run.status === 'paused';
-  const tint = course ? activityColor[course.activity] : color.accent;
   const goal = course ? courseProgress(course, ms) : null;
 
   const onStop = async () => {
@@ -90,7 +106,8 @@ export default function RunScreen() {
 
   return (
     <View style={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}>
-      {course && <Stack.Screen options={{ title: ACTIVITY_DOING[course.activity] }} />}
+      {/* 대기 카운트가 숨긴 헤더는 카운트가 사라져도 그대로 남으므로 여기서 다시 켠다 */}
+      <Stack.Screen options={{ headerShown: true, ...(course && { title: ACTIVITY_DOING[course.activity] }) }} />
       {course && <Text style={[styles.course, { color: tint }]}>{courseLabel(course)}</Text>}
 
       {course?.custom ? (
