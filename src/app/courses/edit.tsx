@@ -31,6 +31,7 @@ import {
 } from '../../core/my-course';
 import { createCourse, getCourse, listCourses, setPref, updateCourse } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
+import { useLayout } from '../../ui/layout';
 import { MoreMenu, type MoreMenuItem } from '../../ui/MoreMenu';
 import { goBackOrHome, goHome } from '../../ui/navigation';
 import { startCourse } from '../../ui/start';
@@ -52,6 +53,8 @@ export default function CourseEdit() {
   const editingId = id ? Number(id) : null;
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const L = useLayout();
+  const pad = L.pad;
 
   const loaded = useMemo<Draft>(() => {
     const c = editingId != null ? getCourse(editingId) : null;
@@ -143,7 +146,7 @@ export default function CourseEdit() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: editingId != null ? '코스 편집' : '새 코스' }} />
-      <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.wrap, { padding: pad, paddingBottom: space.xl }]} keyboardShouldPersistTaps="handled">
         <Field label="이름" count={draft.name.length} max={LIMITS.nameMax} error={errors.name}>
           <TextInput
             value={draft.name}
@@ -171,7 +174,7 @@ export default function CourseEdit() {
           <Text style={styles.label}>구간</Text>
           <Text style={styles.total}>총 {total > 0 ? formatTotalSec(total) : '0분'}</Text>
         </View>
-        <CourseBar blocks={blocks} height={88} />
+        <CourseBar blocks={blocks} height={L.courseBar.normal} />
         {errors.blocks && <Text style={styles.error}>{errors.blocks}</Text>}
 
         {blocks.length === 0 && (
@@ -206,7 +209,9 @@ export default function CourseEdit() {
                     <Text style={styles.timesText} accessibilityLabel={`${b.times}번 반복`}>× {b.times}</Text>
                     <RoundButton label="＋" onPress={() => set({ blocks: setTimes(blocks, i, b.times + 1) })} disabled={b.times >= LIMITS.timesMax} a11y="반복 늘리기" />
                   </View>
-                  <Text style={styles.repeatSec}>{formatTotalSec(blockSec(b))}</Text>
+                  <Text style={styles.repeatSec} numberOfLines={1} adjustsFontSizeToFit>
+                    {formatTotalSec(blockSec(b))}
+                  </Text>
                   <MoreMenu
                     glyph="⋮"
                     label="반복 메뉴"
@@ -244,8 +249,8 @@ export default function CourseEdit() {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: space.l + insets.bottom }]}>
-        <Pressable onPress={onSave} style={({ pressed }) => [styles.save, pressed && { opacity: 0.7 }]} accessibilityRole="button">
+      <View style={[styles.footer, { paddingHorizontal: pad, paddingBottom: pad + insets.bottom }]}>
+        <Pressable onPress={onSave} style={({ pressed }) => [styles.save, { height: L.button.save }, pressed && { opacity: 0.7 }]} accessibilityRole="button">
           <Text style={styles.saveText}>저장</Text>
         </Pressable>
       </View>
@@ -311,7 +316,7 @@ function RoundButton({ label, onPress, disabled, a11y }: { label: string; onPres
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  wrap: { padding: space.l, gap: space.m, paddingBottom: space.xl },
+  wrap: { gap: space.m },
   field: { gap: space.xs },
   fieldHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   label: { color: color.ink, fontWeight: '700', fontSize: 15 },
@@ -377,7 +382,7 @@ const styles = StyleSheet.create({
     borderColor: color.sub,
   },
   addText: { color: color.ink, fontWeight: '700' },
-  footer: { padding: space.l, paddingTop: space.s, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-  save: { backgroundColor: courseTheme.tint, borderRadius: 999, height: 56, alignItems: 'center', justifyContent: 'center' },
+  footer: { paddingTop: space.s, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
+  save: { backgroundColor: courseTheme.tint, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#fff', fontSize: 18, fontWeight: '800' },
 });

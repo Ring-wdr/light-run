@@ -1,7 +1,19 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, type ImageSourcePropType, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  type ImageSourcePropType,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LatLon } from '../core/geo';
+import { fitScale } from '../core/layout';
 import { SHARE_TAG, shareSummary } from '../core/share';
 import {
   captureCard,
@@ -14,6 +26,7 @@ import {
 import type { RunRow } from '../services/storage';
 import { errorMessage } from './alert';
 import { CARD_HEIGHT, CARD_WIDTH, ShareCard } from './ShareCard';
+import { useLayout } from './layout';
 import { color, space } from './theme';
 
 /**
@@ -33,6 +46,8 @@ const BADGE: Record<
 };
 
 const BADGE_SIZE = 52;
+/** 시트에서 미리보기를 뺀 높이(손잡이·보낼 곳·닫기·간격)와 시트 위로 남길 여백 */
+const SHEET_CHROME_H = 240;
 
 /** 공유 버튼을 누르면 뜨는 아래쪽 시트: 카드 미리보기 + 보낼 곳 */
 export function ShareSheet({
@@ -48,7 +63,11 @@ export function ShareSheet({
 }) {
   const card = useRef<View>(null);
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const { pad } = useLayout();
   const [busy, setBusy] = useState<ShareTargetId | null>(null);
+  // 미리보기만 줄인다. 캡처는 바깥 배율과 상관없이 카드 View 자체를 그려서 결과 이미지는 그대로다
+  const preview = fitScale(window.width - pad * 2, window.height - insets.top - insets.bottom - SHEET_CHROME_H, CARD_WIDTH, CARD_HEIGHT);
 
   const onPick = async (target: ShareTargetInfo) => {
     if (busy || !card.current) return;
@@ -69,10 +88,12 @@ export function ShareSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="닫기" />
-      <View style={[styles.sheet, { paddingBottom: space.l + insets.bottom }]}>
+      <View style={[styles.sheet, { paddingHorizontal: pad, gap: pad, paddingBottom: pad + insets.bottom }]}>
         <View style={styles.handle} />
-        <View style={styles.preview}>
-          <ShareCard ref={card} run={run} segments={segments} />
+        <View style={[styles.preview, { width: CARD_WIDTH * preview, height: CARD_HEIGHT * preview }]}>
+          <View style={[styles.previewCard, { transform: [{ scale: preview }] }]}>
+            <ShareCard ref={card} run={run} segments={segments} />
+          </View>
         </View>
         <View style={styles.targets}>
           {SHARE_TARGETS.map((t) => {
@@ -100,7 +121,7 @@ export function ShareSheet({
                     <Text style={[styles.badgeText, { color: b.fg }]}>{b.text}</Text>
                   )}
                 </View>
-                <Text style={styles.targetLabel} numberOfLines={1}>
+                <Text style={styles.targetLabel} numberOfLines={1} adjustsFontSizeToFit>
                   {t.label}
                 </Text>
               </Pressable>
@@ -121,14 +142,14 @@ const styles = StyleSheet.create({
     backgroundColor: color.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingHorizontal: space.l,
     paddingTop: space.s,
-    gap: space.l,
   },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: color.line },
   preview: { alignSelf: 'center', borderRadius: 20, overflow: 'hidden' },
-  targets: { flexDirection: 'row', justifyContent: 'space-between' },
-  target: { alignItems: 'center', width: 64 },
+  previewCard: { width: CARD_WIDTH, height: CARD_HEIGHT, transformOrigin: 'top left' },
+  targets: { flexDirection: 'row' },
+  // 다섯 칸이 화면 폭을 나눠 가진다(고정 폭이면 좁은 화면에서 넘친다)
+  target: { flex: 1, alignItems: 'center', paddingHorizontal: 2 },
   badge: {
     width: BADGE_SIZE,
     height: BADGE_SIZE,

@@ -4,17 +4,23 @@ import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { courseLabel, type Course } from '../core/course';
+import { useLayout } from './layout';
 import { space } from './theme';
 
 /** 숫자 하나. 바뀔 때마다(key로 다시 마운트) 크게 나타났다가 제자리로 줄어든다 */
 function Digit({ value }: { value: number }) {
+  const L = useLayout();
   const [anim] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
   }, [anim]);
   const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1.6, 1] });
   return (
-    <Animated.Text style={[styles.digit, { opacity: anim, transform: [{ scale }] }]} accessibilityLiveRegion="assertive">
+    <Animated.Text
+      style={[styles.digit, { fontSize: L.font.countdown, opacity: anim, transform: [{ scale }] }]}
+      maxFontSizeMultiplier={1}
+      accessibilityLiveRegion="assertive"
+    >
       {value}
     </Animated.Text>
   );
@@ -63,7 +69,7 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: space.l },
   label: { textAlign: 'center', color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  digit: { color: '#FFFFFF', fontSize: 200, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  digit: { color: '#FFFFFF', fontWeight: '900', fontVariant: ['tabular-nums'] },
   hint: { color: '#FFFFFF', fontSize: 18, fontWeight: '600', opacity: 0.85 },
   buttons: { flexDirection: 'row', gap: space.m },
   btn: { flex: 1, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },

@@ -1,5 +1,5 @@
 import { fireEvent, userEvent } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { act, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert, type AlertButton } from 'react-native';
 import type { Course } from '../src/core/course';
@@ -358,7 +358,7 @@ describe('기록 상세', () => {
 describe('앞으로 가는 이동(router.navigate)', () => {
   it('같은 화면으로 두 번 가도 한 번만 쌓인다', async () => {
     const app = renderRouter('src/app');
-    for (const href of ['/settings', '/history', '/history/5', '/courses', '/courses/3', '/courses/edit?id=3']) {
+    for (const href of ['/settings', '/history', '/history/5', '/courses', '/courses/3', '/courses/edit?id=3'] as Href[]) {
       await nav(() => router.navigate(href));
       await nav(() => router.navigate(href));
       expectSane(stack(app));

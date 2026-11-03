@@ -2,11 +2,10 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { HOME_SLOTS, homeSlots, type HomeSlot, type MyCourse } from '../core/my-course';
 import { CourseBar } from './CourseBar';
-import { color, COURSE_CARD_GAP, COURSE_CARD_H, courseTheme, space } from './theme';
+import { useLayout } from './layout';
+import { color, courseTheme, space } from './theme';
 
 const ROWS = HOME_SLOTS / 2;
-/** 걷기·달리기 카드 3장과 같은 높이 */
-export const GRID_H = ROWS * COURSE_CARD_H + (ROWS - 1) * COURSE_CARD_GAP;
 
 /**
  * 홈 "내 코스" 2×3 칸. 칸 높이는 걷기·달리기 카드와 같아서 탭을 바꿔도 아래 내용이 밀리지 않는다.
@@ -15,9 +14,12 @@ export const GRID_H = ROWS * COURSE_CARD_H + (ROWS - 1) * COURSE_CARD_GAP;
  *   e [더보기 또는 새 코스]
  */
 export function CourseGrid({ courses }: { courses: MyCourse[] }) {
+  const { card } = useLayout();
+  /** 걷기·달리기 카드 3장과 같은 높이 */
+  const gridH = ROWS * card.h + (ROWS - 1) * card.gap;
   if (courses.length === 0) {
     return (
-      <View style={[styles.empty, { height: GRID_H }]}>
+      <View style={[styles.empty, { height: gridH }]}>
         <Text style={styles.emptyTitle}>아직 만든 코스가 없어요</Text>
         <Text style={styles.emptyHint}>걷기·달리기 구간을 이어 붙여{'\n'}나만의 코스를 만들어 보세요.</Text>
         <Pressable
@@ -33,9 +35,9 @@ export function CourseGrid({ courses }: { courses: MyCourse[] }) {
   const slots = homeSlots(courses);
   const rows = Array.from({ length: ROWS }, (_, r) => slots.slice(r * 2, r * 2 + 2));
   return (
-    <View style={{ gap: COURSE_CARD_GAP, height: GRID_H }}>
+    <View style={{ gap: card.gap, height: gridH }}>
       {rows.map((row, r) => (
-        <View key={r} style={styles.row}>
+        <View key={r} style={[styles.row, { gap: card.gap }]}>
           {row.map((slot, c) => (
             <Cell key={c} slot={slot} />
           ))}
@@ -46,6 +48,7 @@ export function CourseGrid({ courses }: { courses: MyCourse[] }) {
 }
 
 function Cell({ slot }: { slot: HomeSlot<MyCourse> }) {
+  const { card } = useLayout();
   switch (slot.kind) {
     case 'blank':
       return <View style={styles.cellBox} />;
@@ -78,12 +81,12 @@ function Cell({ slot }: { slot: HomeSlot<MyCourse> }) {
       return (
         <Pressable
           onPress={() => router.navigate(`/courses/${c.id}`)}
-          style={({ pressed }) => [styles.cellBox, styles.cell, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.cellBox, styles.cell, { padding: card.pad }, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel={`${c.favoritedAt != null ? '즐겨찾기, ' : ''}${c.name}`}
         >
           <View style={styles.nameRow}>
-            <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
+            <Text style={[styles.name, { fontSize: card.name, lineHeight: card.nameLine }]} numberOfLines={2} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
               {c.name}
             </Text>
             {c.favoritedAt != null && <Text style={styles.star}>★</Text>}
@@ -96,8 +99,8 @@ function Cell({ slot }: { slot: HomeSlot<MyCourse> }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flex: 1, flexDirection: 'row', gap: COURSE_CARD_GAP },
-  cellBox: { flex: 1, height: COURSE_CARD_H },
+  row: { flex: 1, flexDirection: 'row' },
+  cellBox: { flex: 1 },
   cell: {
     backgroundColor: color.card,
     borderWidth: 2,
@@ -109,7 +112,7 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   dashed: { borderStyle: 'dashed', borderColor: color.line, alignItems: 'center', justifyContent: 'center' },
   nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs },
-  name: { flex: 1, fontSize: 18, fontWeight: '700', color: color.ink, lineHeight: 24 },
+  name: { flex: 1, fontWeight: '700', color: color.ink },
   star: { color: color.accent, fontSize: 16, lineHeight: 24 },
   plus: { fontSize: 28, color: color.sub, lineHeight: 32 },
   sub: { color: color.sub, fontSize: 14, fontWeight: '600' },

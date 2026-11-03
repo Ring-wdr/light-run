@@ -33,7 +33,9 @@ export function Chips<T extends string | number>({
             accessibilityRole="radio"
             accessibilityState={{ selected: on, disabled: o.disabled }}
           >
-            <Text style={[styles.text, on && styles.textOn]}>{o.label}</Text>
+            <Text style={[styles.text, on && styles.textOn]} maxFontSizeMultiplier={1.2}>
+              {o.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -42,7 +44,7 @@ export function Chips<T extends string | number>({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', gap: 6 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 6,

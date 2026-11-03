@@ -22,6 +22,7 @@ import { importGpx, pickGpxFile } from '../../services/import';
 import { listRunDates, listRunsBetween, type RunRow } from '../../services/storage';
 import { alertError } from '../../ui/alert';
 import { BusyOverlay } from '../../ui/BusyOverlay';
+import { useLayout } from '../../ui/layout';
 import { MonthPicker } from '../../ui/MonthPicker';
 import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
@@ -31,6 +32,7 @@ import { useGpxExport } from '../../ui/useGpxExport';
 
 export default function History() {
   const insets = useSafeAreaInsets();
+  const L = useLayout();
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [dated, setDated] = useState<DatedRun[]>([]);
   const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
@@ -108,14 +110,14 @@ export default function History() {
   return (
     <View style={styles.screen}>
       <FlatList
-        contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}
+        contentContainerStyle={{ paddingHorizontal: L.pad, paddingBottom: space.l + insets.bottom }}
         data={shown}
         keyExtractor={(r) => String(r.id)}
         renderItem={({ item }) => <RunListItem run={item} />}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.summary}>
-              <Text style={styles.totalKm} numberOfLines={1} adjustsFontSizeToFit>
+              <Text style={[styles.totalKm, { fontSize: L.font.total }]} numberOfLines={1} adjustsFontSizeToFit>
                 {formatKm(all.distanceM)}
                 <Text style={styles.totalUnit}> km</Text>
               </Text>
@@ -189,7 +191,6 @@ export default function History() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  wrap: { paddingHorizontal: space.l },
   header: { paddingVertical: space.m, gap: space.s },
   summary: {
     backgroundColor: color.card,
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s,
     alignItems: 'center',
   },
-  totalKm: { fontSize: 48, fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
+  totalKm: { fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
   totalUnit: { fontSize: 20, fontWeight: '700', color: color.sub },
   totalLabel: { fontSize: 14, color: color.sub, marginBottom: space.m },
   statRow: { flexDirection: 'row', alignSelf: 'stretch' },
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
   dayFilter: { paddingVertical: space.xs },
   dayFilterText: { color: color.ink, fontWeight: '600' },
   link: { color: color.sub, textDecorationLine: 'underline' },
-  backupRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.l },
+  backupRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: space.l },
   backup: { paddingVertical: space.xs },
   backupText: { color: color.sub, fontWeight: '600', textDecorationLine: 'underline' },
   empty: { color: color.sub, paddingVertical: space.l },

@@ -15,11 +15,6 @@ export const activityColor: Record<Activity, string> = { run: color.accent, walk
 
 export const space = { xs: 4, s: 8, m: 16, l: 24, xl: 40 } as const;
 
-/** 홈 코스 카드 높이. 걷기·달리기 카드와 내 코스 칸이 같은 높이라 탭을 바꿔도 화면이 밀리지 않는다 */
-export const COURSE_CARD_H = 128;
-/** 코스 카드 사이 간격(세로·가로) */
-export const COURSE_CARD_GAP = space.m;
-
 /** 3D 다시 보기: 어두운 지도 위에 얹는 어두운 화면 */
 export const replayTheme = {
   bg: '#0B0F1A',

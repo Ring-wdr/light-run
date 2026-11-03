@@ -16,6 +16,7 @@ import {
 import { createCourse, deleteCourse, getCourse, setCourseFavorite } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
 import { useBusy } from '../../ui/hooks';
+import { useLayout } from '../../ui/layout';
 import { MoreMenu } from '../../ui/MoreMenu';
 import { goBackOrHome } from '../../ui/navigation';
 import { startCourse } from '../../ui/start';
@@ -25,6 +26,8 @@ export default function CourseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const courseId = Number(id);
   const insets = useSafeAreaInsets();
+  const L = useLayout();
+  const pad = L.pad;
   const [course, setCourse] = useState<MyCourse | null | undefined>(undefined);
   const [starting, runStart] = useBusy();
 
@@ -83,11 +86,11 @@ export default function CourseDetail() {
           ),
         }}
       />
-      <ScrollView contentContainerStyle={styles.wrap}>
+      <ScrollView contentContainerStyle={[styles.wrap, { padding: pad, paddingBottom: space.xl }]}>
         {favorite && <Text style={styles.fav}>★ 즐겨찾기</Text>}
         {c.description ? <Text style={styles.desc}>{c.description}</Text> : null}
 
-        <CourseBar blocks={c.blocks} height={120} />
+        <CourseBar blocks={c.blocks} height={L.courseBar.hero} />
         <Text style={styles.summary}>
           총 {formatTotalSec(totalSec(c.blocks))} · 구간 {segCount}개 · {ACTIVITY_LABEL[activity]}로 기록
         </Text>
@@ -111,11 +114,11 @@ export default function CourseDetail() {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: space.l + insets.bottom }]}>
+      <View style={[styles.footer, { paddingHorizontal: pad, paddingBottom: pad + insets.bottom }]}>
         <Pressable
           onPress={onStart}
           disabled={starting}
-          style={({ pressed }) => [styles.start, (pressed || starting) && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.start, { height: L.button.start }, (pressed || starting) && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel={`${c.name} 시작`}
         >
@@ -137,7 +140,7 @@ function StepLine({ step }: { step: Step }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  wrap: { padding: space.l, gap: space.m, paddingBottom: space.xl },
+  wrap: { gap: space.m },
   fav: { color: color.accent, fontWeight: '700' },
   desc: { fontSize: 16, color: color.ink, lineHeight: 23 },
   summary: { color: color.sub, fontVariant: ['tabular-nums'] },
@@ -159,8 +162,8 @@ const styles = StyleSheet.create({
   },
   repeatHead: { fontWeight: '700', color: color.ink, paddingTop: space.xs },
   repeatSub: { fontWeight: '400', color: color.sub },
-  footer: { padding: space.l, paddingTop: space.s },
-  start: { backgroundColor: courseTheme.tint, borderRadius: 999, height: 64, alignItems: 'center', justifyContent: 'center' },
+  footer: { paddingTop: space.s },
+  start: { backgroundColor: courseTheme.tint, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   startText: { color: '#fff', fontSize: 20, fontWeight: '800' },
   empty: { padding: space.l, color: color.sub },
 });

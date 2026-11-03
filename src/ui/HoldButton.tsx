@@ -50,14 +50,16 @@ export function HoldButton({
       accessibilityHint={accessibilityHint}
     >
       <Animated.View pointerEvents="none" style={[styles.fill, { transform: [{ scaleX: progress }] }]} />
-      <Text style={styles.text}>{label}</Text>
+      <Text style={styles.text} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   // 둥근 모서리 밖으로 채움·물결이 나가지 않게 자른다
-  btn: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  btn: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   fill: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.22)', transformOrigin: 'left' },
   text: { fontSize: 18, fontWeight: '700', color: '#fff' },
   iosPressed: { opacity: 0.9 },

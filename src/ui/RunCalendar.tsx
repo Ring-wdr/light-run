@@ -107,6 +107,7 @@ export function RunCalendar({
                       ran && { color: tint, fontWeight: '700' },
                       selected && { color: '#FFFFFF' },
                     ]}
+                    maxFontSizeMultiplier={1.2}
                   >
                     {day}
                   </Text>
@@ -136,9 +137,11 @@ const styles = StyleSheet.create({
   week: { flexDirection: 'row' },
   weekday: { flex: 1, textAlign: 'center', fontSize: 12, color: color.sub },
   cell: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+  // 좁은 화면에서 칸이 CELL보다 좁아지면 옆 칸과 겹치지 않게 칸 폭에 맞춰 줄어든다
   dot: {
-    width: CELL,
-    height: CELL,
+    width: '100%',
+    maxWidth: CELL,
+    aspectRatio: 1,
     borderRadius: CELL / 2,
     borderWidth: 2,
     borderColor: 'transparent',
