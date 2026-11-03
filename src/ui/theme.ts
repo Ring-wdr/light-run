@@ -25,5 +25,8 @@ export const replayTheme = {
   accent: '#FFB547',
 } as const;
 
+/** 스플래시·앱 아이콘 바탕(app.json의 splash·adaptiveIcon backgroundColor와 같은 값) */
+export const splashTheme = { bg: '#0D1B3A' } as const;
+
 /** 내 코스: 모든 구간이 같은 색. 연한 바탕에 진한 막대 */
 export const courseTheme = { tint: color.ink, barBg: '#EAF0F7', bar: color.ink } as const;

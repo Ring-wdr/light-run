@@ -21,6 +21,15 @@ jest.mock('react-native-maps', () => {
   };
 });
 
+// 네이티브 스플래시는 Node에 없다. jest-expo 환경은 Expo Go로 보여서 setOptions가 경고만 찍으므로 아무 일도 안 하게 한다.
+// JS 스플래시(SplashOverlay)는 이미지가 로드되지 않아 화면 위에 남지만 터치·접근성에서 빠져 있어 테스트에 영향이 없다
+jest.mock('expo-splash-screen', () => ({
+  preventAutoHideAsync: () => Promise.resolve(true),
+  setOptions: () => {},
+  hide: () => {},
+  hideAsync: () => Promise.resolve(),
+}));
+
 // 3D 다시 보기의 Mapbox 지도도 네이티브 뷰다. 소스·레이어는 자식만 그리는 빈 View로, 카메라 명령은 아무 일도 안 한다.
 // 토큰이 없으면 지도 대신 안내만 나오므로 테스트에서는 가짜 공개 토큰을 넣어 지도 쪽 코드가 돌게 한다
 // (EXPO_PUBLIC_ 값은 Metro 빌드에서만 번들에 박히고, Jest에서는 실행할 때 process.env에서 읽는다)

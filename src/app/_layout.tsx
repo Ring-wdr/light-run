@@ -2,16 +2,22 @@
 import '../services/location';
 
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { courseLabel } from '../core/course';
 import { formatDuration } from '../core/pace';
 import { discardUnfinishedRun, findUnfinishedRun, resumeUnfinishedRun, useRun } from '../services/run-controller';
 import { migrate } from '../services/storage';
+import { NATIVE_SPLASH_FADE_MS, SplashOverlay } from '../ui/SplashOverlay';
 import { color } from '../ui/theme';
 
 migrate();
+
+// 네이티브 스플래시는 같은 자리에 JS 스플래시(SplashOverlay)가 그려진 뒤에 걷는다
+SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({ duration: NATIVE_SPLASH_FADE_MS });
 
 // 링크로 상세를 바로 열어도 홈이 스택 맨 아래에 있게 해서 뒤로 가기가 홈으로 간다.
 // 가드에 막힌 화면을 열려고 하거나 가드가 바뀌어 스택이 비면 이 화면(기록 중이면 기록 화면)으로 간다
@@ -50,6 +56,7 @@ export default function RootLayout() {
   const { runId, countdown } = useRun();
   // 시작 전 대기 카운트도 기록 화면이 보여 준다
   const running = runId != null || countdown != null;
+  const [splash, setSplash] = useState(true);
 
   useEffect(askResumeUnfinishedRun, []);
 
@@ -85,6 +92,7 @@ export default function RootLayout() {
           <Stack.Screen name="run" options={{ title: '달리는 중' }} />
         </Stack.Protected>
       </Stack>
+      {splash && <SplashOverlay onDone={() => setSplash(false)} />}
     </>
   );
 }
