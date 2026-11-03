@@ -50,6 +50,6 @@ name: 플랜 만들기
 
 # 홈에는 플랜만 보이고 안의 코스는 보이지 않는다
 - back
-- assertVisible: '코스 선택'
+- assertVisible: '최근 기록'
 - assertVisible: '플랜, E2E plan, 2개 중 0개 완료'
 - assertNotVisible: 'Week 1'

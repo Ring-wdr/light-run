@@ -75,6 +75,8 @@ const MIGRATIONS: string[] = [
    ALTER TABLE courses ADD COLUMN plan_pos INTEGER NOT NULL DEFAULT 0;
    ALTER TABLE courses ADD COLUMN done_at INTEGER;
    CREATE INDEX courses_plan ON courses (plan_id, plan_pos);`,
+  // 7: 플랜 주차 묶음. 일주일에 할 코스 수(null = 나누지 않음, 기존 플랜). 주차는 순서대로 이만큼씩 자른 것이라 따로 저장하지 않는다
+  `ALTER TABLE plans ADD COLUMN per_week INTEGER;`,
 ];
 
 const hasTable = (name: string): boolean =>
@@ -402,6 +404,7 @@ interface PlanRecord {
   favorited_at: number | null;
   next_course_id: number | null;
   progress_from: number;
+  per_week: number | null;
 }
 
 const toPlan = (r: PlanRecord): Plan => ({
@@ -412,6 +415,7 @@ const toPlan = (r: PlanRecord): Plan => ({
   favoritedAt: r.favorited_at,
   nextCourseId: r.next_course_id,
   progressFrom: r.progress_from,
+  perWeek: r.per_week,
 });
 
 function nextPlanPos(planId: number): number {
@@ -467,13 +471,13 @@ function snapshotBlocks(json: string | null): unknown {
 
 export function createPlan(d: PlanDraft, now = Date.now()): number {
   return db.runSync(
-    'INSERT INTO plans (name, description, created_at) VALUES (?, ?, ?)',
-    d.name.trim(), d.description.trim(), now,
+    'INSERT INTO plans (name, description, created_at, per_week) VALUES (?, ?, ?, ?)',
+    d.name.trim(), d.description.trim(), now, d.perWeek,
   ).lastInsertRowId;
 }
 
 export function updatePlan(id: number, d: PlanDraft): void {
-  db.runSync('UPDATE plans SET name = ?, description = ? WHERE id = ?', d.name.trim(), d.description.trim(), id);
+  db.runSync('UPDATE plans SET name = ?, description = ?, per_week = ? WHERE id = ?', d.name.trim(), d.description.trim(), d.perWeek, id);
 }
 
 export function setPlanFavorite(id: number, on: boolean, now = Date.now()): void {

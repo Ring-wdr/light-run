@@ -56,13 +56,28 @@ export function Icon({ name, size = 24, color }: { name: IconName; size?: number
   );
 }
 
-/** 아이콘 + 글자 한 줄("＋ 구간 추가" 같은 버튼 안). 글자 크기에 맞춰 아이콘 크기를 정한다 */
-export function IconLabel({ icon, label, style }: { icon: IconName; label: string; style: StyleProp<TextStyle> }) {
+/**
+ * 아이콘 + 글자 한 줄("＋ 구간 추가" 같은 버튼 안). 글자 크기에 맞춰 아이콘 크기를 정한다.
+ * trailing이면 글자 뒤에 아이콘("시작 →")
+ */
+export function IconLabel({
+  icon,
+  label,
+  style,
+  trailing = false,
+}: {
+  icon: IconName;
+  label: string;
+  style: StyleProp<TextStyle>;
+  trailing?: boolean;
+}) {
   const { color = '#000', fontSize = 15 } = StyleSheet.flatten(style) ?? {};
+  const glyph = <Icon name={icon} size={Math.round(fontSize * 1.25)} color={String(color)} />;
   return (
     <View style={styles.row}>
-      <Icon name={icon} size={Math.round(fontSize * 1.25)} color={String(color)} />
+      {!trailing && glyph}
       <Text style={style}>{label}</Text>
+      {trailing && glyph}
     </View>
   );
 }

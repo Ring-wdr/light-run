@@ -1,9 +1,11 @@
 import { parseMinSec, repeat, step, type MyCourse } from '../src/core/my-course';
 import {
+  currentWeek,
   finishedCourseIds,
   insertAfter,
   moveId,
   planProgress,
+  planWeeks,
   progressRatio,
   shelf,
   shelfKey,
@@ -107,10 +109,41 @@ describe('홈·목록에 코스와 플랜 섞기', () => {
 
 describe('플랜 이름 검사', () => {
   it('이름은 필수, 20자까지. 설명은 80자까지', () => {
-    expect(validatePlanDraft({ name: ' ', description: '' }).name).toBeDefined();
-    expect(validatePlanDraft({ name: 'a'.repeat(21), description: '' }).name).toBeDefined();
-    expect(validatePlanDraft({ name: '4주', description: 'x'.repeat(81) }).description).toBeDefined();
-    expect(validatePlanDraft({ name: '4주', description: '' })).toEqual({});
+    expect(validatePlanDraft({ name: ' ', description: '', perWeek: null }).name).toBeDefined();
+    expect(validatePlanDraft({ name: 'a'.repeat(21), description: '', perWeek: null }).name).toBeDefined();
+    expect(validatePlanDraft({ name: '4주', description: 'x'.repeat(81), perWeek: null }).description).toBeDefined();
+    expect(validatePlanDraft({ name: '4주', description: '', perWeek: null })).toEqual({});
+  });
+
+  it('주당 코스 수는 없거나 1~7', () => {
+    expect(validatePlanDraft({ name: '4주', description: '', perWeek: 3 })).toEqual({});
+    expect(validatePlanDraft({ name: '4주', description: '', perWeek: 0 }).perWeek).toBeDefined();
+    expect(validatePlanDraft({ name: '4주', description: '', perWeek: 8 }).perWeek).toBeDefined();
+    expect(validatePlanDraft({ name: '4주', description: '', perWeek: 2.5 }).perWeek).toBeDefined();
+  });
+});
+
+describe('플랜 주차', () => {
+  const progressOf = (n: number, doneIds: number[]) =>
+    planProgress({ nextCourseId: null, progressFrom: 0 }, Array.from({ length: n }, (_, i) => course(i + 1)), new Set(doneIds));
+
+  it('순서대로 perWeek개씩 묶고 마지막 주는 모자랄 수 있다. 주마다 완료 수', () => {
+    const weeks = planWeeks(progressOf(7, [1, 2, 3, 5]).items, 3)!;
+    expect(weeks.map((w) => w.items.map((x) => x.index))).toEqual([[0, 1, 2], [3, 4, 5], [6]]);
+    expect(weeks.map((w) => w.week)).toEqual([1, 2, 3]);
+    expect(weeks.map((w) => w.done)).toEqual([3, 1, 0]);
+  });
+
+  it('나누지 않는 플랜이거나 코스가 없으면 null', () => {
+    expect(planWeeks(progressOf(4, []).items, null)).toBeNull();
+    expect(planWeeks([], 3)).toBeNull();
+  });
+
+  it('지금 주차는 다음 코스가 든 주, 모두 끝났으면 마지막 주', () => {
+    const p = progressOf(7, [1, 2, 3]);
+    const weeks = planWeeks(p.items, 3)!;
+    expect(currentWeek(weeks, p.nextIndex)).toBe(2);
+    expect(currentWeek(weeks, null)).toBe(3);
   });
 });
 

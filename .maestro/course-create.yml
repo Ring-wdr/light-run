@@ -20,6 +20,6 @@ name: 내 코스 만들기
 - assertVisible: '코스를 저장했어요'
 - tapOn: '나중에'
 # 코스가 적으면 홈의 내 코스 탭으로 돌아간다(src/app/courses/edit.tsx)
-- assertVisible: '코스 선택'
+- assertVisible: '최근 기록'
 - tapOn: 'E2E course'
 - assertVisible: 'E2E course 시작'

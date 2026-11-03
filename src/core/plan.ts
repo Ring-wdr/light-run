@@ -18,6 +18,8 @@ export interface Plan {
   nextCourseId: number | null;
   /** 진행을 이 시각부터 센다(처음부터 다시) */
   progressFrom: number;
+  /** 일주일에 할 코스 수. 순서대로 이만큼씩 주차로 묶는다. null이면 나누지 않는다 */
+  perWeek: number | null;
 }
 
 /** 플랜 안 코스의 진행에 필요한 기록 한 줄 */
@@ -76,6 +78,38 @@ export function planProgress(
 
 export const progressRatio = (p: Pick<PlanProgress, 'done' | 'total'>) => (p.total > 0 ? p.done / p.total : 0);
 
+// ── 주차 ─────────────────────────────────────────────
+
+export interface PlanWeek {
+  /** 1부터 */
+  week: number;
+  /** 이 주의 코스와 플랜 안 순서(index) */
+  items: { item: PlanCourse; index: number }[];
+  done: number;
+}
+
+/**
+ * 순서대로 perWeek개씩 주차로 묶는다(마지막 주는 모자랄 수 있음). 요일·날짜는 정하지 않는다.
+ * 나누지 않는 플랜(null)이거나 코스가 없으면 null
+ */
+export function planWeeks(items: PlanCourse[], perWeek: number | null): PlanWeek[] | null {
+  if (perWeek == null || perWeek < 1 || items.length === 0) return null;
+  const weeks: PlanWeek[] = [];
+  items.forEach((item, index) => {
+    const w = Math.floor(index / perWeek);
+    weeks[w] ??= { week: w + 1, items: [], done: 0 };
+    weeks[w].items.push({ item, index });
+    if (item.done) weeks[w].done++;
+  });
+  return weeks;
+}
+
+/** 지금 주차: 다음 코스가 든 주. 모두 끝났으면 마지막 주 */
+export function currentWeek(weeks: PlanWeek[], nextIndex: number | null): number {
+  if (nextIndex == null) return weeks.length;
+  return weeks.find((w) => w.items.some((x) => x.index === nextIndex))?.week ?? weeks.length;
+}
+
 // ── 순서 ─────────────────────────────────────────────
 
 /** 순서 목록에서 한 칸 옮긴다(끝에서는 그대로) */
@@ -123,11 +157,15 @@ export const shelfKey = (x: ShelfItem<{ id: number }, { id: number }>) =>
 
 // ── 검증 ─────────────────────────────────────────────
 
-export const PLAN_LIMITS = { nameMax: 20, descriptionMax: 80 } as const;
+export const PLAN_LIMITS = { nameMax: 20, descriptionMax: 80, perWeekMax: 7 } as const;
+
+/** 플랜 편집에서 고르는 주당 코스 수(null = 나누지 않음) */
+export const PER_WEEK_CHOICES = [null, 2, 3, 4, 5] as const;
 
 export interface PlanDraft {
   name: string;
   description: string;
+  perWeek: number | null;
 }
 
 export function validatePlanDraft(d: PlanDraft): Partial<Record<keyof PlanDraft, string>> {
@@ -136,5 +174,8 @@ export function validatePlanDraft(d: PlanDraft): Partial<Record<keyof PlanDraft,
   if (!name) e.name = '이름을 입력해 주세요.';
   else if (name.length > PLAN_LIMITS.nameMax) e.name = `이름은 ${PLAN_LIMITS.nameMax}자까지예요.`;
   if (d.description.trim().length > PLAN_LIMITS.descriptionMax) e.description = `설명은 ${PLAN_LIMITS.descriptionMax}자까지예요.`;
+  if (d.perWeek != null && !(Number.isInteger(d.perWeek) && d.perWeek >= 1 && d.perWeek <= PLAN_LIMITS.perWeekMax)) {
+    e.perWeek = `일주일에 1~${PLAN_LIMITS.perWeekMax}번 중에서 골라 주세요.`;
+  }
   return e;
 }
