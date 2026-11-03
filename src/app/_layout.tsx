@@ -77,6 +77,8 @@ export default function RootLayout() {
           <Stack.Screen name="courses/index" options={{ title: '내 코스' }} />
           <Stack.Screen name="courses/[id]" options={{ title: '코스' }} />
           <Stack.Screen name="courses/edit" options={{ title: '새 코스' }} />
+          <Stack.Screen name="plans/[id]" options={{ title: '플랜' }} />
+          <Stack.Screen name="plans/edit" options={{ title: '새 플랜' }} />
           <Stack.Screen name="settings" options={{ title: '설정' }} />
         </Stack.Protected>
         <Stack.Protected guard={running}>

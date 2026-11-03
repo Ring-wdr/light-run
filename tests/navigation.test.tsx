@@ -257,7 +257,8 @@ describe('새 코스 저장', () => {
   it('"나중에": 코스가 적으면 홈(내 코스 탭)으로, 홈 하나만 남는다', async () => {
     const app = renderRouter('src/app');
     await user.press(screen.getByRole('tab', { name: '내 코스' }));
-    await user.press(screen.getByRole('button', { name: '코스 만들기' }));
+    await user.press(screen.getByRole('button', { name: '새로 만들기' }));
+    await user.press(screen.getByRole('menuitem', { name: '코스 만들기' }));
     expect(stack(app)).toEqual(['index', 'courses/edit']);
 
     await saveNewCourse('아침 코스');
@@ -278,7 +279,8 @@ describe('새 코스 저장', () => {
   it('"나중에": 목록에서 왔으면 그 목록으로 돌아간다', async () => {
     seedCourses(4);
     const app = renderRouter('src/app', { initialUrl: '/courses' });
-    await user.press(screen.getByRole('button', { name: '새 코스 만들기' }));
+    await user.press(screen.getByRole('button', { name: '새로 만들기' }));
+    await user.press(screen.getByRole('menuitem', { name: '코스 만들기' }));
     expect(stack(app)).toEqual(['index', 'courses/index', 'courses/edit']);
     await saveNewCourse('다섯 번째');
     await pressAlertButton('나중에');
@@ -400,5 +402,146 @@ describe('goHome', () => {
     expect(stack(app)).toEqual(['courses/index', 'history/[id]:1']);
     await nav(goHome);
     expect(stack(app)).toEqual(['index']);
+  });
+});
+
+/** 플랜 하나와 그 안의 코스들(10분씩)을 만든다 */
+function seedPlan(name: string, courses: string[]): { planId: number; ids: number[] } {
+  const planId = storage.createPlan({ name, description: '' });
+  const ids = courses.map((c) => storage.createCourse({ name: c, description: '', blocks: [step('run', 600)] }, Date.now(), planId));
+  return { planId, ids };
+}
+
+/** 코스를 끝까지(10분) 달린 기록을 남긴다 */
+function seedFinishedRun(courseId: number, name: string) {
+  const runId = storage.createRun(Date.now(), { activity: 'run', goalMin: null, custom: { id: courseId, name, blocks: [step('run', 600)] } }, true);
+  storage.finishRun(runId, { endedAt: Date.now() + 600_000, distanceM: 1500, movingMs: 600_000, splits: [] });
+}
+
+describe('플랜', () => {
+  it('새로 만들기 → 플랜: 저장하면 만들기 화면 자리에 플랜이 열리고, 뒤로 = 홈', async () => {
+    const app = renderRouter('src/app');
+    await user.press(screen.getByRole('tab', { name: '내 코스' }));
+    await user.press(screen.getByRole('button', { name: '새로 만들기' }));
+    await user.press(screen.getByRole('menuitem', { name: '플랜 만들기' }));
+    expect(stack(app)).toEqual(['index', 'plans/edit']);
+
+    await user.type(screen.getByPlaceholderText('예: 걷뛰 4주 플랜'), '4주 플랜');
+    await user.press(screen.getByRole('button', { name: '저장' }));
+    const plan = storage.listPlans()[0]!;
+    expect(plan.name).toBe('4주 플랜');
+    expect(stack(app)).toEqual(['index', `plans/[id]:${plan.id}`]);
+
+    await nav(() => router.back());
+    expect(stack(app)).toEqual(['index']);
+    expect(screen.getByRole('button', { name: '플랜, 4주 플랜, 0개 중 0개 완료' })).toBeOnTheScreen();
+  });
+
+  it('플랜에서 만든 코스는 묻지 않고 플랜으로 돌아오고, 홈에는 플랜만 보인다', async () => {
+    const { planId } = seedPlan('4주', []);
+    const app = renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+    await user.press(screen.getByRole('button', { name: '플랜에 새 코스 추가' }));
+    expect(stack(app)).toEqual(['index', `plans/[id]:${planId}`, 'courses/edit']);
+    expect(screen.getByText('"4주" 플랜의 맨 끝에 넣어요.')).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: /걷기-달리기 입문/ }));
+    await user.type(screen.getByPlaceholderText('예: 걷뛰 30분'), '1주차');
+    await user.press(screen.getByRole('button', { name: '저장' }));
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(stack(app)).toEqual(['index', `plans/[id]:${planId}`]);
+    expect(screen.getByRole('button', { name: /^1번째, 1주차,.*다음 코스$/ })).toBeOnTheScreen();
+    expect(storage.listCourses()).toEqual([]);
+  });
+
+  it('끝까지 달린 코스는 완료, 다음 코스 시작은 순서상 첫 미완료 코스를 시작한다', async () => {
+    const { planId, ids } = seedPlan('4주', ['A', 'B', 'C']);
+    seedFinishedRun(ids[0]!, 'A');
+    const app = renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+    expect(screen.getByText('1/3 완료')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: /^1번째, A,.*완료$/ })).toBeOnTheScreen();
+
+    await pressStart('B 시작');
+    expect(stack(app)).toEqual(['run']);
+    expect(storage.getRun(activeRunId())!.custom).toMatchObject({ id: ids[1], name: 'B' });
+  });
+
+  it('칸을 눌러 다음 코스를 고르고, 순서를 옮기고, 완료로 표시한다', async () => {
+    const { planId, ids } = seedPlan('4주', ['A', 'B', 'C']);
+    renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+
+    await user.press(screen.getByRole('button', { name: /^3번째, C,/ }));
+    await user.press(screen.getByRole('menuitem', { name: '다음 코스로 지정' }));
+    expect(screen.getByRole('button', { name: 'C 시작' })).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: /^1번째, A,/ }));
+    await user.press(screen.getByRole('menuitem', { name: '뒤로 옮기기' }));
+    expect(storage.getPlanProgress(planId)!.progress.items.map((x) => x.course.id)).toEqual([ids[1], ids[0], ids[2]]);
+
+    await user.press(screen.getByRole('button', { name: /^3번째, C,/ }));
+    await user.press(screen.getByRole('menuitem', { name: '완료로 표시' }));
+    expect(screen.getByText('1/3 완료')).toBeOnTheScreen();
+    // 고른 코스가 끝나면 다시 순서대로
+    expect(screen.getByRole('button', { name: 'B 시작' })).toBeOnTheScreen();
+  });
+
+  it('내 코스에서 가져오면 복사해 넣고 원래 코스는 남는다', async () => {
+    const [orig] = seedCourses(1);
+    const { planId } = seedPlan('4주', []);
+    renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+    await user.press(screen.getByRole('button', { name: '내 코스에서 가져오기' }));
+    await user.press(screen.getByRole('menuitem', { name: '코스 1' }));
+    const items = storage.getPlanProgress(planId)!.progress.items;
+    expect(items.map((x) => x.course.name)).toEqual(['코스 1']);
+    expect(items[0]!.course.id).not.toBe(orig);
+    expect(storage.listCourses().map((c) => c.id)).toEqual([orig]);
+  });
+
+  it('플랜을 삭제하면 안의 코스도 지우고 홈으로(기록은 남는다)', async () => {
+    const { planId, ids } = seedPlan('4주', ['A']);
+    seedFinishedRun(ids[0]!, 'A');
+    const app = renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '삭제' }));
+    await pressAlertButton('삭제');
+    expect(stack(app)).toEqual(['index']);
+    expect(storage.getPlan(planId)).toBeNull();
+    expect(storage.getCourse(ids[0]!)).toBeNull();
+    expect(storage.listRuns()).toHaveLength(1);
+  });
+});
+
+/** 분 칸을 눌러(누르면 칸이 비고 원래 값은 흐린 글씨) 숫자를 한 글자씩 입력한다 */
+async function typeMinutes(text: string) {
+  const input = screen.getByLabelText('분');
+  fireEvent(input, 'focus');
+  for (let i = 1; i <= text.length; i++) fireEvent.changeText(input, text.slice(0, i));
+}
+
+describe('구간 시간 직접 입력', () => {
+  it('분 칸에 숫자를 넣어 20분이 넘는 구간도 바로 만든다. 범위를 넘으면 60분으로 맞춘다', async () => {
+    renderRouter('src/app', { initialUrl: '/courses/edit' });
+    await user.press(screen.getByRole('button', { name: '＋ 구간 추가' }));
+    await typeMinutes('25');
+    await user.press(screen.getByRole('button', { name: '추가' }));
+    expect(screen.getByRole('button', { name: '달리기 25분, 눌러서 변경' })).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '달리기 25분, 눌러서 변경' }));
+    await typeMinutes('75');
+    expect(screen.getByText(/사이로 맞춰요/)).toBeOnTheScreen();
+    await user.press(screen.getByRole('button', { name: '변경' }));
+    expect(screen.getByRole('button', { name: '달리기 1시간, 눌러서 변경' })).toBeOnTheScreen();
+  });
+
+  it('칸을 누르면 비우고 원래 값을 흐리게 보여 준다. 아무것도 안 치고 나가면 원래 값', async () => {
+    renderRouter('src/app', { initialUrl: '/courses/edit' });
+    await user.press(screen.getByRole('button', { name: '＋ 구간 추가' }));
+    const min = screen.getByLabelText('분');
+    fireEvent(min, 'focus');
+    expect(min).toHaveDisplayValue('');
+    expect(min.props.placeholder).toBe('1');
+    fireEvent(min, 'blur');
+    expect(min).toHaveDisplayValue('1');
+    await user.press(screen.getByRole('button', { name: '추가' }));
+    expect(screen.getByRole('button', { name: '달리기 1분, 눌러서 변경' })).toBeOnTheScreen();
   });
 });

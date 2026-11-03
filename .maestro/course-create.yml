@@ -1,4 +1,4 @@
-# 내 코스 만들기: 템플릿으로 채우고 저장 → "나중에" → 홈 내 코스 탭 → 코스 상세.
+# 내 코스 만들기: 새로 만들기 › 코스 만들기 → 템플릿으로 채우고 저장 → "나중에" → 홈 내 코스 탭 → 코스 상세.
 # Android의 inputText는 ASCII만 확실히 입력되므로 코스 이름은 영문으로 쓴다
 appId: com.ringwdr.lightrun.dev
 name: 내 코스 만들기
@@ -7,6 +7,7 @@ name: 내 코스 만들기
     clearState: true
 - runFlow: subflows/dismiss-battery-guide.yml
 - tapOn: '내 코스'
+- tapOn: '새로 만들기'
 - tapOn: '코스 만들기'
 - assertVisible: '새 코스'
 

@@ -13,7 +13,7 @@ import {
   type MyCourse,
   type Step,
 } from '../../core/my-course';
-import { createCourse, deleteCourse, getCourse, setCourseFavorite } from '../../services/storage';
+import { deleteCourse, duplicateCourse, getCourse, getPlan, setCourseFavorite } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
 import { useBusy } from '../../ui/hooks';
 import { useLayout } from '../../ui/layout';
@@ -29,16 +29,25 @@ export default function CourseDetail() {
   const L = useLayout();
   const pad = L.pad;
   const [course, setCourse] = useState<MyCourse | null | undefined>(undefined);
+  const [planName, setPlanName] = useState<string | null>(null);
   const [starting, runStart] = useBusy();
 
   // 편집하고 돌아오면 다시 읽는다
-  useFocusEffect(useCallback(() => setCourse(getCourse(courseId)), [courseId]));
+  useFocusEffect(
+    useCallback(() => {
+      const c = getCourse(courseId);
+      setCourse(c);
+      setPlanName(c?.planId != null ? (getPlan(c.planId)?.name ?? null) : null);
+    }, [courseId]),
+  );
 
   if (course === undefined) return null;
   if (course === null) return <Text style={styles.empty}>코스를 찾을 수 없어요.</Text>;
 
   const c = course;
   const favorite = c.favoritedAt != null;
+  /** 플랜 안 코스는 홈에 따로 보이지 않으므로 즐겨찾기가 없다 */
+  const inPlan = c.planId != null;
   const activity = courseActivity(c.blocks);
   const segCount = expand(c.blocks).length;
 
@@ -52,12 +61,12 @@ export default function CourseDetail() {
 
   const onDuplicate = () => {
     const name = `${c.name} 사본`.slice(0, LIMITS.nameMax);
-    const newId = createCourse({ name, description: c.description, blocks: c.blocks });
+    const newId = duplicateCourse(c, name);
     router.replace(`/courses/${newId}`);
   };
 
   const onDelete = () =>
-    Alert.alert('이 코스를 삭제할까요?', '이 코스로 달린 기록은 그대로 남아요.', [
+    Alert.alert(inPlan ? '이 코스를 플랜에서 삭제할까요?' : '이 코스를 삭제할까요?', '이 코스로 달린 기록은 그대로 남아요.', [
       { text: '취소', style: 'cancel' },
       {
         text: '삭제',
@@ -77,7 +86,7 @@ export default function CourseDetail() {
           headerRight: () => (
             <MoreMenu
               items={[
-                { label: favorite ? '즐겨찾기 해제' : '즐겨찾기', onPress: onFavorite },
+                ...(inPlan ? [] : [{ label: favorite ? '즐겨찾기 해제' : '즐겨찾기', onPress: onFavorite }]),
                 { label: '편집', onPress: () => router.navigate({ pathname: '/courses/edit', params: { id: String(c.id) } }) },
                 { label: '복제', onPress: onDuplicate },
                 { label: '삭제', onPress: onDelete, destructive: true },
@@ -87,7 +96,8 @@ export default function CourseDetail() {
         }}
       />
       <ScrollView contentContainerStyle={[styles.wrap, { padding: pad, paddingBottom: space.xl }]}>
-        {favorite && <Text style={styles.fav}>★ 즐겨찾기</Text>}
+        {planName != null && <Text style={styles.plan}>{`"${planName}" 플랜의 코스`}</Text>}
+        {favorite && !inPlan && <Text style={styles.fav}>★ 즐겨찾기</Text>}
         {c.description ? <Text style={styles.desc}>{c.description}</Text> : null}
 
         <CourseBar blocks={c.blocks} height={L.courseBar.hero} />
@@ -142,6 +152,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   wrap: { gap: space.m },
   fav: { color: color.accent, fontWeight: '700' },
+  plan: { color: color.sub, fontWeight: '600' },
   desc: { fontSize: 16, color: color.ink, lineHeight: 23 },
   summary: { color: color.sub, fontVariant: ['tabular-nums'] },
   h2: { fontSize: 18, fontWeight: '700', color: color.ink, marginBottom: space.s },

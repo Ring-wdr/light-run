@@ -17,6 +17,7 @@ tags:
 
 # 코스 하나 만들고 "나중에" → 홈 내 코스 탭
 - tapOn: '내 코스'
+- tapOn: '새로 만들기'
 - tapOn: '코스 만들기'
 - tapOn: '걷기-달리기 입문'
 - tapOn: '예: 걷뛰 30분'
@@ -60,7 +61,8 @@ tags:
 
 # 새 코스 저장 → "바로 시작" → 종료 → 상세 → 뒤로 = 홈
 - tapOn: '내 코스'
-- tapOn: '새 코스 만들기'
+- tapOn: '새로 만들기'
+- tapOn: '코스 만들기'
 - tapOn: '걷기-달리기 입문'
 - tapOn: '예: 걷뛰 30분'
 - inputText: 'Nav course B'

@@ -1,0 +1,55 @@
+# 플랜: 새로 만들기 › 플랜 만들기 → 플랜 안에서 코스 두 개 만들기(두 번째는 시간을 숫자로 직접 입력)
+# → 다음 코스로 지정 → 홈 내 코스 탭에 플랜만 보인다.
+# Android의 inputText는 ASCII만 확실히 입력되므로 이름은 영문(course-create.yml 참고)
+appId: com.ringwdr.lightrun.dev
+name: 플랜 만들기
+---
+- launchApp:
+    clearState: true
+- runFlow: subflows/dismiss-battery-guide.yml
+- tapOn: '내 코스'
+- tapOn: '새로 만들기'
+- tapOn: '플랜 만들기'
+- assertVisible: '새 플랜'
+- tapOn: '예: 걷뛰 4주 플랜'
+- inputText: 'E2E plan'
+- hideKeyboard
+- tapOn: '저장'
+- assertVisible: '0/0 완료'
+
+# 첫 코스: 템플릿. 플랜에서 만든 코스는 저장하면 묻지 않고 플랜으로 돌아온다
+- tapOn: '플랜에 새 코스 추가'
+- assertVisible: '"E2E plan" 플랜의 맨 끝에 넣어요.'
+- tapOn: '걷기-달리기 입문'
+- tapOn: '예: 걷뛰 30분'
+- inputText: 'Week 1'
+- hideKeyboard
+- tapOn: '저장'
+- assertVisible: '0/1 완료'
+- assertVisible: 'Week 1 시작'
+
+# 둘째 코스: 구간 시간을 분 칸에 직접 25로 입력(시트 안에서 hideKeyboard는 뒤로 가기라 시트가 닫히므로 쓰지 않는다)
+- tapOn: '플랜에 새 코스 추가'
+- tapOn: '＋ 구간 추가'
+# 칸을 누르면 비워지고 원래 값은 흐린 글씨(아래 작은 "분" 글자와 헷갈리지 않게 id로 누른다)
+- tapOn:
+    id: 'step-min'
+- inputText: '25'
+- tapOn: '추가'
+- assertVisible: '25:00'
+- tapOn: '예: 걷뛰 30분'
+- inputText: 'Week 2'
+- hideKeyboard
+- tapOn: '저장'
+- assertVisible: '0/2 완료'
+
+# 칸을 눌러 둘째 코스를 다음 코스로 지정
+- tapOn: '2번째, Week 2.*'
+- tapOn: '다음 코스로 지정'
+- assertVisible: 'Week 2 시작'
+
+# 홈에는 플랜만 보이고 안의 코스는 보이지 않는다
+- back
+- assertVisible: '코스 선택'
+- assertVisible: '플랜, E2E plan, 2개 중 0개 완료'
+- assertNotVisible: 'Week 1'

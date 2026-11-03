@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   addStep,
@@ -29,7 +29,7 @@ import {
   type DraftErrors,
   type Step,
 } from '../../core/my-course';
-import { createCourse, getCourse, listCourses, setPref, updateCourse } from '../../services/storage';
+import { createCourse, getCourse, getPlan, listCourses, listPlans, setPref, updateCourse } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
 import { useLayout } from '../../ui/layout';
 import { MoreMenu, type MoreMenuItem } from '../../ui/MoreMenu';
@@ -44,13 +44,16 @@ const EMPTY: Draft = { name: '', description: '', blocks: [] };
 type SheetMode = { kind: 'add'; into?: number } | { kind: 'edit'; at: At };
 
 /**
- * 코스 만들기·편집. 위는 이름·설명·미리보기 차트, 아래는 블록 목록(구간 / 반복 × N).
+ * 코스 만들기·편집(?id=). ?plan=이면 그 플랜 맨 끝에 넣을 새 코스(저장하면 바로 플랜으로 돌아간다).
+ * 위는 이름·설명·미리보기 차트, 아래는 블록 목록(구간 / 반복 × N).
  * 순서 바꾸기는 ⋮ 메뉴의 위로·아래로(드래그는 gesture-handler·reanimated가 들어오는 v2에서).
  * 저장 버튼은 막지 않고, 누르면 틀린 칸을 알려 준다.
  */
 export default function CourseEdit() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, plan } = useLocalSearchParams<{ id?: string; plan?: string }>();
   const editingId = id ? Number(id) : null;
+  const planId = editingId == null && plan ? Number(plan) : null;
+  const planName = useMemo(() => (planId != null ? (getPlan(planId)?.name ?? null) : null), [planId]);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const L = useLayout();
@@ -95,11 +98,17 @@ export default function CourseEdit() {
       goBackOrHome();
       return;
     }
+    if (planId != null) {
+      createCourse(draft, Date.now(), planId);
+      goBackOrHome();
+      return;
+    }
     const id = createCourse(draft);
     const name = draft.name.trim();
     // 만들자마자 기록이 시작되면 부담스럽다. 시작할지 묻고, 아니면 내 코스 보기로 돌아간다
     const goBackToCourses = () => {
-      if (afterCreate(listCourses().length) === 'list') {
+      // 홈·목록에는 코스와 플랜이 같이 놓이므로 둘을 합쳐 센다
+      if (afterCreate(listCourses().length + listPlans().length) === 'list') {
         // 목록이 스택에 없으면(홈 "새 코스"에서 옴) 이 화면을 목록으로 바꾼다
         router.dismissTo('/courses');
       } else {
@@ -126,6 +135,11 @@ export default function CourseEdit() {
     );
   };
 
+  /** 이름·설명 칸에 포커스가 남아 있으면 시트를 닫을 때 Android가 그 칸으로 돌아가 키보드를 다시 띄운다. 먼저 놓는다 */
+  const openSheet = (mode: SheetMode) => {
+    Keyboard.dismiss();
+    setSheet(mode);
+  };
   const sheetStep = sheet?.kind === 'edit' ? getStep(blocks, sheet.at) : null;
   const onSheetConfirm = (s: Step) => {
     if (!sheet) return;
@@ -134,7 +148,7 @@ export default function CourseEdit() {
   };
 
   const stepMenu = (at: At): MoreMenuItem[] => [
-    { label: '구간 변경', onPress: () => setSheet({ kind: 'edit', at }) },
+    { label: '구간 변경', onPress: () => openSheet({ kind: 'edit', at }) },
     { label: '위로', onPress: () => set({ blocks: moveAt(blocks, at, -1) }), disabled: !canMove(blocks, at, -1) },
     { label: '아래로', onPress: () => set({ blocks: moveAt(blocks, at, 1) }), disabled: !canMove(blocks, at, 1) },
     { label: '복제', onPress: () => set({ blocks: duplicateAt(blocks, at) }) },
@@ -147,6 +161,7 @@ export default function CourseEdit() {
     <View style={styles.screen}>
       <Stack.Screen options={{ title: editingId != null ? '코스 편집' : '새 코스' }} />
       <ScrollView contentContainerStyle={[styles.wrap, { padding: pad, paddingBottom: space.xl }]} keyboardShouldPersistTaps="handled">
+        {planName != null && <Text style={styles.hint}>{`"${planName}" 플랜의 맨 끝에 넣어요.`}</Text>}
         <Field label="이름" count={draft.name.length} max={LIMITS.nameMax} error={errors.name}>
           <TextInput
             value={draft.name}
@@ -199,7 +214,7 @@ export default function CourseEdit() {
         <View style={styles.list}>
           {blocks.map((b, i) =>
             b.kind === 'step' ? (
-              <StepRow key={i} step={b} onPress={() => setSheet({ kind: 'edit', at: { i } })} menu={stepMenu({ i })} />
+              <StepRow key={i} step={b} onPress={() => openSheet({ kind: 'edit', at: { i } })} menu={stepMenu({ i })} />
             ) : (
               <View key={i} style={styles.repeat}>
                 <View style={styles.repeatHead}>
@@ -224,10 +239,10 @@ export default function CourseEdit() {
                   />
                 </View>
                 {b.steps.map((s, j) => (
-                  <StepRow key={j} step={s} onPress={() => setSheet({ kind: 'edit', at: { i, j } })} menu={stepMenu({ i, j })} />
+                  <StepRow key={j} step={s} onPress={() => openSheet({ kind: 'edit', at: { i, j } })} menu={stepMenu({ i, j })} />
                 ))}
                 <Pressable
-                  onPress={() => setSheet({ kind: 'add', into: i })}
+                  onPress={() => openSheet({ kind: 'add', into: i })}
                   style={({ pressed }) => [styles.addInner, pressed && { opacity: 0.6 }]}
                   accessibilityRole="button"
                   accessibilityLabel="반복 안에 구간 추가"
@@ -240,7 +255,7 @@ export default function CourseEdit() {
         </View>
 
         <View style={styles.addRow}>
-          <Pressable onPress={() => setSheet({ kind: 'add' })} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button">
+          <Pressable onPress={() => openSheet({ kind: 'add' })} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button">
             <Text style={styles.addText}>＋ 구간 추가</Text>
           </Pressable>
           <Pressable onPress={() => set({ blocks: [...blocks, newRepeat()] })} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button">
