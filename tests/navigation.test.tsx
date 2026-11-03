@@ -440,7 +440,7 @@ describe('goHome', () => {
 
 /** 플랜 하나와 그 안의 코스들(10분씩)을 만든다 */
 function seedPlan(name: string, courses: string[]): { planId: number; ids: number[] } {
-  const planId = storage.createPlan({ name, description: '' });
+  const planId = storage.createPlan({ name, description: '', perWeek: null });
   const ids = courses.map((c) => storage.createCourse({ name: c, description: '', blocks: [step('run', 600)] }, Date.now(), planId));
   return { planId, ids };
 }
@@ -515,6 +515,44 @@ describe('플랜', () => {
     expect(screen.getByText('1/3 완료')).toBeOnTheScreen();
     // 고른 코스가 끝나면 다시 순서대로
     expect(screen.getByRole('button', { name: 'B 시작' })).toBeOnTheScreen();
+  });
+
+  it('주차로 나눈 플랜: 주차별 묶음, 지금 주차에 "이번 주", 주차 진행 막대', async () => {
+    const { planId, ids } = seedPlan('4주', ['A', 'B', 'C', 'D', 'E']);
+    storage.updatePlan(planId, { name: '4주', description: '', perWeek: 2 });
+    storage.setCourseDone(ids[0]!, true);
+    storage.setCourseDone(ids[1]!, true);
+    renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+
+    // 아이콘(SymbolView)이 글꼴을 비동기로 불러오므로 첫 확인은 기다린다(act 경고 방지)
+    expect(await screen.findByText('1주차')).toBeOnTheScreen();
+    expect(screen.getByText('2주차')).toBeOnTheScreen();
+    expect(screen.getByText('3주차')).toBeOnTheScreen();
+    expect(screen.getAllByText('이번 주')).toHaveLength(1);
+    expect(screen.getByText('2주차 · 전체 3주')).toBeOnTheScreen();
+    expect(screen.getByRole('progressbar', { name: '3주 중 1주 완료' })).toBeOnTheScreen();
+    // 순서 번호는 주차와 상관없이 플랜 전체 순서
+    expect(screen.getByRole('button', { name: /^3번째, C,.*다음 코스$/ })).toBeOnTheScreen();
+  });
+
+  it('플랜 편집에서 일주일에 몇 번을 고르면 주차로 나뉘고, 없음이면 다시 합친다', async () => {
+    const { planId } = seedPlan('4주', ['A', 'B', 'C', 'D']);
+    renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+    expect(screen.queryByText('1주차')).not.toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '편집' }));
+    await user.press(screen.getByRole('tab', { name: '3회' }));
+    await user.press(screen.getByRole('button', { name: '저장' }));
+    expect(storage.getPlan(planId)!.perWeek).toBe(3);
+    expect(screen.getByText('2주차')).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '편집' }));
+    await user.press(screen.getByRole('tab', { name: '없음' }));
+    await user.press(screen.getByRole('button', { name: '저장' }));
+    expect(storage.getPlan(planId)!.perWeek).toBeNull();
+    expect(screen.queryByText('1주차')).not.toBeOnTheScreen();
   });
 
   it('내 코스에서 가져오면 복사해 넣고 원래 코스는 남는다', async () => {

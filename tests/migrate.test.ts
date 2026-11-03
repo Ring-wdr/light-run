@@ -45,7 +45,7 @@ function load(seed?: (d: DatabaseSync) => void) {
 }
 
 /** MIGRATIONS 길이(마지막 스키마 버전) */
-const LATEST = 6;
+const LATEST = 7;
 
 const version = (d: DatabaseSync) => (d.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
 
@@ -110,5 +110,16 @@ describe('migrate', () => {
     expect(version(db)).toBe(LATEST);
     expect(storage.listCourses()).toMatchObject([{ name: '옛 코스', planId: null }]);
     expect(storage.listPlans()).toEqual([]);
+  });
+
+  it('주차(7) 전에 만든 플랜은 나누지 않은 플랜으로 남는다', () => {
+    const { storage, db } = load();
+    storage.migrate();
+    db.exec('PRAGMA user_version = 6');
+    db.exec('ALTER TABLE plans DROP COLUMN per_week;');
+    db.exec(`INSERT INTO plans (name, created_at) VALUES ('옛 플랜', 1)`);
+    storage.migrate();
+    expect(version(db)).toBe(LATEST);
+    expect(storage.listPlans()).toMatchObject([{ name: '옛 플랜', perWeek: null }]);
   });
 });

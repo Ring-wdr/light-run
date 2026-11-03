@@ -3,16 +3,20 @@ import { usePreventRemove } from 'expo-router/react-navigation';
 import { useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PLAN_LIMITS, validatePlanDraft, type PlanDraft } from '../../core/plan';
+import { PER_WEEK_CHOICES, PLAN_LIMITS, validatePlanDraft, type PlanDraft } from '../../core/plan';
 import { createPlan, getPlan, updatePlan } from '../../services/storage';
 import { useLayout } from '../../ui/layout';
 import { goBackOrHome } from '../../ui/navigation';
+import { Segmented } from '../../ui/Segmented';
 import { color, courseTheme, space, statusColor } from '../../ui/theme';
 
-const EMPTY: PlanDraft = { name: '', description: '' };
+const EMPTY: PlanDraft = { name: '', description: '', perWeek: null };
+
+/** 주당 코스 수 선택지. Segmented는 문자열 값만 받아서 'none'·'3'처럼 바꿔 쓴다 */
+const PER_WEEK_OPTIONS = PER_WEEK_CHOICES.map((n) => ({ value: n == null ? 'none' : String(n), label: n == null ? '없음' : `${n}회` }));
 
 /**
- * 플랜 만들기·이름 바꾸기(?id=). 이름·설명만 받고, 코스는 저장한 뒤 플랜 화면에서 넣는다.
+ * 플랜 만들기·편집(?id=). 이름·설명·주차로 나누기(일주일에 몇 번)만 받고, 코스는 저장한 뒤 플랜 화면에서 넣는다.
  * 새 플랜은 저장하면 이 화면 자리에 플랜 화면을 연다(뒤로 가면 만들기 전 화면).
  */
 export default function PlanEdit() {
@@ -24,12 +28,12 @@ export default function PlanEdit() {
 
   const loaded = useMemo<PlanDraft>(() => {
     const p = editingId != null ? getPlan(editingId) : null;
-    return p ? { name: p.name, description: p.description } : EMPTY;
+    return p ? { name: p.name, description: p.description, perWeek: p.perWeek } : EMPTY;
   }, [editingId]);
   const [draft, setDraft] = useState<PlanDraft>(loaded);
   const [errors, setErrors] = useState<ReturnType<typeof validatePlanDraft>>({});
   const leaving = useRef(false);
-  const dirty = draft.name !== loaded.name || draft.description !== loaded.description;
+  const dirty = draft.name !== loaded.name || draft.description !== loaded.description || draft.perWeek !== loaded.perWeek;
 
   usePreventRemove(dirty, ({ data }) => {
     if (leaving.current) return navigation.dispatch(data.action);
@@ -98,6 +102,17 @@ export default function PlanEdit() {
             style={[styles.input, styles.multiline, errors.description && styles.inputError]}
           />
           {errors.description && <Text style={styles.error}>{errors.description}</Text>}
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>주차로 나누기</Text>
+          <Text style={styles.hint}>일주일에 몇 번 할지 고르면 코스를 순서대로 그만큼씩 1주차·2주차로 묶어요.</Text>
+          <Segmented
+            options={PER_WEEK_OPTIONS}
+            value={draft.perWeek == null ? 'none' : String(draft.perWeek)}
+            onChange={(v) => set({ perWeek: v === 'none' ? null : Number(v) })}
+            tint={courseTheme.tint}
+          />
+          {errors.perWeek && <Text style={styles.error}>{errors.perWeek}</Text>}
         </View>
       </ScrollView>
 
