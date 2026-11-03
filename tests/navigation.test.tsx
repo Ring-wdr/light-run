@@ -203,6 +203,9 @@ describe('대기 카운트', () => {
       // 시작 시각은 카운트가 끝난 때다(카운트 3초는 기록에 들어가지 않는다)
       expect(storage.getRun(activeRunId())?.startedAt).toBeGreaterThanOrEqual(before + 3000);
     } finally {
+      // 가짜 타이머로 띄운 화면은 가짜 타이머일 때 내린다. 진짜 타이머로 돌린 뒤에 내리면
+      // Node 22에서 setImmediate가 더는 돌지 않아 이후 act가 전부 멈춘다(CI는 Node 22)
+      screen.unmount();
       jest.useRealTimers();
     }
   });
