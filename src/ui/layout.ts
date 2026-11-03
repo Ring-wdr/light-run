@@ -23,7 +23,7 @@ const REGULAR = {
     /** 큰 거리 숫자(기록 중·상세) */
     hero: 88,
     heroLine: 96,
-    /** 기록 화면의 총 거리 */
+    /** 기록 화면의 총 거리(작은 화면에선 한 줄 요약이라 안 쓴다) */
     total: 48,
     /** 시작 전 대기 카운트 */
     countdown: 200,
@@ -36,6 +36,8 @@ const REGULAR = {
   courseBar: { normal: 72, hero: 120 },
   /** 기록 상세 지도 높이 */
   map: 260,
+  /** 기록 달력. cell은 날짜 동그라미 최대 크기(칸이 더 좁으면 칸 폭에 맞춰 줄어든다), pad는 안쪽 여백 */
+  calendar: { cell: 36, pad: space.m },
   /** 버튼 높이. hold는 기록 중 일시정지·종료, start는 코스 시작, save는 코스 저장 */
   button: { hold: 72, start: 64, save: 56 },
   /** 3D 다시 보기 아래 패널 */
@@ -55,6 +57,7 @@ const COMPACT: Layout = {
   font: { hero: 64, heroLine: 72, total: 40, countdown: 140, segment: 22, stepSec: 36 },
   courseBar: { normal: 48, hero: 72 },
   map: 180,
+  calendar: { cell: 30, pad: space.s + 4 },
   button: { hold: 60, start: 52, save: 48 },
   replay: { pad: space.s, gap: space.s, value: 15, elevation: 40 },
 };

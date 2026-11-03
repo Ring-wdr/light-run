@@ -130,13 +130,19 @@ export default function History() {
         renderItem={({ item }) => <RunListItem run={item} />}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.summary}>
-              <Text style={[styles.totalKm, { fontSize: L.font.total }]} numberOfLines={1} adjustsFontSizeToFit>
-                {formatKm(all.distanceM)}
-                <Text style={styles.totalUnit}> km</Text>
-              </Text>
-              <Text style={styles.totalLabel}>총 거리</Text>
+            {/* 작은 화면에선 총 거리도 한 줄에 넣어 달력과 그날 기록이 첫 화면에 들어오게 한다 */}
+            <View style={[styles.summary, L.compact && styles.summaryCompact]}>
+              {!L.compact && (
+                <>
+                  <Text style={[styles.totalKm, { fontSize: L.font.total }]} numberOfLines={1} adjustsFontSizeToFit>
+                    {formatKm(all.distanceM)}
+                    <Text style={styles.totalUnit}> km</Text>
+                  </Text>
+                  <Text style={styles.totalLabel}>총 거리</Text>
+                </>
+              )}
               <View style={styles.statRow}>
+                {L.compact && <Stat label="거리(km)" value={formatKm(all.distanceM)} />}
                 <Stat label="횟수" value={String(all.count)} />
                 <Stat label="총 시간" value={formatDuration(all.movingMs)} />
                 <Stat label="기록한 날" value={String(all.days)} />
@@ -205,6 +211,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s,
     alignItems: 'center',
   },
+  summaryCompact: { paddingVertical: space.s + 4 },
   totalKm: { fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
   totalUnit: { fontSize: 20, fontWeight: '700', color: color.sub },
   totalLabel: { fontSize: 14, color: color.sub, marginBottom: space.m },
