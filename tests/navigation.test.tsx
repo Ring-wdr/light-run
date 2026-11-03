@@ -5,6 +5,7 @@ import { Alert, type AlertButton } from 'react-native';
 import type { Course } from '../src/core/course';
 import { step } from '../src/core/my-course';
 import { summarize } from '../src/core/record';
+import * as gpxImport from '../src/services/import';
 import { startTracking } from '../src/services/location';
 import { cancelCountdown, stopRun } from '../src/services/run-controller';
 import * as storage from '../src/services/storage';
@@ -352,6 +353,20 @@ describe('기록 상세', () => {
     renderRouter('src/app', { initialUrl: `/history/${runId}` });
     await user.press(screen.getByRole('button', { name: '더보기' }));
     expect(screen.getByRole('menuitem', { name: '3D로 다시 보기' })).toBeDisabled();
+  });
+});
+
+describe('기록(전체)', () => {
+  it('백업·불러오기는 기록 상세처럼 헤더 ··· 메뉴에 있다', async () => {
+    // 파일 고르기는 기기 경계라 고른 척만 한다(취소)
+    const pick = jest.spyOn(gpxImport, 'pickGpxFile').mockResolvedValue(null);
+    renderRouter('src/app', { initialUrl: '/history' });
+    expect(screen.queryByText('백업 불러오기')).not.toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    expect(screen.getByRole('menuitem', { name: '전체 기록 백업 (GPX)' })).toBeOnTheScreen();
+    await user.press(screen.getByRole('menuitem', { name: '백업 불러오기' }));
+    expect(pick).toHaveBeenCalledTimes(1);
   });
 });
 

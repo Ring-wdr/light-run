@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ import { alertError } from '../../ui/alert';
 import { BusyOverlay } from '../../ui/BusyOverlay';
 import { useLayout } from '../../ui/layout';
 import { MonthPicker } from '../../ui/MonthPicker';
+import { MoreMenu } from '../../ui/MoreMenu';
 import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
 import { Stat } from '../../ui/Stat';
@@ -109,6 +110,19 @@ export default function History() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen
+        options={{
+          // 자주 안 쓰는 동작은 기록 상세처럼 헤더 ··· 메뉴로. 전체 기록을 한 파일로 내보내고 다시 넣는다(다른 폰·빌드로 옮길 때)
+          headerRight: () => (
+            <MoreMenu
+              items={[
+                { label: '전체 기록 백업 (GPX)', onPress: backup.start, disabled: busy },
+                { label: '백업 불러오기', onPress: onImport, disabled: busy },
+              ]}
+            />
+          ),
+        }}
+      />
       <FlatList
         contentContainerStyle={{ paddingHorizontal: L.pad, paddingBottom: space.l + insets.bottom }}
         data={shown}
@@ -152,16 +166,6 @@ export default function History() {
                 </Text>
               </Pressable>
             )}
-
-            {/* 전체 기록을 한 파일로 내보내고 다시 넣기(다른 폰·빌드로 옮길 때) */}
-            <View style={styles.backupRow}>
-              <Pressable onPress={onImport} disabled={busy} style={styles.backup} accessibilityRole="button">
-                <Text style={styles.backupText}>백업 불러오기</Text>
-              </Pressable>
-              <Pressable onPress={backup.start} disabled={busy} style={styles.backup} accessibilityRole="button">
-                <Text style={styles.backupText}>전체 기록 백업 (GPX)</Text>
-              </Pressable>
-            </View>
           </View>
         }
         ListEmptyComponent={
@@ -209,8 +213,5 @@ const styles = StyleSheet.create({
   dayFilter: { paddingVertical: space.xs },
   dayFilterText: { color: color.ink, fontWeight: '600' },
   link: { color: color.sub, textDecorationLine: 'underline' },
-  backupRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: space.l },
-  backup: { paddingVertical: space.xs },
-  backupText: { color: color.sub, fontWeight: '600', textDecorationLine: 'underline' },
   empty: { color: color.sub, paddingVertical: space.l },
 });

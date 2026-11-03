@@ -41,6 +41,7 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
   에이전트는 에뮬레이터가 없어 E2E를 돌릴 수 없다. `maestro check-syntax`로 문법만 확인하고, PR의 "실기기 확인 필요"에 `maestro test .maestro`를 넣는다.
 - 화면 동작 테스트는 `tests/navigation.test.tsx`처럼 실제 `src/app`을 `renderRouter('src/app')`로 띄우고 RNTL로 누른다.
   가짜는 기기 경계(SQLite → `tests/support/sqlite.ts`, 위치 서비스, 네이티브 뷰 → `tests/setup.tsx`)에만 둔다. 테스트 파일은 `src/app/` 밖에.
+- 화면의 보조 동작(내보내기·백업·삭제·복제 등 자주 안 쓰는 것)은 헤더 오른쪽 ··· 메뉴(`MoreMenu`)에 둔다. 본문에는 그 화면의 주요 동작만.
 - 화면 크기 대응: 먼저 flex·%·`aspectRatio`·`adjustsFontSizeToFit`처럼 크기와 상관없이 맞는 레이아웃으로 푼다.
   그래도 크기마다 달라야 하는 값(여백, 높이, 큰 글자)은 `src/ui/layout.ts`의 `useLayout()` 토큰에 두고, 화면에서 `compact ? a : b`로 분기하지 않는다.
   작은 화면 기준은 `src/core/layout.ts`(글꼴 배율 반영 360×700dp 미만). 주요 버튼은 내용이 길어도 잘리지 않게 아래에 고정한다.
