@@ -28,6 +28,9 @@ Play 앱은 Google이 가진 "앱 서명 키"로 서명돼 배포되고, 개발�
 - 기존 APK 사용자는 지인 몇 명이고, GPX 백업·불러오기로 기록을 옮길 수 있다. PEPK 내보내기 절차와 같은 키를 두 곳에 두는 부담을 질 이유가 적다.
 - 대신 출시 뒤에는 EAS `preview` APK와 Play 버전이 서로 덮어 설치되지 않는다. 테스트 빌드는 APK 대신 Play 내부·비공개 테스트 트랙으로 나눠 준다.
 
+2026-10-28 Play Console이 앱 서명 키를 만들었다. SHA-1 `E5:8E:AE:7C:E6:C0:E1:EA:39:CE:76:9C:0D:F0:CE:24:85:7E:83:F2`
+(Maps 키 Android 앱 제한에 넣을 값, §2). 업로드 키는 첫 AAB에 서명한 EAS 키(`production` 프로필 기본 키스토어)로 등록된다.
+
 어느 쪽이든 EAS 키스토어는 지우지 말 것(이제 업로드 키다). 루트의 `*.jks` 백업은 git에서 제외돼 있다(`.gitignore`).
 
 ## 2. 빌드와 업로드
@@ -58,7 +61,7 @@ npx eas-cli@latest build -p android --profile production
 
 | 항목 | 답 |
 |---|---|
-| 개인정보처리방침 | `https://github.com/Ring-wdr/light-run/blob/main/docs/privacy-policy.md` (main에 올라간 뒤. 문의 이메일 채우기) |
+| 개인정보처리방침 | `https://github.com/Ring-wdr/light-run/blob/main/docs/privacy-policy.md` |
 | 앱 액세스 | 모든 기능을 제한 없이 사용 가능(로그인 없음) |
 | 광고 | 광고 없음 |
 | 콘텐츠 등급 | IARC 설문: 카테고리 "유틸리티·생산성·커뮤니케이션 등". 폭력·도박 등 전부 아니요. 사용자 간 소통·위치 공유 기능 없음(공유하기는 사용자가 고른 앱으로 이미지를 보내는 것뿐) |
