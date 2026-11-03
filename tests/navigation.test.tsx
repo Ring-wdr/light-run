@@ -98,6 +98,39 @@ afterEach(async () => {
   jest.restoreAllMocks();
 });
 
+describe('기록 중 화면', () => {
+  it('일시정지하면 "일시정지됨"과 재개 버튼, 재개하면 다시 일시정지 버튼', async () => {
+    renderRouter('src/app');
+    await pressStart('달리기 30분 시작');
+    expect(screen.queryByText('일시정지됨')).not.toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '일시정지' }));
+    expect(screen.getByText('일시정지됨')).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '재개' }));
+    expect(screen.queryByText('일시정지됨')).not.toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '일시정지' })).toBeOnTheScreen();
+  });
+
+  it('헤더의 음성 안내 아이콘으로 이번 기록의 안내를 끄고 켠다', async () => {
+    renderRouter('src/app');
+    await pressStart('달리기 30분 시작');
+    const toggle = () => screen.getByRole('switch', { name: '음성 안내' });
+    expect(toggle()).toBeChecked();
+
+    await user.press(toggle());
+    expect(toggle()).not.toBeChecked();
+    await user.press(toggle());
+    expect(toggle()).toBeChecked();
+  });
+
+  it('GPS 점이 아직 없으면 "GPS 찾는 중"', async () => {
+    renderRouter('src/app');
+    await pressStart('달리기 30분 시작');
+    expect(screen.getByRole('button', { name: 'GPS 찾는 중' })).toBeOnTheScreen();
+  });
+});
+
 describe('기록 시작·종료(가드)', () => {
   it('홈에서 시작하면 [기록]만, 끝나면 [홈, 상세], 상세에서 뒤로 = 홈', async () => {
     const app = renderRouter('src/app');

@@ -25,6 +25,12 @@ export const replayTheme = {
   accent: '#FFB547',
 } as const;
 
+/**
+ * 상태 표시(기록 중 GPS·일시정지). 코랄(accent)은 달리기 색이라 경고에 쓰면 섞여서 따로 둔다.
+ * 밝은 바탕 위 글자로도 읽히게 어둡게 잡았다
+ */
+export const statusColor = { good: '#1E9E6A', warn: '#B86E00' } as const;
+
 /** 스플래시·앱 아이콘 바탕(app.json의 splash·adaptiveIcon backgroundColor와 같은 값) */
 export const splashTheme = { bg: '#0D1B3A' } as const;
 

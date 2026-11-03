@@ -25,6 +25,8 @@ const REGULAR = {
     heroLine: 96,
     /** 기록 화면의 총 거리(작은 화면에선 한 줄 요약이라 안 쓴다) */
     total: 48,
+    /** 기록 중 화면의 시간·현재 페이스 */
+    metric: 36,
     /** 시작 전 대기 카운트 */
     countdown: 200,
     /** 기록 중 지금 구간과 남은 시간 */
@@ -54,7 +56,7 @@ const COMPACT: Layout = {
   gap: space.s + 4,
   sectionTop: space.m,
   card: { h: 96, gap: space.s + 4, pad: space.s + 4, title: 28, name: 15, nameLine: 20 },
-  font: { hero: 64, heroLine: 72, total: 40, countdown: 140, segment: 22, stepSec: 36 },
+  font: { hero: 64, heroLine: 72, total: 40, metric: 28, countdown: 140, segment: 22, stepSec: 36 },
   courseBar: { normal: 48, hero: 72 },
   map: 180,
   calendar: { cell: 30, pad: space.s + 4 },
