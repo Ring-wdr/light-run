@@ -1,7 +1,7 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import type { Sample } from '../core/types';
 import { appendSamples, getActiveRunId } from './storage';
 
@@ -72,9 +72,26 @@ export async function requestPermissions(): Promise<PermissionResult> {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return 'foreground-denied';
   if (backgroundUnsupported) return 'background-denied';
-  if (Platform.OS === 'android') return 'granted';
+  if (Platform.OS === 'android') {
+    await requestNotificationPermission();
+    return 'granted';
+  }
   const bg = await Location.requestBackgroundPermissionsAsync();
   return bg.status === 'granted' ? 'granted' : 'background-denied';
+}
+
+/**
+ * Android 13(API 33)부터는 알림 권한이 없으면 포그라운드 서비스의 "기록 중" 알림이 알림창에 안 보인다
+ * (서비스는 그대로 돌고 작업 관리자에만 나온다). 사용자가 기록 중임을 알 수 있게 시작할 때 묻는다.
+ * 거부해도 기록은 되므로 결과는 보지 않는다. 매니페스트 선언은 app.json `android.permissions`
+ */
+async function requestNotificationPermission(): Promise<void> {
+  if (Platform.OS !== 'android' || Platform.Version < 33) return;
+  try {
+    await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+  } catch (e) {
+    console.warn('알림 권한 요청 실패', e);
+  }
 }
 
 export async function startTracking(): Promise<TrackingMode> {
