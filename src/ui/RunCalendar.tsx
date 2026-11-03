@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { monthGrid, type YearMonth } from '../core/calendar';
-import { Chevron } from './Chevron';
+import { Icon } from './Icon';
 import { useLayout } from './layout';
-import { color, space } from './theme';
+import { color, space, statusColor } from './theme';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -44,7 +44,7 @@ export function RunCalendar({
           accessibilityRole="button"
           accessibilityLabel="이전 달"
         >
-          <Chevron dir="left" color={color.ink} />
+          <Icon name="chevronLeft" color={color.ink} />
         </Pressable>
         <Pressable
           onPress={onPressTitle}
@@ -56,7 +56,7 @@ export function RunCalendar({
           <Text style={styles.title}>
             {month.year}년 {month.month + 1}월
           </Text>
-          <Chevron dir="down" size={20} color={color.sub} />
+          <Icon name="chevronDown" size={20} color={color.sub} />
         </Pressable>
         <Pressable
           onPress={() => onChangeMonth(1)}
@@ -67,13 +67,13 @@ export function RunCalendar({
           accessibilityLabel="다음 달"
           accessibilityState={{ disabled: !canNext }}
         >
-          <Chevron dir="right" color={canNext ? color.ink : color.line} />
+          <Icon name="chevronRight" color={canNext ? color.ink : color.line} />
         </Pressable>
       </View>
 
       <View style={styles.week}>
         {WEEKDAYS.map((w, i) => (
-          <Text key={w} style={[styles.weekday, i === 0 && { color: color.accent }]}>
+          <Text key={w} style={[styles.weekday, i === 0 && { color: statusColor.danger }]}>
             {w}
           </Text>
         ))}

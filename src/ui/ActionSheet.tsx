@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLayout } from './layout';
-import { color, space } from './theme';
+import { color, space, statusColor } from './theme';
 
 export interface ActionSheetItem {
   label: string;
@@ -71,7 +71,7 @@ export function ActionSheet({
                 accessibilityHint={item.hint}
                 accessibilityState={{ disabled: !!item.disabled }}
               >
-                <Text style={[styles.itemText, item.destructive && { color: color.accent }]}>{item.label}</Text>
+                <Text style={[styles.itemText, item.destructive && { color: statusColor.danger }]}>{item.label}</Text>
                 {item.hint ? <Text style={styles.hint}>{item.hint}</Text> : null}
               </Pressable>
             ))}

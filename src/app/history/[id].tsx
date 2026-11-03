@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { courseLabel, courseProgress } from '../../core/course';
-import { formatDuration, formatKm, formatPace, paceSecPerKm } from '../../core/pace';
+import { formatDuration, formatKm, formatPace, paceSecPerKm, splitBars } from '../../core/pace';
 import { routeSegments } from '../../core/track';
 import { prepareRunGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
@@ -36,6 +36,8 @@ export default function RunDetail() {
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
   const goal = courseProgress(run, run.movingMs);
+  const bars = splitBars(run.splits);
+  const tint = activityColor[run.activity];
   const goalName = run.custom ? '코스' : `${run.goalMin}분 목표`;
 
   const onDelete = () =>
@@ -75,13 +77,13 @@ export default function RunDetail() {
           }}
         />
         {goal && (
-          <Text style={[styles.goal, { color: goal.done ? activityColor[run.activity] : color.sub }]}>
+          <Text style={[styles.goal, { color: goal.done ? tint : color.sub }]}>
             {goal.done ? (run.custom ? '코스 완료' : `${goalName} 달성`) : `${goalName}의 ${Math.round(goal.ratio * 100)}%`}
           </Text>
         )}
         {/* 달릴 때의 코스 사본이라 코스를 고치거나 지워도 그대로다 */}
         {run.custom && <CourseBar blocks={run.custom.blocks} height={L.courseBar.normal} elapsedMs={run.movingMs} />}
-        <RouteMap segments={segments} tint={activityColor[run.activity]} height={L.map} />
+        <RouteMap segments={segments} tint={tint} height={L.map} />
         <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
         <View style={styles.row}>
           <Stat label="시간" value={formatDuration(run.movingMs)} />
@@ -91,12 +93,35 @@ export default function RunDetail() {
         {run.splits.length > 0 && (
           <View>
             <Text style={styles.h2}>구간</Text>
-            {run.splits.map((s) => (
-              <View key={s.km} style={styles.split}>
-                <Text style={styles.splitKm}>{s.km} km</Text>
-                <Text style={styles.splitPace}>{formatPace(s.durationMs / 1000)}</Text>
-              </View>
-            ))}
+            {/* 막대는 빠를수록 길다(core/pace.ts splitBars). 가장 빠른 구간만 진한 색 */}
+            {run.splits.map((s, i) => {
+              const bar = bars[i]!;
+              const pace = formatPace(s.durationMs / 1000);
+              return (
+                <View
+                  key={s.km}
+                  style={styles.split}
+                  accessible
+                  accessibilityLabel={`${s.km} km ${pace}${bar.fastest ? ', 가장 빠름' : ''}`}
+                >
+                  <Text style={styles.splitKm} numberOfLines={1} adjustsFontSizeToFit>
+                    {s.km} km
+                  </Text>
+                  <View style={styles.splitTrack}>
+                    <View
+                      style={[
+                        styles.splitBar,
+                        { width: `${Math.round(bar.ratio * 100)}%`, backgroundColor: tint },
+                        !bar.fastest && styles.splitBarDim,
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.splitPace, bar.fastest && { color: tint }]} numberOfLines={1} adjustsFontSizeToFit>
+                    {pace}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -107,7 +132,7 @@ export default function RunDetail() {
           onPress={() => setSharing(true)}
           style={({ pressed }) => [
             styles.share,
-            { backgroundColor: activityColor[run.activity] },
+            { backgroundColor: tint },
             pressed && { opacity: 0.6 },
           ]}
           accessibilityRole="button"
@@ -121,7 +146,7 @@ export default function RunDetail() {
         visible={gpx.busy}
         label="GPX 파일 만드는 중"
         progress={gpx.progress}
-        tint={activityColor[run.activity]}
+        tint={tint}
       />
     </View>
   );
@@ -134,13 +159,18 @@ const styles = StyleSheet.create({
   h2: { fontSize: 18, fontWeight: '700', color: color.ink, marginBottom: space.s },
   split: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: space.s,
     paddingVertical: space.s,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: color.line,
   },
-  splitKm: { color: color.sub },
-  splitPace: { color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  // km·페이스 칸 폭을 고정해 막대 시작·끝이 행마다 같은 자리에 오게 한다
+  splitKm: { width: 48, color: color.sub, fontVariant: ['tabular-nums'] },
+  splitTrack: { flex: 1, height: 10 },
+  splitBar: { height: '100%', borderRadius: 5 },
+  splitBarDim: { opacity: 0.35 },
+  splitPace: { width: 56, textAlign: 'right', color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
   footer: { paddingTop: space.s },
   share: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m, borderRadius: 999 },
   shareText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },

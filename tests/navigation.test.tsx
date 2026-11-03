@@ -553,7 +553,7 @@ async function typeMinutes(text: string) {
 describe('구간 시간 직접 입력', () => {
   it('분 칸에 숫자를 넣어 20분이 넘는 구간도 바로 만든다. 범위를 넘으면 60분으로 맞춘다', async () => {
     renderRouter('src/app', { initialUrl: '/courses/edit' });
-    await user.press(screen.getByRole('button', { name: '＋ 구간 추가' }));
+    await user.press(screen.getByRole('button', { name: '구간 추가' }));
     await typeMinutes('25');
     await user.press(screen.getByRole('button', { name: '추가' }));
     expect(screen.getByRole('button', { name: '달리기 25분, 눌러서 변경' })).toBeOnTheScreen();
@@ -567,7 +567,7 @@ describe('구간 시간 직접 입력', () => {
 
   it('칸을 누르면 비우고 원래 값을 흐리게 보여 준다. 아무것도 안 치고 나가면 원래 값', async () => {
     renderRouter('src/app', { initialUrl: '/courses/edit' });
-    await user.press(screen.getByRole('button', { name: '＋ 구간 추가' }));
+    await user.press(screen.getByRole('button', { name: '구간 추가' }));
     const min = screen.getByLabelText('분');
     fireEvent(min, 'focus');
     expect(min).toHaveDisplayValue('');

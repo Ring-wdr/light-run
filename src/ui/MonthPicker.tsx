@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { isAfter, type YearMonth } from '../core/calendar';
-import { Chevron } from './Chevron';
+import { Icon } from './Icon';
 import { useOpened } from './hooks';
 import { color, space } from './theme';
 
@@ -49,7 +49,7 @@ export function MonthPicker({
               accessibilityRole="button"
               accessibilityLabel="이전 해"
             >
-              <Chevron dir="left" color={color.ink} />
+              <Icon name="chevronLeft" color={color.ink} />
             </Pressable>
             <Text style={styles.year}>{year}년</Text>
             <Pressable
@@ -61,7 +61,7 @@ export function MonthPicker({
               accessibilityLabel="다음 해"
               accessibilityState={{ disabled: !canNext }}
             >
-              <Chevron dir="right" color={canNext ? color.ink : color.line} />
+              <Icon name="chevronRight" color={canNext ? color.ink : color.line} />
             </Pressable>
           </View>
 

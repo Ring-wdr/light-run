@@ -18,12 +18,13 @@ import {
 } from '../../services/storage';
 import { ActionSheet, type ActionSheetItem } from '../../ui/ActionSheet';
 import { useBusy } from '../../ui/hooks';
+import { Icon, IconLabel } from '../../ui/Icon';
 import { useLayout } from '../../ui/layout';
 import { MoreMenu } from '../../ui/MoreMenu';
 import { goBackOrHome } from '../../ui/navigation';
 import { ProgressBar } from '../../ui/ProgressBar';
 import { startCourse } from '../../ui/start';
-import { color, courseTheme, space } from '../../ui/theme';
+import { color, courseTheme, space, statusColor } from '../../ui/theme';
 
 /** 한 줄에 놓는 코스 칸 수. 작은 화면에서도 이름 두 줄이 읽히는 만큼만 */
 const COLS = 3;
@@ -198,7 +199,7 @@ export default function PlanDetail() {
 
         <View style={styles.addRow}>
           <Pressable onPress={addNew} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="플랜에 새 코스 추가">
-            <Text style={styles.addText}>＋ 새 코스</Text>
+            <IconLabel icon="plus" label="새 코스" style={styles.addText} />
           </Pressable>
           <Pressable
             onPress={() => setImporting(true)}
@@ -208,7 +209,7 @@ export default function PlanDetail() {
             accessibilityLabel="내 코스에서 가져오기"
             accessibilityState={{ disabled: importable.length === 0 }}
           >
-            <Text style={styles.addText}>＋ 내 코스에서</Text>
+            <IconLabel icon="plus" label="내 코스에서" style={styles.addText} />
           </Pressable>
         </View>
       </ScrollView>
@@ -269,9 +270,13 @@ function Tile({ item, index, next, onPress }: { item: PlanCourse; index: number;
       accessibilityLabel={[`${index + 1}번째`, c.name, formatTotalSec(totalSec(c.blocks)), state].filter(Boolean).join(', ')}
     >
       <View style={[styles.dot, item.done && styles.dotDone, next && styles.dotNext]}>
-        <Text style={[styles.dotText, (item.done || next) && { color: '#fff' }]} maxFontSizeMultiplier={1.2}>
-          {item.done ? '✓' : index + 1}
-        </Text>
+        {item.done ? (
+          <Icon name="check" size={16} color="#fff" />
+        ) : (
+          <Text style={[styles.dotText, next && { color: '#fff' }]} maxFontSizeMultiplier={1.2}>
+            {index + 1}
+          </Text>
+        )}
       </View>
       <Text style={[styles.tileName, item.done && { color: color.sub }]} numberOfLines={2} maxFontSizeMultiplier={1.3}>
         {c.name}
@@ -312,7 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotDone: { backgroundColor: color.ok, borderColor: color.ok },
+  dotDone: { backgroundColor: statusColor.good, borderColor: statusColor.good },
   dotNext: { backgroundColor: courseTheme.tint, borderColor: courseTheme.tint },
   dotText: { fontSize: 13, fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
   tileName: { fontSize: 14, fontWeight: '700', color: color.ink, lineHeight: 19, minHeight: 38 },

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { color, space } from './theme';
+import { Icon } from './Icon';
+import { color, space, statusColor } from './theme';
 
 export interface MoreMenuItem {
   label: string;
@@ -19,12 +20,12 @@ export interface MoreMenuItem {
 export function MoreMenu({
   items,
   label = '더보기',
-  glyph = '···',
+  icon = 'moreH',
 }: {
   items: MoreMenuItem[];
   label?: string;
-  /** 버튼 모양. 목록 행에서는 ⋮ */
-  glyph?: string;
+  /** 버튼 모양. 헤더는 가로 점(···), 목록 행에서는 세로 점(⋮) */
+  icon?: 'moreH' | 'moreV';
 }) {
   const button = useRef<View>(null);
   const { width: screenW } = useWindowDimensions();
@@ -55,7 +56,7 @@ export function MoreMenu({
         accessibilityRole="button"
         accessibilityLabel={label}
       >
-        <Text style={styles.dots}>{glyph}</Text>
+        <Icon name={icon} size={24} color={color.ink} />
       </Pressable>
 
       <Modal
@@ -83,7 +84,7 @@ export function MoreMenu({
                   ]}
                   accessibilityRole="menuitem"
                 >
-                  <Text style={[styles.itemText, item.destructive && { color: color.accent }]}>{item.label}</Text>
+                  <Text style={[styles.itemText, item.destructive && { color: statusColor.danger }]}>{item.label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -96,7 +97,6 @@ export function MoreMenu({
 
 const styles = StyleSheet.create({
   button: { paddingHorizontal: space.s, paddingVertical: space.xs },
-  dots: { fontSize: 22, fontWeight: '800', color: color.ink, lineHeight: 24 },
   // 그림자는 바깥, 둥근 모서리 자르기는 안쪽(iOS는 overflow: hidden이면 그림자도 잘린다)
   shadow: {
     position: 'absolute',

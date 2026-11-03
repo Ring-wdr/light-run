@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { clampSec, formatTotalSec, INTENSITIES, INTENSITY_LABEL, LIMITS, parseMinSec, step, type Step } from '../core/my-course';
 import { useOpened } from './hooks';
 import { useLayout } from './layout';
-import { color, courseTheme, space } from './theme';
+import { color, courseTheme, space, statusColor } from './theme';
 
 const QUICK_SEC = [30, 60, 120, 180, 300, 600, 1200, 1800, 3600];
 const NUDGE: { label: string; d: number }[] = [
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   unit: { color: color.sub, fontSize: 12, fontWeight: '600' },
   timeHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: space.s },
   timeHint: { flexShrink: 1, color: color.sub, fontSize: 13, textAlign: 'right' },
-  timeHintWarn: { color: color.accent },
+  timeHintWarn: { color: statusColor.danger },
   nudges: { flexDirection: 'row', gap: space.s },
   nudge: {
     flex: 1,

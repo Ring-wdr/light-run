@@ -6,12 +6,11 @@ import { ACTIVITIES, ACTIVITY_LABEL, GOALS, goalLabel, type Activity, type Cours
 import { shelf, type ShelfItem } from '../core/plan';
 import { getPref, listCourses, listPlans, listRuns, setPref, type RunRow } from '../services/storage';
 import { BatteryGuide } from '../ui/BatteryGuide';
-import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
 import { useBusy } from '../ui/hooks';
+import { Icon, IconLabel } from '../ui/Icon';
 import { useLayout } from '../ui/layout';
 import { openDetailAfterStop } from '../ui/navigation';
-import { SettingsIcon } from '../ui/SettingsIcon';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
 import { startCourse } from '../ui/start';
@@ -77,7 +76,7 @@ export default function Home() {
               accessibilityRole="button"
               accessibilityLabel="설정"
             >
-              <SettingsIcon size={24} color={color.ink} />
+              <Icon name="settings" size={24} color={color.ink} />
             </Pressable>
           ),
         }}
@@ -110,9 +109,9 @@ export default function Home() {
             <Text style={[styles.cardHint, goalMin == null && { color: '#fff' }]} maxFontSizeMultiplier={1.3}>
               {GOAL_HINT[activity][goalMin == null ? 'free' : String(goalMin)]}
             </Text>
-            <Text style={[styles.cardGo, { color: goalMin == null ? '#fff' : tint }]} maxFontSizeMultiplier={1.3}>
-              시작 →
-            </Text>
+            <View style={styles.cardGo}>
+              <IconLabel icon="arrowRight" label="시작" style={[styles.cardGoText, { color: goalMin == null ? '#fff' : tint }]} />
+            </View>
           </Pressable>
         ))}
       </View>
@@ -130,7 +129,7 @@ export default function Home() {
             accessibilityLabel="전체 기록 보기"
           >
             <Text style={styles.moreText}>전체 보기</Text>
-            <Chevron dir="right" size={20} color={color.accent} />
+            <Icon name="chevronRight" size={20} color={color.accent} />
           </Pressable>
         )}
       </View>
@@ -157,7 +156,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontWeight: '800' },
   cardHint: { marginTop: 2, color: color.sub, fontSize: 15 },
-  cardGo: { position: 'absolute', right: space.l, bottom: space.m, fontWeight: '700', fontSize: 16 },
+  cardGo: { position: 'absolute', right: space.l, bottom: space.m },
+  cardGoText: { fontWeight: '700', fontSize: 16 },
   empty: { color: color.sub, paddingVertical: space.m },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   more: { flexDirection: 'row', alignItems: 'center', paddingTop: space.l, paddingLeft: space.m },

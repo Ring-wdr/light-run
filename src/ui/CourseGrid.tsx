@@ -5,6 +5,7 @@ import { HOME_SLOTS, homeSlots, type HomeSlot } from '../core/my-course';
 import { progressRatio, shelfKey, type ShelfItem } from '../core/plan';
 import { CourseBar } from './CourseBar';
 import { CreateSheet } from './CreateSheet';
+import { Icon } from './Icon';
 import { useLayout } from './layout';
 import { ProgressBar } from './ProgressBar';
 import { color, courseTheme, space } from './theme';
@@ -66,7 +67,7 @@ function Cell({ slot, onCreate }: { slot: HomeSlot<ShelfItem>; onCreate: () => v
           accessibilityRole="button"
           accessibilityLabel="새로 만들기"
         >
-          <Text style={styles.plus}>＋</Text>
+          <Icon name="plus" size={28} color={color.sub} />
           <Text style={styles.sub}>새로 만들기</Text>
         </Pressable>
       );
@@ -148,7 +149,6 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs },
   name: { flex: 1, fontWeight: '700', color: color.ink },
   star: { color: color.accent, fontSize: 16, lineHeight: 24 },
-  plus: { fontSize: 28, color: color.sub, lineHeight: 32 },
   sub: { color: color.sub, fontSize: 14, fontWeight: '600' },
   moreText: { fontSize: 18, fontWeight: '700', color: color.ink },
   empty: {
