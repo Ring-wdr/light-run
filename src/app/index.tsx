@@ -84,7 +84,8 @@ export default function Home() {
       <BatteryGuide />
       <Segmented options={TABS} value={tab} onChange={onTab} tint={tint} />
 
-      <Text style={h2}>코스 선택</Text>
+      {/* 탭 바로 아래가 고를 코스라 "코스 선택" 제목은 두지 않는다(작은 화면에서 한 줄 아끼기) */}
+      <View style={styles.courses}>
       {tab === 'mine' ? (
         <CourseGrid items={courses} />
       ) : (
@@ -110,12 +111,13 @@ export default function Home() {
               {GOAL_HINT[activity][goalMin == null ? 'free' : String(goalMin)]}
             </Text>
             <View style={styles.cardGo}>
-              <IconLabel icon="arrowRight" label="시작" style={[styles.cardGoText, { color: goalMin == null ? '#fff' : tint }]} />
+              <IconLabel icon="arrowRight" label="시작" trailing style={[styles.cardGoText, { color: goalMin == null ? '#fff' : tint }]} />
             </View>
           </Pressable>
         ))}
       </View>
       )}
+      </View>
 
       {/* 전체 보기는 제목 옆에 둬서 최근 기록 수와 상관없이 스크롤 없이 닿게 한다 */}
       <View style={styles.sectionHead}>
@@ -144,6 +146,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   wrap: { gap: space.s },
+  courses: { marginTop: space.s },
   h2: { fontSize: 18, fontWeight: '700', color: color.ink },
   // 높이를 고정해(layout.ts card) 내 코스 칸(같은 높이)과 탭을 오가도 화면이 밀리지 않게 한다
   card: {

@@ -40,7 +40,7 @@ tags:
 - openLink: 'lightrun-dev://run'
 - runFlow: subflows/assert-home-root.yml
 - back
-- assertNotVisible: '코스 선택'
+- assertNotVisible: '최근 기록'
 - launchApp:
     stopApp: false
 

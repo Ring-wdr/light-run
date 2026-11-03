@@ -43,7 +43,7 @@ tags:
 - runFlow: subflows/assert-home-root.yml
 - assertVisible: '달리기 · 30분'
 - back
-- assertNotVisible: '코스 선택'
+- assertNotVisible: '최근 기록'
 - launchApp:
     stopApp: false
 - runFlow: subflows/assert-home-root.yml
