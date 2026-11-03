@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { clampSec, formatStepSec, INTENSITIES, INTENSITY_LABEL, LIMITS, step, type Step } from '../core/my-course';
 import { useOpened } from './hooks';
+import { useLayout } from './layout';
 import { color, courseTheme, space } from './theme';
 
 const QUICK_SEC = [30, 60, 120, 180, 300, 600, 1200];
@@ -34,6 +35,8 @@ export function StepSheet({
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const L = useLayout();
+  const pad = L.pad;
   const [draft, setDraft] = useState<Step>(initial ?? step('run', 60));
   // 열 때마다 대상 구간으로 초기화. 열리는 렌더에서 바로 바꿔 올라오는 시트에 이전 값이 비치지 않게 한다
   if (useOpened(visible)) setDraft(initial ?? step('run', 60));
@@ -43,58 +46,63 @@ export function StepSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="닫기" />
-      <View style={[styles.sheet, { paddingBottom: space.l + insets.bottom }]}>
-        <Text style={styles.title}>{title}</Text>
+      <View style={[styles.sheet, { padding: pad, paddingBottom: pad + insets.bottom }]}>
+        {/* 글꼴을 키운 작은 화면에서 시트가 화면을 넘으면 내용만 스크롤하고 확인 버튼은 남긴다 */}
+        <ScrollView contentContainerStyle={styles.body}>
+          <Text style={styles.title}>{title}</Text>
 
-        <Text style={styles.label}>종류</Text>
-        <View style={styles.chips}>
-          {INTENSITIES.map((it) => {
-            const on = draft.intensity === it;
-            return (
-              <Pressable
-                key={it}
-                onPress={() => setDraft((d) => ({ ...d, intensity: it }))}
-                style={[styles.chip, on && styles.chipOn]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on }}
-              >
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>{INTENSITY_LABEL[it]}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+          <Text style={styles.label}>종류</Text>
+          <View style={styles.chips}>
+            {INTENSITIES.map((it) => {
+              const on = draft.intensity === it;
+              return (
+                <Pressable
+                  key={it}
+                  onPress={() => setDraft((d) => ({ ...d, intensity: it }))}
+                  style={[styles.chip, on && styles.chipOn]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                >
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{INTENSITY_LABEL[it]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-        <Text style={styles.label}>시간</Text>
-        <Text style={styles.sec} accessibilityLiveRegion="polite">
-          {formatStepSec(draft.sec)}
-        </Text>
-        <View style={styles.nudges}>
-          {NUDGE.map((n) => {
-            const next = draft.sec + n.d;
-            const off = next < LIMITS.stepMinSec || next > LIMITS.stepMaxSec;
-            return (
-              <Pressable
-                key={n.label}
-                onPress={() => setSec(next)}
-                disabled={off}
-                style={({ pressed }) => [styles.nudge, (pressed || off) && { opacity: 0.4 }]}
-                accessibilityRole="button"
-              >
-                <Text style={styles.nudgeText}>{n.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <View style={styles.chips}>
-          {QUICK_SEC.map((sec) => {
-            const on = draft.sec === sec;
-            return (
-              <Pressable key={sec} onPress={() => setSec(sec)} style={[styles.chip, on && styles.chipOn]} accessibilityRole="button">
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>{quickLabel(sec)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+          <Text style={styles.label}>시간</Text>
+          <Text style={[styles.sec, { fontSize: L.font.stepSec }]} accessibilityLiveRegion="polite">
+            {formatStepSec(draft.sec)}
+          </Text>
+          <View style={styles.nudges}>
+            {NUDGE.map((n) => {
+              const next = draft.sec + n.d;
+              const off = next < LIMITS.stepMinSec || next > LIMITS.stepMaxSec;
+              return (
+                <Pressable
+                  key={n.label}
+                  onPress={() => setSec(next)}
+                  disabled={off}
+                  style={({ pressed }) => [styles.nudge, (pressed || off) && { opacity: 0.4 }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.nudgeText} numberOfLines={1} adjustsFontSizeToFit>
+                    {n.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.chips}>
+            {QUICK_SEC.map((sec) => {
+              const on = draft.sec === sec;
+              return (
+                <Pressable key={sec} onPress={() => setSec(sec)} style={[styles.chip, on && styles.chipOn]} accessibilityRole="button">
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{quickLabel(sec)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
 
         <View style={styles.actions}>
           <Pressable onPress={onClose} style={[styles.btn, styles.cancel]} accessibilityRole="button">
@@ -115,9 +123,9 @@ const styles = StyleSheet.create({
     backgroundColor: color.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: space.l,
-    gap: space.s,
+    maxHeight: '90%',
   },
+  body: { gap: space.s },
   title: { fontSize: 18, fontWeight: '700', color: color.ink, marginBottom: space.s },
   label: { color: color.sub, fontWeight: '600', marginTop: space.s },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s },
@@ -132,12 +140,13 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: courseTheme.tint, borderColor: courseTheme.tint },
   chipText: { color: color.ink, fontWeight: '600' },
   chipTextOn: { color: '#fff' },
-  sec: { fontSize: 44, fontWeight: '800', color: color.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  sec: { fontWeight: '800', color: color.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
   nudges: { flexDirection: 'row', gap: space.s },
   nudge: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 2,
     borderRadius: 12,
     backgroundColor: courseTheme.barBg,
   },

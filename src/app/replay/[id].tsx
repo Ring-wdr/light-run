@@ -21,6 +21,7 @@ import { getRun, loadEvents, type RunRow } from '../../services/storage';
 import { Chips } from '../../ui/Chips';
 import { ElevationProfile } from '../../ui/ElevationProfile';
 import { useAnimationFrame } from '../../ui/hooks';
+import { useLayout } from '../../ui/layout';
 import { ReplayMap, type CameraMode } from '../../ui/ReplayMap';
 import { Scrubber } from '../../ui/Scrub';
 import { replayTheme as theme, space } from '../../ui/theme';
@@ -66,6 +67,7 @@ export default function ReplayScreen() {
 
 function Player({ run, replay }: { run: RunRow; replay: Replay }) {
   const insets = useSafeAreaInsets();
+  const L = useLayout();
   const line = useMemo(() => routeLine(replay), [replay]);
   const profile = useMemo(() => elevationProfile(replay), [replay]);
   const duration = replay.summary.durationMs;
@@ -104,10 +106,10 @@ function Player({ run, replay }: { run: RunRow; replay: Replay }) {
             {replay.summary.loop && <Text style={styles.badge}>루프</Text>}
           </View>
           <View style={styles.row}>
-            <Value small label="거리" value={`${formatKm(run.distanceM)} km`} />
-            <Value small label="시간" value={formatDuration(run.movingMs)} />
-            <Value small label="평균 페이스" value={formatPace(paceSecPerKm(run.distanceM, run.movingMs))} />
-            <Value small label="상승" value={replay.summary.gainM != null ? `${Math.round(replay.summary.gainM)} m` : '-'} />
+            <Value size={15} label="거리" value={`${formatKm(run.distanceM)} km`} />
+            <Value size={15} label="시간" value={formatDuration(run.movingMs)} />
+            <Value size={15} label="평균 페이스" value={formatPace(paceSecPerKm(run.distanceM, run.movingMs))} />
+            <Value size={15} label="상승" value={replay.summary.gainM != null ? `${Math.round(replay.summary.gainM)} m` : '-'} />
           </View>
         </View>
         <Pressable
@@ -120,15 +122,22 @@ function Player({ run, replay }: { run: RunRow; replay: Replay }) {
         </Pressable>
       </View>
 
-      <View style={[styles.panel, { paddingBottom: space.m + insets.bottom }]}>
+      {/* 작은 화면에선 지도가 가려지지 않게 패널을 낮춘다(layout.ts replay) */}
+      <View style={[styles.panel, { paddingTop: L.replay.pad, paddingBottom: L.replay.pad + insets.bottom, gap: L.replay.gap }]}>
         <View style={styles.row}>
-          <Value label="경과" value={formatDuration(t)} />
-          <Value label="거리(km)" value={formatKm(d)} />
-          <Value label="페이스" value={formatPace(pace)} />
-          <Value label="고도" value={ele != null ? `${Math.round(ele)} m` : '-'} />
+          <Value label="경과" value={formatDuration(t)} size={L.replay.value} />
+          <Value label="거리(km)" value={formatKm(d)} size={L.replay.value} />
+          <Value label="페이스" value={formatPace(pace)} size={L.replay.value} />
+          <Value label="고도" value={ele != null ? `${Math.round(ele)} m` : '-'} size={L.replay.value} />
         </View>
 
-        <ElevationProfile profile={profile} distanceM={d} totalM={totalM} onSeek={(m) => seekTime(timeAtDist(replay, m))} />
+        <ElevationProfile
+          profile={profile}
+          distanceM={d}
+          totalM={totalM}
+          onSeek={(m) => seekTime(timeAtDist(replay, m))}
+          height={L.replay.elevation}
+        />
 
         <View style={styles.transport}>
           <Pressable
@@ -146,7 +155,8 @@ function Player({ run, replay }: { run: RunRow; replay: Replay }) {
               valueText={`${formatDuration(t)} / ${formatDuration(duration)}`}
             />
           </View>
-          <Text style={styles.time}>{formatDuration(duration)}</Text>
+          {/* 전체 시간은 위 요약에도 있으니 작은 화면에선 재생 막대에 폭을 준다 */}
+          {!L.compact && <Text style={styles.time}>{formatDuration(duration)}</Text>}
         </View>
 
         <Chips
@@ -217,10 +227,10 @@ function usePlayback(duration: number) {
   return { t, playing, speed, setSpeed, seekTime, togglePlay };
 }
 
-function Value({ label, value, small = false }: { label: string; value: string; small?: boolean }) {
+function Value({ label, value, size }: { label: string; value: string; size: number }) {
   return (
     <View style={styles.value}>
-      <Text style={[styles.valueText, small && styles.valueSmall]} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={[styles.valueText, { fontSize: size }]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
       <Text style={styles.valueLabel}>{label}</Text>
@@ -267,10 +277,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(11,15,26,0.78)',
   },
   terrainText: { color: theme.ink, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  panel: { paddingHorizontal: space.m, paddingTop: space.m, gap: space.s + 4, backgroundColor: theme.panel },
+  panel: { paddingHorizontal: space.m, backgroundColor: theme.panel },
   value: { flex: 1, alignItems: 'center' },
-  valueText: { fontSize: 22, fontWeight: '700', color: theme.ink, fontVariant: ['tabular-nums'] },
-  valueSmall: { fontSize: 15 },
+  valueText: { fontWeight: '700', color: theme.ink, fontVariant: ['tabular-nums'] },
   valueLabel: { marginTop: 2, fontSize: 11, color: theme.sub },
   transport: { flexDirection: 'row', alignItems: 'center', gap: space.s + 4 },
   play: {

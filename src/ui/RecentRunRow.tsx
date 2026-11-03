@@ -19,7 +19,7 @@ export function RecentRunRow({ run }: { run: RunRow }) {
         {courseLabel(run)}
       </Text>
       <Text style={styles.km}>{formatKm(run.distanceM)} km</Text>
-      <Text style={styles.date} numberOfLines={1}>
+      <Text style={styles.date} numberOfLines={1} adjustsFontSizeToFit>
         {formatMonthDay(run.startedAt)}
       </Text>
     </Pressable>

@@ -34,6 +34,8 @@ import { replayTheme } from './theme';
 const TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 export const mapboxAvailable = typeof TOKEN === 'string' && TOKEN.startsWith('pk.');
 if (TOKEN && mapboxAvailable) Mapbox.setAccessToken(TOKEN).catch((e) => console.warn('Mapbox 토큰 설정 실패', e));
+// Mapbox 텔레메트리(기기 정보·위치 이벤트 전송)는 끈다. 기록은 기기 밖으로 보내지 않는다는 개인정보처리방침과 맞춘다(docs/RELEASE.md)
+Mapbox.setTelemetryEnabled(false);
 
 export type CameraMode = 'follow' | 'free' | 'overview';
 

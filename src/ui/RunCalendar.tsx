@@ -1,10 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { monthGrid, type YearMonth } from '../core/calendar';
 import { Chevron } from './Chevron';
+import { useLayout } from './layout';
 import { color, space } from './theme';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-const CELL = 36;
 
 /**
  * 한 달 달력. 기록이 있는 날은 동그라미(O)로 표시하고, 누르면 그날을 고른다(채운 동그라미).
@@ -33,8 +33,9 @@ export function RunCalendar({
   today: number | null;
   tint: string;
 }) {
+  const { calendar } = useLayout();
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { padding: calendar.pad }]}>
       <View style={styles.head}>
         <Pressable
           onPress={() => onChangeMonth(-1)}
@@ -96,6 +97,8 @@ export function RunCalendar({
                 <View
                   style={[
                     styles.dot,
+                    // aspectRatio는 maxWidth로 줄이기 전 폭으로 높이를 정해서 maxHeight도 같이 막는다(안 막으면 세로로 긴 타원)
+                    { maxWidth: calendar.cell, maxHeight: calendar.cell, borderRadius: calendar.cell / 2 },
                     ran && { borderColor: tint },
                     selected && { backgroundColor: tint },
                   ]}
@@ -107,6 +110,7 @@ export function RunCalendar({
                       ran && { color: tint, fontWeight: '700' },
                       selected && { color: '#FFFFFF' },
                     ]}
+                    maxFontSizeMultiplier={1.2}
                   >
                     {day}
                   </Text>
@@ -126,7 +130,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: color.line,
-    padding: space.m,
     gap: space.xs,
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.s },
@@ -136,10 +139,10 @@ const styles = StyleSheet.create({
   week: { flexDirection: 'row' },
   weekday: { flex: 1, textAlign: 'center', fontSize: 12, color: color.sub },
   cell: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+  // 칸이 calendar.cell보다 좁아지면 옆 칸과 겹치지 않게 칸 폭에 맞춰 줄어든다
   dot: {
-    width: CELL,
-    height: CELL,
-    borderRadius: CELL / 2,
+    width: '100%',
+    aspectRatio: 1,
     borderWidth: 2,
     borderColor: 'transparent',
     alignItems: 'center',

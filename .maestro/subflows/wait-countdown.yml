@@ -1,0 +1,7 @@
+# 시작을 누른 뒤: 대기 카운트(3, 2, 1)가 끝나 기록 화면이 될 때까지 기다린다.
+# 카운트는 3초뿐이라 무선 adb에서는 화면을 확인하는 사이 지나간다. 카운트·취소는 tests/navigation.test.tsx가 본다
+appId: com.ringwdr.lightrun.dev
+---
+- extendedWaitUntil:
+    visible: '길게 눌러 종료'
+    timeout: 15000

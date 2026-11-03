@@ -2,6 +2,7 @@
 appId: com.ringwdr.lightrun.dev
 ---
 - tapOn: '달리기 30분 시작'
+- runFlow: wait-countdown.yml
 # 백그라운드 위치를 받지 못한 환경이면 안내창이 뜬다(src/ui/start.ts). 기록은 그대로 시작된다
 - runFlow:
     when:

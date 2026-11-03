@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +22,9 @@ import { importGpx, pickGpxFile } from '../../services/import';
 import { listRunDates, listRunsBetween, type RunRow } from '../../services/storage';
 import { alertError } from '../../ui/alert';
 import { BusyOverlay } from '../../ui/BusyOverlay';
+import { useLayout } from '../../ui/layout';
 import { MonthPicker } from '../../ui/MonthPicker';
+import { MoreMenu } from '../../ui/MoreMenu';
 import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
 import { Stat } from '../../ui/Stat';
@@ -31,6 +33,7 @@ import { useGpxExport } from '../../ui/useGpxExport';
 
 export default function History() {
   const insets = useSafeAreaInsets();
+  const L = useLayout();
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [dated, setDated] = useState<DatedRun[]>([]);
   const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
@@ -107,20 +110,39 @@ export default function History() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen
+        options={{
+          // 자주 안 쓰는 동작은 기록 상세처럼 헤더 ··· 메뉴로. 전체 기록을 한 파일로 내보내고 다시 넣는다(다른 폰·빌드로 옮길 때)
+          headerRight: () => (
+            <MoreMenu
+              items={[
+                { label: '전체 기록 백업 (GPX)', onPress: backup.start, disabled: busy },
+                { label: '백업 불러오기', onPress: onImport, disabled: busy },
+              ]}
+            />
+          ),
+        }}
+      />
       <FlatList
-        contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}
+        contentContainerStyle={{ paddingHorizontal: L.pad, paddingBottom: space.l + insets.bottom }}
         data={shown}
         keyExtractor={(r) => String(r.id)}
         renderItem={({ item }) => <RunListItem run={item} />}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.summary}>
-              <Text style={styles.totalKm} numberOfLines={1} adjustsFontSizeToFit>
-                {formatKm(all.distanceM)}
-                <Text style={styles.totalUnit}> km</Text>
-              </Text>
-              <Text style={styles.totalLabel}>총 거리</Text>
+            {/* 작은 화면에선 총 거리도 한 줄에 넣어 달력과 그날 기록이 첫 화면에 들어오게 한다 */}
+            <View style={[styles.summary, L.compact && styles.summaryCompact]}>
+              {!L.compact && (
+                <>
+                  <Text style={[styles.totalKm, { fontSize: L.font.total }]} numberOfLines={1} adjustsFontSizeToFit>
+                    {formatKm(all.distanceM)}
+                    <Text style={styles.totalUnit}> km</Text>
+                  </Text>
+                  <Text style={styles.totalLabel}>총 거리</Text>
+                </>
+              )}
               <View style={styles.statRow}>
+                {L.compact && <Stat label="거리(km)" value={formatKm(all.distanceM)} />}
                 <Stat label="횟수" value={String(all.count)} />
                 <Stat label="총 시간" value={formatDuration(all.movingMs)} />
                 <Stat label="기록한 날" value={String(all.days)} />
@@ -150,16 +172,6 @@ export default function History() {
                 </Text>
               </Pressable>
             )}
-
-            {/* 전체 기록을 한 파일로 내보내고 다시 넣기(다른 폰·빌드로 옮길 때) */}
-            <View style={styles.backupRow}>
-              <Pressable onPress={onImport} disabled={busy} style={styles.backup} accessibilityRole="button">
-                <Text style={styles.backupText}>백업 불러오기</Text>
-              </Pressable>
-              <Pressable onPress={backup.start} disabled={busy} style={styles.backup} accessibilityRole="button">
-                <Text style={styles.backupText}>전체 기록 백업 (GPX)</Text>
-              </Pressable>
-            </View>
           </View>
         }
         ListEmptyComponent={
@@ -189,7 +201,6 @@ export default function History() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  wrap: { paddingHorizontal: space.l },
   header: { paddingVertical: space.m, gap: space.s },
   summary: {
     backgroundColor: color.card,
@@ -200,7 +211,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s,
     alignItems: 'center',
   },
-  totalKm: { fontSize: 48, fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
+  summaryCompact: { paddingVertical: space.s + 4 },
+  totalKm: { fontWeight: '800', color: color.ink, fontVariant: ['tabular-nums'] },
   totalUnit: { fontSize: 20, fontWeight: '700', color: color.sub },
   totalLabel: { fontSize: 14, color: color.sub, marginBottom: space.m },
   statRow: { flexDirection: 'row', alignSelf: 'stretch' },
@@ -208,8 +220,5 @@ const styles = StyleSheet.create({
   dayFilter: { paddingVertical: space.xs },
   dayFilterText: { color: color.ink, fontWeight: '600' },
   link: { color: color.sub, textDecorationLine: 'underline' },
-  backupRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.l },
-  backup: { paddingVertical: space.xs },
-  backupText: { color: color.sub, fontWeight: '600', textDecorationLine: 'underline' },
   empty: { color: color.sub, paddingVertical: space.l },
 });

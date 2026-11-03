@@ -9,6 +9,7 @@ import { prepareRunGpx } from '../../services/export';
 import { deleteRun, getRun, loadEvents } from '../../services/storage';
 import { BusyOverlay } from '../../ui/BusyOverlay';
 import { CourseBar } from '../../ui/CourseBar';
+import { useLayout } from '../../ui/layout';
 import { MoreMenu } from '../../ui/MoreMenu';
 import { RouteMap } from '../../ui/RouteMap';
 import { goBackOrHome } from '../../ui/navigation';
@@ -30,6 +31,8 @@ export default function RunDetail() {
   });
   const [sharing, setSharing] = useState(false);
   const insets = useSafeAreaInsets();
+  const L = useLayout();
+  const pad = L.pad;
   if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
 
   const goal = courseProgress(run, run.movingMs);
@@ -50,7 +53,7 @@ export default function RunDetail() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.wrap}>
+      <ScrollView contentContainerStyle={{ padding: pad, gap: pad, paddingBottom: space.xl }}>
         <Stack.Screen
           options={{
             title: courseLabel(run),
@@ -77,8 +80,8 @@ export default function RunDetail() {
           </Text>
         )}
         {/* 달릴 때의 코스 사본이라 코스를 고치거나 지워도 그대로다 */}
-        {run.custom && <CourseBar blocks={run.custom.blocks} height={72} elapsedMs={run.movingMs} />}
-        <RouteMap segments={segments} tint={activityColor[run.activity]} />
+        {run.custom && <CourseBar blocks={run.custom.blocks} height={L.courseBar.normal} elapsedMs={run.movingMs} />}
+        <RouteMap segments={segments} tint={activityColor[run.activity]} height={L.map} />
         <Stat big label="킬로미터" value={formatKm(run.distanceM)} />
         <View style={styles.row}>
           <Stat label="시간" value={formatDuration(run.movingMs)} />
@@ -99,7 +102,7 @@ export default function RunDetail() {
       </ScrollView>
 
       {/* 구간이 길어도 스크롤 없이 누르도록 아래에 고정. 3버튼 내비게이션 바만큼 띄운다 */}
-      <View style={[styles.footer, { paddingBottom: space.l + insets.bottom }]}>
+      <View style={[styles.footer, { paddingHorizontal: pad, paddingBottom: pad + insets.bottom }]}>
         <Pressable
           onPress={() => setSharing(true)}
           style={({ pressed }) => [
@@ -126,7 +129,6 @@ export default function RunDetail() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  wrap: { padding: space.l, gap: space.l, paddingBottom: space.xl },
   row: { flexDirection: 'row' },
   goal: { textAlign: 'center', fontSize: 16, fontWeight: '700' },
   h2: { fontSize: 18, fontWeight: '700', color: color.ink, marginBottom: space.s },
@@ -139,7 +141,7 @@ const styles = StyleSheet.create({
   },
   splitKm: { color: color.sub },
   splitPace: { color: color.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  footer: { paddingHorizontal: space.l, paddingTop: space.s },
+  footer: { paddingTop: space.s },
   share: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: space.m, borderRadius: 999 },
   shareText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   empty: { padding: space.l, color: color.sub },

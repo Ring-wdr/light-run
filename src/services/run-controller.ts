@@ -38,10 +38,22 @@ export interface RunSnapshot {
   gps: { received: number; lastAccuracyM: number | null; lastAt: number | null };
   /** 이 기록의 음성 안내 켬/끔(기록 중 화면 토글). 설정의 기본값은 바꾸지 않는다 */
   voiceOn: boolean;
+  /** 시작 전 대기 카운트(3, 2, 1)에서 남은 초. 카운트 중에는 runId가 없고 아무것도 저장하지 않았다 */
+  countdown: number | null;
 }
 
 const NO_GPS: RunSnapshot['gps'] = { received: 0, lastAccuracyM: null, lastAt: null };
-const EMPTY: RunSnapshot = { runId: null, course: null, run: initialRun, tracking: null, gps: NO_GPS, voiceOn: false };
+const EMPTY: RunSnapshot = {
+  runId: null,
+  course: null,
+  run: initialRun,
+  tracking: null,
+  gps: NO_GPS,
+  voiceOn: false,
+  countdown: null,
+};
+/** 시작 버튼을 누른 뒤 기록이 시작되기까지 세는 초 */
+export const COUNTDOWN_SEC = 3;
 let snap: RunSnapshot = EMPTY;
 /** 기록을 시작(이어가기)할 때 읽은 설정. 시간 안내 간격에 쓴다 */
 let voice: VoiceSettings = DEFAULT_VOICE;
@@ -149,9 +161,53 @@ export async function discardUnfinishedRun(runId: number): Promise<void> {
   await stopTracking();
 }
 
-export async function startRun(course: Course): Promise<PermissionResult> {
+/** 진행 중인 대기 카운트를 끝낸다. true면 바로 시작, false면 취소 */
+let endCountdown: ((go: boolean) => void) | null = null;
+
+/** 대기 카운트를 1초씩 센다. 다 세거나 건너뛰면 true, 취소하면 false */
+function countDown(course: Course): Promise<boolean> {
+  return new Promise((resolve) => {
+    let left = COUNTDOWN_SEC;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      left -= 1;
+      if (left <= 0) return end(true);
+      emit({ ...snap, countdown: left });
+      timer = setTimeout(tick, 1000);
+    };
+    const end = (go: boolean) => {
+      clearTimeout(timer);
+      endCountdown = null;
+      resolve(go);
+    };
+    endCountdown = end;
+    emit({ ...EMPTY, course, countdown: left });
+    timer = setTimeout(tick, 1000);
+  });
+}
+
+/** 대기 카운트를 건너뛰고 바로 시작한다 */
+export function skipCountdown(): void {
+  endCountdown?.(true);
+}
+
+/** 대기 카운트를 취소한다. 저장한 것이 없으니 그냥 비우면 가드가 홈으로 보낸다 */
+export function cancelCountdown(): void {
+  if (!endCountdown) return;
+  endCountdown(false);
+  emit(EMPTY);
+}
+
+/**
+ * 권한을 받고, 대기 카운트(3, 2, 1)가 끝나면 기록을 시작한다.
+ * 카운트 중에도 _layout.tsx의 가드는 기록 화면을 띄운다(화면이 카운트를 전체화면으로 보여 준다).
+ * 시작 시각은 카운트가 끝난 때라서 카운트 시간은 기록에 들어가지 않는다. 취소하면 null
+ */
+export async function startRun(course: Course): Promise<PermissionResult | null> {
+  if (snap.runId != null || endCountdown) return null;
   const perm = await requestPermissions();
   if (perm === 'foreground-denied') return perm;
+  if (!(await countDown(course))) return null;
   const at = Date.now();
   voice = loadVoiceSettings();
   const runId = createRun(at, course, voice.enabled);

@@ -14,14 +14,17 @@ export const CARD_WIDTH = 300;
 export const CARD_HEIGHT = 375;
 const ROUTE_HEIGHT = 150;
 
-/** SNS로 보낼 기록 카드. ref로 받은 View를 캡처한다(collapsable=false여야 Android에서 캡처된다) */
+/**
+ * SNS로 보낼 기록 카드. ref로 받은 View를 캡처한다(collapsable=false여야 Android에서 캡처된다).
+ * 크기가 고정된 이미지라 기기 글꼴 배율을 따르지 않는다.
+ */
 export function ShareCard({ run, segments, ref }: { run: RunRow; segments: LatLon[][]; ref?: Ref<View> }) {
   const hasRoute = segments.some((s) => s.length > 1);
   return (
     <View ref={ref} collapsable={false} style={[styles.card, { backgroundColor: activityColor[run.activity] }]}>
       <View>
-        <Text style={styles.course}>{courseLabel(run)}</Text>
-        <Text style={styles.date}>{formatDateTimeLong(run.startedAt)}</Text>
+        <Text allowFontScaling={false} style={styles.course}>{courseLabel(run)}</Text>
+        <Text allowFontScaling={false} style={styles.date}>{formatDateTimeLong(run.startedAt)}</Text>
       </View>
 
       <View style={styles.route}>
@@ -29,15 +32,15 @@ export function ShareCard({ run, segments, ref }: { run: RunRow; segments: LatLo
       </View>
 
       <View>
-        <Text style={styles.km} numberOfLines={1} adjustsFontSizeToFit>
+        <Text allowFontScaling={false} style={styles.km} numberOfLines={1} adjustsFontSizeToFit>
           {formatKm(run.distanceM)}
-          <Text style={styles.kmUnit}> km</Text>
+          <Text allowFontScaling={false} style={styles.kmUnit}> km</Text>
         </Text>
         <View style={styles.row}>
           <Metric label="시간" value={formatDuration(run.movingMs)} />
           <Metric label="평균 페이스" value={formatPace(paceSecPerKm(run.distanceM, run.movingMs))} />
         </View>
-        <Text style={styles.brand}>가벼운 러닝 {SHARE_TAG}</Text>
+        <Text allowFontScaling={false} style={styles.brand}>{SHARE_TAG}</Text>
       </View>
     </View>
   );
@@ -46,8 +49,8 @@ export function ShareCard({ run, segments, ref }: { run: RunRow; segments: LatLo
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metric}>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
+      <Text allowFontScaling={false} style={styles.metricValue}>{value}</Text>
+      <Text allowFontScaling={false} style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }

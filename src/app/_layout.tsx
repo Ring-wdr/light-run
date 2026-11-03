@@ -47,7 +47,9 @@ function askResumeUnfinishedRun(): void {
 }
 
 export default function RootLayout() {
-  const running = useRun().runId != null;
+  const { runId, countdown } = useRun();
+  // 시작 전 대기 카운트도 기록 화면이 보여 준다
+  const running = runId != null || countdown != null;
 
   useEffect(askResumeUnfinishedRun, []);
 
@@ -64,11 +66,11 @@ export default function RootLayout() {
       >
         {/*
           기록 중인지로 열 수 있는 화면을 나눈다(src/ui/navigation.ts).
-          시작·이어가기로 기록이 생기면 스택이 [기록]만 남고, 끝나면 [홈]으로 새로 시작한다.
+          시작(대기 카운트부터)·이어가기로 기록이 생기면 스택이 [기록]만 남고, 끝나면(카운트 취소 포함) [홈]으로 새로 시작한다.
           기록 중 Android 뒤로 가기는 스택 맨 아래라 앱을 백그라운드로 보낸다(기록은 계속, 다시 열면 기록 화면)
         */}
         <Stack.Protected guard={!running}>
-          <Stack.Screen name="index" options={{ title: '가벼운 러닝' }} />
+          <Stack.Screen name="index" options={{ title: '라이트런' }} />
           <Stack.Screen name="history/index" options={{ title: '기록' }} />
           <Stack.Screen name="history/[id]" options={{ title: '상세' }} />
           <Stack.Screen name="replay/[id]" options={{ title: '3D로 다시 보기' }} />

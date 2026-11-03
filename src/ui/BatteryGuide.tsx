@@ -21,7 +21,7 @@ export function BatteryGuide() {
   if (!visible) return null;
 
   const onOpen = () =>
-    openAppSettings().catch(() => Alert.alert('설정을 열지 못했어요', '설정 › 애플리케이션 › 가벼운 러닝에서 바꿔 주세요.'));
+    openAppSettings().catch(() => Alert.alert('설정을 열지 못했어요', '설정 › 애플리케이션 › 라이트런에서 바꿔 주세요.'));
   const onDismiss = () => {
     dismissBatteryGuide();
     setVisible(false);

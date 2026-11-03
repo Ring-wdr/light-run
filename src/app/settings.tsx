@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VOICE_INTERVALS, type VoiceInterval, type VoiceSettings } from '../core/voice';
 import { hasKoreanVoice, loadVoiceSettings, saveVoiceSettings } from '../services/voice';
+import { useLayout } from '../ui/layout';
 import { Segmented } from '../ui/Segmented';
 import { color, space } from '../ui/theme';
 
@@ -11,6 +12,7 @@ const intervalLabel = (m: VoiceInterval) => (m === 0 ? '끔' : `${m}분`);
 /** 기본값 관리. 기록 중 화면의 음성 안내 토글은 이번 기록에만 적용되고 여기 값은 바꾸지 않는다 */
 export default function Settings() {
   const insets = useSafeAreaInsets();
+  const { pad } = useLayout();
   const [voice, setVoice] = useState<VoiceSettings>(loadVoiceSettings);
   const [koreanMissing, setKoreanMissing] = useState(false);
 
@@ -24,9 +26,9 @@ export default function Settings() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}>
+    <ScrollView contentContainerStyle={[styles.wrap, { padding: pad, paddingBottom: pad + insets.bottom }]}>
       <Text style={styles.h2}>음성 안내</Text>
-      <View style={styles.card}>
+      <View style={[styles.card, { padding: pad, gap: pad }]}>
         <View style={styles.row}>
           <View style={styles.rowText}>
             <Text style={styles.label}>음성 안내</Text>
@@ -62,9 +64,9 @@ export default function Settings() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: space.l, gap: space.s },
+  wrap: { gap: space.s },
   h2: { fontSize: 18, fontWeight: '700', color: color.ink },
-  card: { backgroundColor: color.card, borderRadius: 20, padding: space.l, gap: space.l },
+  card: { backgroundColor: color.card, borderRadius: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.m },
   rowText: { flex: 1, gap: space.xs },
   block: { gap: space.s },

@@ -3,7 +3,6 @@ import Svg, { ClipPath, Defs, Line, Path, Rect } from 'react-native-svg';
 import { ScrubArea } from './Scrub';
 import { replayTheme } from './theme';
 
-const H = 64;
 /** 위아래 여백(선 두께·커서가 잘리지 않게) */
 const PAD = 4;
 
@@ -16,12 +15,14 @@ export function ElevationProfile({
   distanceM,
   totalM,
   onSeek,
+  height: H = 64,
 }: {
   profile: { d: number; ele: number }[] | null;
   distanceM: number;
   totalM: number;
   /** 누른 위치의 누적 거리(m) */
   onSeek: (distanceM: number) => void;
+  height?: number;
 }) {
   if (!profile || totalM <= 0) {
     return (

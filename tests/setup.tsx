@@ -34,7 +34,11 @@ jest.mock('@rnmapbox/maps', () => {
     useImperativeHandle(ref, () => ({ setCamera: () => {}, fitBounds: () => {} }));
     return null;
   });
-  const Mapbox = { setAccessToken: async (t: string | null) => t, StyleURL: { Dark: 'mapbox://styles/mapbox/dark-v11' } };
+  const Mapbox = {
+    setAccessToken: async (t: string | null) => t,
+    setTelemetryEnabled: () => {},
+    StyleURL: { Dark: 'mapbox://styles/mapbox/dark-v11' },
+  };
   return {
     __esModule: true,
     default: Mapbox,

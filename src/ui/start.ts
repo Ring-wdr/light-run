@@ -3,10 +3,14 @@ import type { Course } from '../core/course';
 import { startRun } from '../services/run-controller';
 import { alertError } from './alert';
 
-/** 권한 안내까지 포함해 기록을 시작한다. 시작했으면 true. 기록 화면은 _layout.tsx의 가드가 띄운다 */
+/**
+ * 권한 안내까지 포함해 기록을 시작한다. 대기 카운트(3, 2, 1)가 끝나 시작했으면 true, 취소했으면 false.
+ * 기록 화면(카운트 포함)은 _layout.tsx의 가드가 띄운다
+ */
 export async function startCourse(course: Course): Promise<boolean> {
   try {
     const perm = await startRun(course);
+    if (perm == null) return false;
     if (perm === 'foreground-denied') {
       Alert.alert('위치 권한이 필요해요', '설정에서 위치 권한을 허용해 주세요.');
       return false;

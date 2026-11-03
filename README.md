@@ -1,4 +1,4 @@
-# 가벼운 러닝
+# 라이트런
 
 광고 없이, 누르고 달리고 끝나면 기록이 남는 러닝 앱.
 
@@ -6,7 +6,7 @@
 - 로그인·서버 없음. 기록은 기기 안(SQLite)에만 저장
 - 화면이 꺼져도 백그라운드로 기록, 시간 음성 안내
 
-기획과 로드맵은 [docs/PLAN.md](docs/PLAN.md).
+기획과 로드맵은 [docs/PLAN.md](docs/PLAN.md). Google Play 출시 준비는 [docs/RELEASE.md](docs/RELEASE.md).
 
 ## 시작하기
 
@@ -23,9 +23,9 @@ npm run check        # 타입체크 + 린트 + 테스트
 
 | 용도 | 명령 | 폰에 설치되는 앱 |
 |---|---|---|
-| 개발·테스트 | `npm run android` 후 `npx expo start` | 가벼운 러닝 (개발) · `com.ringwdr.lightrun.dev` |
-| 개발 앱을 릴리스로 확인(백그라운드·절전) | `npm run android:release` | 가벼운 러닝 (개발) |
-| 실사용·주변에 공유 | `npx eas-cli@latest build -p android --profile preview` | 가벼운 러닝 · `com.ringwdr.lightrun` |
+| 개발·테스트 | `npm run android` 후 `npx expo start` | 라이트런 (개발) · `com.ringwdr.lightrun.dev` |
+| 개발 앱을 릴리스로 확인(백그라운드·절전) | `npm run android:release` | 라이트런 (개발) |
+| 실사용·주변에 공유 | `npx eas-cli@latest build -p android --profile preview` | 라이트런 · `com.ringwdr.lightrun` |
 | 화면만 빠르게(백그라운드 기록·음성 네이티브 모듈 없음) | `npm run start:go` | Expo Go |
 
 - `APP_VARIANT`가 없으면 개발용이다. `eas.json`의 `preview`·`production` 프로필만 `APP_VARIANT=production`을 넣는다.
@@ -67,7 +67,7 @@ npx expo start --dev-client
 ```
 
 ### `npx expo start`로 앱이 안 열릴 때
-- `expo-dev-client`가 설치돼 있어서 `npx expo start`는 **development build 모드**로 켜진다. QR은 폰에 설치된 "가벼운 러닝 (개발)" 앱으로만 열린다(Expo Go·카메라로는 안 열림).
+- `expo-dev-client`가 설치돼 있어서 `npx expo start`는 **development build 모드**로 켜진다. QR은 폰에 설치된 "라이트런 (개발)" 앱으로만 열린다(Expo Go·카메라로는 안 열림).
 - 개발용 앱 없이 화면만 보려면 **`npm run start:go`**(= `expo start --go`)로 켜고 Expo Go로 스캔한다. 단, Expo Go에서는 화면 꺼짐 백그라운드 기록이 동작하지 않는다(화면을 켜 둔 동안만 기록). 지도는 Expo Go 자체 키로 표시된다.
 - 폰과 PC가 다른 네트워크(회사 Wi-Fi, 방화벽)면 `npx expo start --tunnel`.
 - 서버를 켠 터미널에서 `s`를 누르면 development build ↔ Expo Go 모드를 바꿀 수 있다.

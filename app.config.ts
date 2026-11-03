@@ -8,7 +8,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  *
  * 앱 변형(APP_VARIANT). 로컬 빌드는 디버그 키로 서명되고 공유용 APK는 EAS 키로 서명돼서
  * 같은 패키지면 서로 덮어 설치할 수 없다(지우고 깔면 기록이 사라진다). 그래서 로컬은 별도 앱으로 둔다.
- * - development(기본값, 로컬 `expo run`·`expo start`): com.ringwdr.lightrun.dev, "가벼운 러닝 (개발)"
+ * - development(기본값, 로컬 `expo run`·`expo start`): com.ringwdr.lightrun.dev, "라이트런 (개발)"
  * - production(eas.json의 preview·production 프로필이 지정): com.ringwdr.lightrun, 공유·실사용
  */
 const MISSING_KEY = 'MISSING_GOOGLE_MAPS_API_KEY';
@@ -25,7 +25,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // 두 앱이 같은 링크를 받으면 매번 어느 앱으로 열지 묻는다
     scheme: isDev ? `${base.scheme}-dev` : base.scheme,
     ios: { ...base.ios, bundleIdentifier: `${base.ios?.bundleIdentifier}${suffix}` },
-    android: { ...base.android, package: `${base.android?.package}${suffix}` },
+    android: {
+      ...base.android,
+      package: `${base.android?.package}${suffix}`,
+      // 공유·스토어용에서는 Expo 기본 템플릿이 넣는 다른 앱 위에 그리기 권한을 뺀다(쓰지 않는 권한은 심사 사유가 된다).
+      // 개발용은 development build 메뉴가 쓸 수 있어 그대로 둔다
+      blockedPermissions: [
+        ...(base.android?.blockedPermissions ?? []),
+        ...(isDev ? [] : ['android.permission.SYSTEM_ALERT_WINDOW']),
+      ],
+    },
     plugins: [
       ...(config.plugins ?? []),
       [

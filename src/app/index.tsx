@@ -9,12 +9,13 @@ import { BatteryGuide } from '../ui/BatteryGuide';
 import { Chevron } from '../ui/Chevron';
 import { CourseGrid } from '../ui/CourseGrid';
 import { useBusy } from '../ui/hooks';
+import { useLayout } from '../ui/layout';
 import { openDetailAfterStop } from '../ui/navigation';
 import { SettingsIcon } from '../ui/SettingsIcon';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
 import { startCourse } from '../ui/start';
-import { activityColor, color, COURSE_CARD_GAP, COURSE_CARD_H, courseTheme, space } from '../ui/theme';
+import { activityColor, color, courseTheme, space } from '../ui/theme';
 
 const GOAL_HINT: Record<Activity, Record<string, string>> = {
   walk: { '30': '가볍게 동네 한 바퀴', '50': '넉넉하게 산책', free: '시간 제한 없이' },
@@ -36,6 +37,8 @@ function savedTab(): HomeTab {
 
 export default function Home() {
   const insets = useSafeAreaInsets();
+  const L = useLayout();
+  const h2 = [styles.h2, { marginTop: L.sectionTop }];
   // 마지막으로 고른 탭을 기억한다(내 코스만 쓰는 사람이 매번 탭을 누르지 않게)
   const [tab, setTab] = useState<HomeTab>(savedTab);
   const [recent, setRecent] = useState<RunRow[]>([]);
@@ -63,7 +66,7 @@ export default function Home() {
   const onStart = (course: Course) => runStart(() => startCourse(course));
 
   return (
-    <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}>
+    <ScrollView contentContainerStyle={[styles.wrap, { padding: L.pad, paddingBottom: L.pad + insets.bottom }]}>
       <Stack.Screen
         options={{
           headerRight: () => (
@@ -82,11 +85,11 @@ export default function Home() {
       <BatteryGuide />
       <Segmented options={TABS} value={tab} onChange={onTab} tint={tint} />
 
-      <Text style={styles.h2}>코스 선택</Text>
+      <Text style={h2}>코스 선택</Text>
       {tab === 'mine' ? (
         <CourseGrid courses={courses} />
       ) : (
-      <View style={styles.cards}>
+      <View style={{ gap: L.card.gap }}>
         {GOALS.map((goalMin) => (
           <Pressable
             key={String(goalMin)}
@@ -94,14 +97,14 @@ export default function Home() {
             disabled={starting}
             style={({ pressed }) => [
               styles.card,
-              { borderColor: tint },
+              { height: L.card.h, borderColor: tint },
               goalMin == null && { backgroundColor: tint },
               (pressed || starting) && { opacity: 0.7 },
             ]}
             accessibilityRole="button"
             accessibilityLabel={`${ACTIVITY_LABEL[activity]} ${goalLabel(goalMin)} 시작`}
           >
-            <Text style={[styles.cardTitle, { color: goalMin == null ? '#fff' : tint }]} maxFontSizeMultiplier={1.3}>
+            <Text style={[styles.cardTitle, { fontSize: L.card.title, color: goalMin == null ? '#fff' : tint }]} maxFontSizeMultiplier={1.3}>
               {goalLabel(goalMin)}
             </Text>
             <Text style={[styles.cardHint, goalMin == null && { color: '#fff' }]} maxFontSizeMultiplier={1.3}>
@@ -117,7 +120,7 @@ export default function Home() {
 
       {/* 전체 보기는 제목 옆에 둬서 최근 기록 수와 상관없이 스크롤 없이 닿게 한다 */}
       <View style={styles.sectionHead}>
-        <Text style={styles.h2}>최근 기록</Text>
+        <Text style={h2}>최근 기록</Text>
         {recent.length > 0 && (
           // Link asChild로 감싸면 함수형 style이 사라져 글자와 아이콘이 두 줄이 된다
           <Pressable
@@ -141,12 +144,10 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: space.l, gap: space.s },
-  h2: { fontSize: 18, fontWeight: '700', color: color.ink, marginTop: space.l },
-  cards: { gap: COURSE_CARD_GAP },
-  // 높이를 고정해 내 코스 칸(같은 높이)과 탭을 오가도 화면이 밀리지 않게 한다
+  wrap: { gap: space.s },
+  h2: { fontSize: 18, fontWeight: '700', color: color.ink },
+  // 높이를 고정해(layout.ts card) 내 코스 칸(같은 높이)과 탭을 오가도 화면이 밀리지 않게 한다
   card: {
-    height: COURSE_CARD_H,
     justifyContent: 'center',
     backgroundColor: color.card,
     borderWidth: 2,
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.m,
     paddingHorizontal: space.l,
   },
-  cardTitle: { fontSize: 36, fontWeight: '800' },
+  cardTitle: { fontWeight: '800' },
   cardHint: { marginTop: 2, color: color.sub, fontSize: 15 },
   cardGo: { position: 'absolute', right: space.l, bottom: space.m, fontWeight: '700', fontSize: 16 },
   empty: { color: color.sub, paddingVertical: space.m },

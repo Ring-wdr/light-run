@@ -6,11 +6,13 @@ import { formatTotalSec, totalSec, type MyCourse } from '../../core/my-course';
 import { listCourses } from '../../services/storage';
 import { Chevron } from '../../ui/Chevron';
 import { CourseBar } from '../../ui/CourseBar';
+import { useLayout } from '../../ui/layout';
 import { color, courseTheme, space } from '../../ui/theme';
 
 /** 홈 그리드의 "더보기": 내 코스 전부(홈과 같은 순서) + 새 코스 */
 export default function CourseList() {
   const insets = useSafeAreaInsets();
+  const { pad } = useLayout();
   const [courses, setCourses] = useState<MyCourse[]>([]);
   useFocusEffect(useCallback(() => setCourses(listCourses()), []));
 
@@ -34,7 +36,7 @@ export default function CourseList() {
       <FlatList
         data={courses}
         keyExtractor={(c) => String(c.id)}
-        contentContainerStyle={[styles.wrap, { paddingBottom: space.l + insets.bottom }]}
+        contentContainerStyle={[styles.wrap, { padding: pad, paddingBottom: pad + insets.bottom }]}
         ListEmptyComponent={<Text style={styles.empty}>아직 만든 코스가 없어요.</Text>}
         renderItem={({ item: c }) => (
           <Pressable
@@ -62,7 +64,7 @@ export default function CourseList() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: space.l, gap: space.s },
+  wrap: { gap: space.s },
   newText: { color: courseTheme.tint, fontWeight: '700', fontSize: 16 },
   item: {
     flexDirection: 'row',

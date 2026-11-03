@@ -7,7 +7,10 @@ import { appendSamples, getActiveRunId } from './storage';
 
 /**
  * 백그라운드 위치 태스크.
- * - Android: 포그라운드 서비스 + 상시 알림으로 화면이 꺼져도 기록한다(갤럭시 절전 모드 대응).
+ * - Android: 포그라운드 서비스(type=location) + 상시 알림으로 화면이 꺼져도 기록한다(갤럭시 절전 모드 대응).
+ *   사용자가 앱에서 누른 "시작"으로 켜는 서비스라 "앱 사용 중에만 허용"으로 충분하다.
+ *   "항상 허용"(ACCESS_BACKGROUND_LOCATION)은 매니페스트에 넣지 않는다(app.json). 넣으면 Play 심사에서
+ *   백그라운드 위치 신고·영상 심사 대상이 되고, 필요 없는 권한이라 거절 사유가 된다(docs/RELEASE.md).
  * - iOS: UIBackgroundModes location + "항상 허용" 권한이 필요하다(app.json 플러그인 설정).
  *
  * defineTask는 반드시 모듈 최상위에서 불려야 한다. 앱이 백그라운드에서 JS만 다시 띄울 때도
@@ -61,13 +64,15 @@ let foregroundSub: Location.LocationSubscription | null = null;
 export type PermissionResult = 'granted' | 'foreground-denied' | 'background-denied';
 
 /**
- * 포그라운드 → 백그라운드 순서로 요청해야 한다(두 OS 모두 한 번에 "항상 허용"을 못 받는다).
+ * iOS는 포그라운드 → 백그라운드 순서로 요청해야 한다(한 번에 "항상 허용"을 못 받는다).
+ * Android는 포그라운드 권한만 받는다(포그라운드 서비스로 기록하므로. 위 머리 주석).
  * 백그라운드가 거부돼도 화면을 켜 둔 채 기록은 가능하므로 호출부에서 안내만 한다.
  */
 export async function requestPermissions(): Promise<PermissionResult> {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return 'foreground-denied';
   if (backgroundUnsupported) return 'background-denied';
+  if (Platform.OS === 'android') return 'granted';
   const bg = await Location.requestBackgroundPermissionsAsync();
   return bg.status === 'granted' ? 'granted' : 'background-denied';
 }
@@ -86,7 +91,7 @@ export async function startTracking(): Promise<TrackingMode> {
         showsBackgroundLocationIndicator: true,
         foregroundService: {
           notificationTitle: '기록 중',
-          notificationBody: '가벼운 러닝이 기록하고 있어요',
+          notificationBody: '라이트런이 기록하고 있어요',
           notificationColor: '#FF5D3A',
           killServiceOnDestroy: false,
         },
