@@ -7,7 +7,7 @@ import { PLAN_LIMITS, validatePlanDraft, type PlanDraft } from '../../core/plan'
 import { createPlan, getPlan, updatePlan } from '../../services/storage';
 import { useLayout } from '../../ui/layout';
 import { goBackOrHome } from '../../ui/navigation';
-import { color, courseTheme, space } from '../../ui/theme';
+import { color, courseTheme, space, statusColor } from '../../ui/theme';
 
 const EMPTY: PlanDraft = { name: '', description: '' };
 
@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
     color: color.ink,
   },
   multiline: { minHeight: 72, textAlignVertical: 'top' },
-  inputError: { borderColor: color.accent },
-  error: { color: color.accent, fontSize: 13 },
+  inputError: { borderColor: statusColor.danger },
+  error: { color: statusColor.danger, fontSize: 13 },
   footer: { paddingTop: space.s, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
   save: { backgroundColor: courseTheme.tint, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#fff', fontSize: 18, fontWeight: '800' },

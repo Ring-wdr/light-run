@@ -31,12 +31,13 @@ import {
 } from '../../core/my-course';
 import { createCourse, getCourse, getPlan, listCourses, listPlans, setPref, updateCourse } from '../../services/storage';
 import { CourseBar } from '../../ui/CourseBar';
+import { Icon, IconLabel, type IconName } from '../../ui/Icon';
 import { useLayout } from '../../ui/layout';
 import { MoreMenu, type MoreMenuItem } from '../../ui/MoreMenu';
 import { goBackOrHome, goHome } from '../../ui/navigation';
 import { startCourse } from '../../ui/start';
 import { StepSheet } from '../../ui/StepSheet';
-import { color, courseTheme, space } from '../../ui/theme';
+import { color, courseTheme, space, statusColor } from '../../ui/theme';
 
 const EMPTY: Draft = { name: '', description: '', blocks: [] };
 
@@ -220,15 +221,15 @@ export default function CourseEdit() {
                 <View style={styles.repeatHead}>
                   <Text style={styles.repeatTitle}>반복</Text>
                   <View style={styles.times}>
-                    <RoundButton label="−" onPress={() => set({ blocks: setTimes(blocks, i, b.times - 1) })} disabled={b.times <= LIMITS.timesMin} a11y="반복 줄이기" />
+                    <RoundButton icon="minus" onPress={() => set({ blocks: setTimes(blocks, i, b.times - 1) })} disabled={b.times <= LIMITS.timesMin} a11y="반복 줄이기" />
                     <Text style={styles.timesText} accessibilityLabel={`${b.times}번 반복`}>× {b.times}</Text>
-                    <RoundButton label="＋" onPress={() => set({ blocks: setTimes(blocks, i, b.times + 1) })} disabled={b.times >= LIMITS.timesMax} a11y="반복 늘리기" />
+                    <RoundButton icon="plus" onPress={() => set({ blocks: setTimes(blocks, i, b.times + 1) })} disabled={b.times >= LIMITS.timesMax} a11y="반복 늘리기" />
                   </View>
                   <Text style={styles.repeatSec} numberOfLines={1} adjustsFontSizeToFit>
                     {formatTotalSec(blockSec(b))}
                   </Text>
                   <MoreMenu
-                    glyph="⋮"
+                    icon="moreV"
                     label="반복 메뉴"
                     items={[
                       { label: '위로', onPress: () => set({ blocks: moveAt(blocks, { i }, -1) }), disabled: !canMove(blocks, { i }, -1) },
@@ -247,7 +248,7 @@ export default function CourseEdit() {
                   accessibilityRole="button"
                   accessibilityLabel="반복 안에 구간 추가"
                 >
-                  <Text style={styles.addText}>＋ 구간</Text>
+                  <IconLabel icon="plus" label="구간" style={styles.addText} />
                 </Pressable>
               </View>
             ),
@@ -256,10 +257,10 @@ export default function CourseEdit() {
 
         <View style={styles.addRow}>
           <Pressable onPress={() => openSheet({ kind: 'add' })} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button">
-            <Text style={styles.addText}>＋ 구간 추가</Text>
+            <IconLabel icon="plus" label="구간 추가" style={styles.addText} />
           </Pressable>
           <Pressable onPress={() => set({ blocks: [...blocks, newRepeat()] })} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button">
-            <Text style={styles.addText}>＋ 반복 추가</Text>
+            <IconLabel icon="plus" label="반복 추가" style={styles.addText} />
           </Pressable>
         </View>
       </ScrollView>
@@ -309,12 +310,12 @@ function StepRow({ step, onPress, menu }: { step: Step; onPress: () => void; men
         <Text style={styles.rowLabel}>{INTENSITY_LABEL[step.intensity]}</Text>
         <Text style={styles.rowSec}>{formatStepSec(step.sec)}</Text>
       </Pressable>
-      <MoreMenu glyph="⋮" label="구간 메뉴" items={menu} />
+      <MoreMenu icon="moreV" label="구간 메뉴" items={menu} />
     </View>
   );
 }
 
-function RoundButton({ label, onPress, disabled, a11y }: { label: string; onPress: () => void; disabled?: boolean; a11y: string }) {
+function RoundButton({ icon, onPress, disabled, a11y }: { icon: IconName; onPress: () => void; disabled?: boolean; a11y: string }) {
   return (
     <Pressable
       onPress={onPress}
@@ -324,7 +325,7 @@ function RoundButton({ label, onPress, disabled, a11y }: { label: string; onPres
       accessibilityRole="button"
       accessibilityLabel={a11y}
     >
-      <Text style={styles.roundText}>{label}</Text>
+      <Icon name={icon} size={20} color={color.ink} />
     </Pressable>
   );
 }
@@ -347,8 +348,8 @@ const styles = StyleSheet.create({
     color: color.ink,
   },
   multiline: { minHeight: 72, textAlignVertical: 'top' },
-  inputError: { borderColor: color.accent },
-  error: { color: color.accent, fontSize: 13 },
+  inputError: { borderColor: statusColor.danger },
+  error: { color: statusColor.danger, fontSize: 13 },
   previewHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: space.s },
   total: { color: color.sub, fontVariant: ['tabular-nums'] },
   hint: { color: color.sub },
@@ -384,7 +385,6 @@ const styles = StyleSheet.create({
   timesText: { fontWeight: '800', color: color.ink, fontSize: 16, minWidth: 40, textAlign: 'center', fontVariant: ['tabular-nums'] },
   repeatSec: { flex: 1, textAlign: 'right', color: color.sub, fontVariant: ['tabular-nums'] },
   round: { width: 30, height: 30, borderRadius: 15, backgroundColor: color.card, alignItems: 'center', justifyContent: 'center' },
-  roundText: { fontSize: 18, fontWeight: '700', color: color.ink, lineHeight: 20 },
   addInner: { alignItems: 'center', paddingVertical: space.s },
   addRow: { flexDirection: 'row', gap: space.s },
   add: {

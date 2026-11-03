@@ -5,7 +5,7 @@ import { VOICE_INTERVALS, type VoiceInterval, type VoiceSettings } from '../core
 import { hasKoreanVoice, loadVoiceSettings, saveVoiceSettings } from '../services/voice';
 import { useLayout } from '../ui/layout';
 import { Segmented } from '../ui/Segmented';
-import { color, space } from '../ui/theme';
+import { color, space, statusColor } from '../ui/theme';
 
 const intervalLabel = (m: VoiceInterval) => (m === 0 ? '끔' : `${m}분`);
 
@@ -72,5 +72,5 @@ const styles = StyleSheet.create({
   block: { gap: space.s },
   label: { fontSize: 16, fontWeight: '700', color: color.ink },
   hint: { fontSize: 13, color: color.sub },
-  notice: { fontSize: 13, color: color.accent, paddingTop: space.s },
+  notice: { fontSize: 13, color: statusColor.warn, paddingTop: space.s },
 });

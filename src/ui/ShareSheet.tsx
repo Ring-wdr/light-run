@@ -25,6 +25,7 @@ import {
 } from '../services/share';
 import type { RunRow } from '../services/storage';
 import { errorMessage } from './alert';
+import { Icon, type IconName } from './Icon';
 import { CARD_HEIGHT, CARD_WIDTH, ShareCard } from './ShareCard';
 import { useLayout } from './layout';
 import { color, space } from './theme';
@@ -32,17 +33,17 @@ import { color, space } from './theme';
 /**
  * 대상별 아이콘(둥근 사각형). logo가 있으면 공식 로고(assets/share/, 156px로 줄여 압축)를 그대로 넣는다.
  * 카카오톡·인스타그램 로고는 앱 아이콘 모양 그대로 칸을 채우고, X는 흰 로고라 검은 칸 안에 작게 넣는다.
- * 저장·더보기는 기호 글자.
+ * 저장·더보기는 아이콘.
  */
 const BADGE: Record<
   ShareTargetId,
-  { bg: string; fg: string; text: string; logo?: ImageSourcePropType; logoSize?: number }
+  { bg: string; fg: string; text?: string; icon?: IconName; logo?: ImageSourcePropType; logoSize?: number }
 > = {
   kakao: { bg: 'transparent', fg: '#191919', text: 'TALK', logo: require('../../assets/share/kakao.png') },
   instagram: { bg: 'transparent', fg: '#FFFFFF', text: 'IG', logo: require('../../assets/share/instagram.png') },
   x: { bg: '#000000', fg: '#FFFFFF', text: 'X', logo: require('../../assets/share/x.png'), logoSize: 24 },
-  save: { bg: '#E4EAF0', fg: color.ink, text: '↓' },
-  more: { bg: '#E4EAF0', fg: color.ink, text: '···' },
+  save: { bg: '#E4EAF0', fg: color.ink, icon: 'download' },
+  more: { bg: '#E4EAF0', fg: color.ink, icon: 'moreH' },
 };
 
 const BADGE_SIZE = 52;
@@ -117,6 +118,8 @@ export function ShareSheet({
                       resizeMode="contain"
                       accessibilityIgnoresInvertColors
                     />
+                  ) : b.icon ? (
+                    <Icon name={b.icon} size={28} color={b.fg} />
                   ) : (
                     <Text style={[styles.badgeText, { color: b.fg }]}>{b.text}</Text>
                   )}

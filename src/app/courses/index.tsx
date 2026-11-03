@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatTotalSec, totalSec } from '../../core/my-course';
 import { progressRatio, shelf, shelfKey, type ShelfItem } from '../../core/plan';
 import { listCourses, listPlans } from '../../services/storage';
-import { Chevron } from '../../ui/Chevron';
+import { Icon, IconLabel } from '../../ui/Icon';
 import { CourseBar } from '../../ui/CourseBar';
 import { CreateSheet } from '../../ui/CreateSheet';
 import { useLayout } from '../../ui/layout';
@@ -32,7 +32,7 @@ export default function CourseList() {
               accessibilityRole="button"
               accessibilityLabel="새로 만들기"
             >
-              <Text style={styles.newText}>＋ 새로 만들기</Text>
+              <IconLabel icon="plus" label="새로 만들기" style={styles.newText} />
             </Pressable>
           ),
         }}
@@ -70,7 +70,7 @@ function CourseRow({ course: c }: { course: Course }) {
         </View>
         <CourseBar blocks={c.blocks} height={18} padded={false} />
       </View>
-      <Chevron dir="right" size={20} color={color.sub} />
+      <Icon name="chevronRight" size={20} color={color.sub} />
     </Pressable>
   );
 }
@@ -96,7 +96,7 @@ function PlanRow({ plan: p }: { plan: Plan }) {
         <Text style={styles.planMeta}>플랜 · 코스 {p.total}개</Text>
         <ProgressBar ratio={progressRatio(p)} tint={courseTheme.tint} height={8} />
       </View>
-      <Chevron dir="right" size={20} color={color.sub} />
+      <Icon name="chevronRight" size={20} color={color.sub} />
     </Pressable>
   );
 }
