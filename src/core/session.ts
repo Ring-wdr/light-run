@@ -47,6 +47,17 @@ export interface RunState {
 
 export const PACE_WINDOW_MS = 30_000;
 
+/**
+ * 움직인 시간(일시정지 제외)이 이보다 짧은 기록은 실수로 시작한 것으로 보고 종료할 때 저장하지 않는다.
+ * 묻지 않는다(확인창 하나 더 띄우지 않기). 목록에 0.00km짜리 기록이 쌓이지 않게
+ */
+export const MIN_SAVED_MS = 15_000;
+
+/** 종료할 때 이 기록을 남길지 */
+export function worthSaving(movingMs: number): boolean {
+  return movingMs >= MIN_SAVED_MS;
+}
+
 export const initialRun: RunState = {
   status: 'idle',
   startedAt: null,

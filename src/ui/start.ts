@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import type { Course } from '../core/course';
+import { openAppSettings } from '../services/power';
 import { startRun } from '../services/run-controller';
 import { alertError } from './alert';
 
@@ -12,7 +13,16 @@ export async function startCourse(course: Course): Promise<boolean> {
     const perm = await startRun(course);
     if (perm == null) return false;
     if (perm === 'foreground-denied') {
-      Alert.alert('위치 권한이 필요해요', '설정에서 위치 권한을 허용해 주세요.');
+      // 두 번 거부하면(Android "다시 묻지 않음") 시스템 권한 창이 더는 뜨지 않는다. 앱 정보 화면으로 바로 보낸다
+      Alert.alert('위치 권한이 필요해요', '설정에서 위치 권한을 허용해 주세요.', [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '설정 열기',
+          onPress: () => {
+            openAppSettings().catch(() => Alert.alert('설정을 열지 못했어요', '설정 › 애플리케이션 › 라이트런 › 권한에서 바꿔 주세요.'));
+          },
+        },
+      ]);
       return false;
     }
     if (perm === 'background-denied') {

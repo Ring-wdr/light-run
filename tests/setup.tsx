@@ -99,3 +99,11 @@ jest.mock('react-native/Libraries/Components/View/ViewNativeComponent', () => ({
   ...jest.requireActual('@react-native/jest-preset/jest/mocks/ViewNativeComponent'),
   Commands: { hotspotUpdate: () => {}, setPressed: () => {} },
 }));
+
+// Android 토스트는 네이티브 모듈(ToastAndroid)이라 Node에 없다(불러오는 순간 TurboModule을 못 찾아 던진다).
+// 띄운 문구는 테스트에서 show 호출로 확인한다
+// (react-native/index.js가 default를 꺼내 쓰므로 __esModule + default로 흉내 낸다)
+jest.mock('react-native/Libraries/Components/ToastAndroid/ToastAndroid', () => ({
+  __esModule: true,
+  default: { SHORT: 0, LONG: 1, show: jest.fn() },
+}));

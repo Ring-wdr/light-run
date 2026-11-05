@@ -1,6 +1,8 @@
-# 기록 화면에서 종료한다. 끝나면 홈 위에 방금 기록의 상세가 열리고, 상세에는 뒤로 버튼이 있다
+# 기록 화면에서 종료한다. 끝나면 홈 위에 방금 기록의 상세가 열리고, 상세에는 뒤로 버튼이 있다.
+# 저장 기준 시간(15초)보다 짧으면 저장하지 않으므로 먼저 기다린다
 appId: com.ringwdr.lightrun.dev
 ---
+- runFlow: wait-saveable.yml
 - longPressOn: '길게 눌러 종료'
 - assertVisible: '공유하기'
 - runFlow: assert-header-back.yml

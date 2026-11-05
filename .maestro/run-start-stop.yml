@@ -19,7 +19,7 @@ name: 기록 시작·종료
       - tapOn: 'OK'
 - assertVisible: '길게 눌러 종료'
 
-- tapOn: '일시정지'
+- longPressOn: '길게 눌러 일시정지'
 - assertVisible: '일시정지됨'
 - tapOn: '재개'
 - assertNotVisible: '일시정지됨'
@@ -35,6 +35,7 @@ name: 기록 시작·종료
           stopApp: false
       - assertVisible: '길게 눌러 종료'
 
+- runFlow: subflows/wait-saveable.yml
 - longPressOn: '길게 눌러 종료'
 # 끝나면 홈 위에 방금 기록의 상세가 열린다(헤더 제목 = 코스 이름)
 - assertVisible: '공유하기'
