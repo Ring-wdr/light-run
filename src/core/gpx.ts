@@ -1,4 +1,6 @@
+import { EMPTY_LIBRARY, isEmptyLibrary, parseLibrary, type Library } from './backup';
 import type { Activity } from './course';
+import { toBlocks, type CourseSnapshot } from './my-course';
 import type { RunMark, Sample } from './types';
 
 /**
@@ -7,6 +9,8 @@ import type { RunMark, Sample } from './types';
  *
  * 이 앱이 내보낸 파일은 트랙마다 <extensions><lr:run>에 시작·종료 시각, 종목, 시간 목표,
  * 일시정지·재개 시각을 담는다. 그래서 백업을 다시 불러오면 기록이 그대로 복원된다.
+ * 내 코스로 달린 기록은 <lr:run> 안 <lr:course>에 그때의 코스 사본(JSON)을 담는다.
+ * 전체 백업은 <metadata><extensions><lr:library>에 내 코스·플랜 목록(JSON, core/backup.ts)을 담는다.
  * 다른 앱의 GPX(확장 없음)는 첫·마지막 점과 <trkseg> 사이 틈으로 대신 짐작한다.
  */
 const TRKPT = /<trkpt\b([^>]*?)(?:\/>|>([\s\S]*?)<\/trkpt>)/g;
@@ -14,7 +18,12 @@ const TRK = /<trk\b[^>]*>([\s\S]*?)<\/trk>/g;
 const TRKSEG = /<trkseg\b[^>]*>([\s\S]*?)<\/trkseg>/g;
 const LR_RUN = /<lr:run\b([^>]*?)(?:\/>|>([\s\S]*?)<\/lr:run>)/;
 const LR_MARK = /<lr:mark\b([^>]*?)\/?>/g;
-/** 확장 요소의 네임스페이스. 형식을 바꾸면 끝의 버전을 올릴 것 */
+const LR_COURSE = /<lr:course\b[^>]*>([\s\S]*?)<\/lr:course>/;
+const LR_LIBRARY = /<lr:library\b[^>]*>([\s\S]*?)<\/lr:library>/;
+/**
+ * 확장 요소의 네임스페이스. 형식을 바꾸면 끝의 버전을 올릴 것.
+ * 요소를 더하기만 하는 변경(lr:course, lr:library)은 옛 버전이 모르는 요소를 무시하므로 그대로 둔다
+ */
 const LR_NS = 'https://github.com/Ring-wdr/light-run/gpx/1';
 
 const attr = (s: string, name: string) =>
@@ -64,6 +73,8 @@ export interface GpxRunMeta {
   goalMin: number | null;
   /** 시각순 */
   marks: RunMark[];
+  /** 내 코스로 달렸으면 그때의 코스 사본. id는 백업한 기기의 코스 id(<lr:library>와 같은 id) */
+  custom?: CourseSnapshot | null;
 }
 
 export interface GpxTrack {
@@ -88,7 +99,8 @@ function trkpt(p: Sample): string {
 function metaXml(m: GpxRunMeta): string {
   const goal = m.goalMin != null ? ` goal="${m.goalMin}"` : '';
   const marks = m.marks.map((k) => `\n        <lr:mark type="${k.type}" at="${iso(k.at)}"/>`).join('');
-  return `\n    <extensions>\n      <lr:run start="${iso(m.startedAt)}" end="${iso(m.endedAt)}" activity="${m.activity}"${goal}>${marks}\n      </lr:run>\n    </extensions>`;
+  const course = m.custom ? `\n        <lr:course>${esc(JSON.stringify(m.custom))}</lr:course>` : '';
+  return `\n    <extensions>\n      <lr:run start="${iso(m.startedAt)}" end="${iso(m.endedAt)}" activity="${m.activity}"${goal}>${marks}${course}\n      </lr:run>\n    </extensions>`;
 }
 
 /** <trk> 하나. 점이 없는 구간은 빼고, 남는 구간이 없으면 null */
@@ -102,9 +114,14 @@ export function gpxTrack(t: GpxTrack): string | null {
   return `  <trk>\n    <name>${esc(t.name)}</name>${type}${ext}\n${segs}\n  </trk>`;
 }
 
-/** gpxTrack 결과들을 GPX 1.1 문서로 감싼다. firstT는 <metadata><time>(첫 점 시각) */
-export function gpxDocument(trks: string[], firstT?: number): string {
-  const meta = firstT != null ? `\n  <metadata><time>${iso(firstT)}</time></metadata>` : '';
+/**
+ * gpxTrack 결과들을 GPX 1.1 문서로 감싼다. firstT는 <metadata><time>(첫 점 시각).
+ * library(전체 백업)가 있으면 <metadata>의 맨 끝 <extensions>에 넣는다(GPX 1.1 순서: …, time, …, extensions)
+ */
+export function gpxDocument(trks: string[], firstT?: number, library: Library = EMPTY_LIBRARY): string {
+  const time = firstT != null ? `<time>${iso(firstT)}</time>` : '';
+  const ext = isEmptyLibrary(library) ? '' : `<extensions><lr:library>${esc(JSON.stringify(library))}</lr:library></extensions>`;
+  const meta = time || ext ? `\n  <metadata>${time}${ext}</metadata>` : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="light-run" xmlns="http://www.topografix.com/GPX/1/1" xmlns:lr="${LR_NS}">${meta}
 ${trks.join('\n')}
@@ -130,6 +147,18 @@ export function toGpx(tracks: GpxTrack | GpxTrack[]): string {
     firstT ??= firstPointTime(t);
   }
   return gpxDocument(trks, firstT);
+}
+
+/** 전체 백업의 내 코스·플랜 목록. 없거나 읽을 수 없으면 빈 목록. 첫 <trk> 앞(<metadata>)에서만 찾는다 */
+export function parseLibraryXml(xml: string): Library {
+  const cut = xml.search(/<trk\b/);
+  const m = (cut < 0 ? xml : xml.slice(0, cut)).match(LR_LIBRARY);
+  if (!m) return EMPTY_LIBRARY;
+  try {
+    return parseLibrary(JSON.parse(unesc(m[1] ?? '')));
+  } catch {
+    return EMPTY_LIBRARY;
+  }
 }
 
 /** 읽어 들인 <trk> 하나 */
@@ -186,5 +215,21 @@ function parseMeta(head: string): GpxRunMeta | null {
   }
   // 저장 순서(시각순, 같은 시각이면 기록된 순서)를 지킨다
   marks.sort((a, b) => a.at - b.at);
-  return { startedAt, endedAt, activity, goalMin, marks };
+  return { startedAt, endedAt, activity, goalMin, marks, custom: parseCourseSnapshot(m[2] ?? '') };
+}
+
+/** <lr:course> 코스 사본. 없거나 이상하면 null(기록은 자유 코스처럼 보인다) */
+function parseCourseSnapshot(body: string): CourseSnapshot | null {
+  const m = body.match(LR_COURSE);
+  if (!m) return null;
+  try {
+    const raw = JSON.parse(unesc(m[1] ?? '')) as { id?: unknown; name?: unknown; blocks?: unknown };
+    const blocks = toBlocks(raw.blocks);
+    if (blocks.length === 0) return null;
+    const id = typeof raw.id === 'number' && Number.isFinite(raw.id) ? raw.id : null;
+    const name = typeof raw.name === 'string' && raw.name.trim() !== '' ? raw.name : '내 코스';
+    return { id, name, blocks };
+  } catch {
+    return null;
+  }
 }

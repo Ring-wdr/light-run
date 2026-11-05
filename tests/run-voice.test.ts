@@ -1,4 +1,5 @@
 // 아래 jest.mock들은 babel-jest가 이 import보다 먼저 실행되게 끌어올린다
+import { MIN_SAVED_MS } from '../src/core/session';
 import * as rc from '../src/services/run-controller';
 
 /**
@@ -90,8 +91,18 @@ describe('음성 안내 예약', () => {
     rc.resumeRun();
     expect(mockCalls.map((c) => c[0])).toEqual(['speak', 'schedule']);
     mockCalls.length = 0;
+    const realNow = Date.now.bind(Date);
+    jest.spyOn(Date, 'now').mockImplementation(() => realNow() + MIN_SAVED_MS);
     await rc.stopRun();
+    jest.restoreAllMocks();
     expect(mockCalls).toEqual([['cancel'], ['speak', '수고했어요. 기록을 저장했어요.', true]]);
+  });
+
+  it('저장 기준보다 짧게 끝내면 저장하지 않았다고 말한다', async () => {
+    await startRun({ activity: 'run', goalMin: 30 });
+    mockCalls.length = 0;
+    expect(await rc.stopRun()).toBeNull();
+    expect(mockCalls).toEqual([['cancel'], ['speak', '기록이 짧아서 저장하지 않았어요.', true]]);
   });
 
   it('기록 중 토글을 끄면 취소하고 멈춘다. 켜면 다시 예약한다', async () => {

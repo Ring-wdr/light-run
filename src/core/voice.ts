@@ -13,7 +13,9 @@ export type VoiceCue =
   | { type: 'courseDone' }
   | { type: 'pause' }
   | { type: 'resume' }
-  | { type: 'finish' };
+  | { type: 'finish' }
+  /** 너무 짧아 저장하지 않고 끝냄(core/session.ts worthSaving) */
+  | { type: 'discard' };
 
 /** 시간 안내 간격(분). 0이면 끔 */
 export type VoiceInterval = 0 | 5 | 10;
@@ -96,6 +98,8 @@ export function cueText(cue: VoiceCue, course: Course): string {
       return '다시 시작해요.';
     case 'finish':
       return '수고했어요. 기록을 저장했어요.';
+    case 'discard':
+      return '기록이 짧아서 저장하지 않았어요.';
     case 'courseDone':
       return courseDoneText(course.custom?.name ?? '내');
     case 'goal':

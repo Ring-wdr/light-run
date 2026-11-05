@@ -1,12 +1,14 @@
 import { fireEvent, userEvent } from '@testing-library/react-native';
 import { router, type Href } from 'expo-router';
 import { act, renderRouter, screen } from 'expo-router/testing-library';
-import { Alert, type AlertButton } from 'react-native';
+import { Alert, Linking, Platform, ToastAndroid, type AlertButton } from 'react-native';
 import type { Course } from '../src/core/course';
+import { gpxDocument } from '../src/core/gpx';
 import { step } from '../src/core/my-course';
 import { summarize } from '../src/core/record';
+import { MIN_SAVED_MS } from '../src/core/session';
 import * as gpxImport from '../src/services/import';
-import { startTracking } from '../src/services/location';
+import { requestPermissions, startTracking } from '../src/services/location';
 import { cancelCountdown, stopRun } from '../src/services/run-controller';
 import * as storage from '../src/services/storage';
 import { goHome } from '../src/ui/navigation';
@@ -76,6 +78,16 @@ async function skipCountdown() {
   await user.press(screen.getByRole('button', { name: '건너뛰기' }));
 }
 
+/**
+ * 시계를 aheadMs만큼 앞으로 돌린 뒤 길게 눌러 종료한다. 기본은 저장 기준(MIN_SAVED_MS)을 넘겨 기록이 남게 한다.
+ * 돌린 시계는 afterEach의 restoreAllMocks가 되돌린다
+ */
+async function holdStop(aheadMs = MIN_SAVED_MS) {
+  const realNow = Date.now.bind(Date);
+  jest.spyOn(Date, 'now').mockImplementation(() => realNow() + aheadMs);
+  await user.longPress(screen.getByText('길게 눌러 종료'), { duration: 900 });
+}
+
 /** 테스트에서 router를 직접 부를 때도 화면 갱신이 끝나도록 act로 감싼다 */
 const nav = (fn: () => void) => act(fn);
 
@@ -104,12 +116,19 @@ describe('기록 중 화면', () => {
     await pressStart('달리기 30분 시작');
     expect(screen.queryByText('일시정지됨')).not.toBeOnTheScreen();
 
-    await user.press(screen.getByRole('button', { name: '일시정지' }));
+    await user.longPress(screen.getByRole('button', { name: '길게 눌러 일시정지' }), { duration: 900 });
     expect(screen.getByText('일시정지됨')).toBeOnTheScreen();
 
     await user.press(screen.getByRole('button', { name: '재개' }));
     expect(screen.queryByText('일시정지됨')).not.toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: '일시정지' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '길게 눌러 일시정지' })).toBeOnTheScreen();
+  });
+
+  it('일시정지는 짧게 누르면 되지 않는다(주머니 속 오작동 방지)', async () => {
+    renderRouter('src/app');
+    await pressStart('달리기 30분 시작');
+    await user.press(screen.getByRole('button', { name: '길게 눌러 일시정지' }));
+    expect(screen.queryByText('일시정지됨')).not.toBeOnTheScreen();
   });
 
   it('헤더의 음성 안내 아이콘으로 이번 기록의 안내를 끄고 켠다', async () => {
@@ -141,12 +160,34 @@ describe('기록 시작·종료(가드)', () => {
     expect(screen.getByText('길게 눌러 종료')).toBeOnTheScreen();
 
     const runId = activeRunId();
-    await user.longPress(screen.getByText('길게 눌러 종료'), { duration: 900 });
+    await holdStop();
     expect(stack(app)).toEqual(['index', `history/[id]:${runId}`]);
     expect(screen).toHavePathname(`/history/${runId}`);
 
     await nav(() => router.back());
     expect(stack(app)).toEqual(['index']);
+  });
+
+  it('저장 기준보다 짧게 끝내면 저장하지 않고 상세 없이 홈', async () => {
+    const app = renderRouter('src/app');
+    await pressStart('달리기 30분 시작');
+    const runId = activeRunId();
+    await holdStop(0);
+    expect(stack(app)).toEqual(['index']);
+    expect(storage.getRun(runId)).toBeNull();
+    expect(screen.getByText('아직 기록이 없어요. 첫 코스를 시작해 보세요.')).toBeOnTheScreen();
+    if (Platform.OS === 'android') expect(ToastAndroid.show).toHaveBeenLastCalledWith('기록이 짧아서 저장하지 않았어요', ToastAndroid.SHORT);
+  });
+
+  it('위치 권한을 거부하면 설정을 열 수 있는 안내', async () => {
+    jest.mocked(requestPermissions).mockResolvedValueOnce('foreground-denied');
+    const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    const app = renderRouter('src/app');
+    await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+    expect(stack(app)).toEqual(['index']);
+    expect(Alert.alert).toHaveBeenLastCalledWith('위치 권한이 필요해요', expect.any(String), expect.any(Array));
+    await pressAlertButton('설정 열기');
+    expect(openSettings).toHaveBeenCalled();
   });
 
   it('기록 중에는 뒤로 갈 화면이 없다(Android 뒤로 가기는 앱을 백그라운드로)', async () => {
@@ -168,7 +209,7 @@ describe('기록 시작·종료(가드)', () => {
     expect(stack(app)).toEqual(['run']);
 
     const runId = activeRunId();
-    await user.longPress(screen.getByText('길게 눌러 종료'), { duration: 900 });
+    await holdStop();
     expect(stack(app)).toEqual(['index', `history/[id]:${runId}`]);
   });
 
@@ -402,9 +443,28 @@ describe('기록(전체)', () => {
     expect(screen.queryByText('백업 불러오기')).not.toBeOnTheScreen();
 
     await user.press(screen.getByRole('button', { name: '더보기' }));
-    expect(screen.getByRole('menuitem', { name: '전체 기록 백업 (GPX)' })).toBeOnTheScreen();
+    expect(screen.getByRole('menuitem', { name: '라이트런 전체 백업' })).toBeOnTheScreen();
     await user.press(screen.getByRole('menuitem', { name: '백업 불러오기' }));
     expect(pick).toHaveBeenCalledTimes(1);
+  });
+
+  it('새로 설치한 앱(기록 없음)도 홈 → 설정에서 백업을 불러온다', async () => {
+    // 기록이 없으면 홈에 기록 화면 입구("전체 보기")가 없다. 설정은 언제나 열린다
+    const xml = gpxDocument([], undefined, {
+      courses: [{ id: 9, name: '옮긴 코스', description: '', blocks: [step('run', 60)], createdAt: 1, favoritedAt: null, doneAt: null }],
+      plans: [],
+    });
+    jest.spyOn(gpxImport, 'pickGpxFile').mockResolvedValue(xml);
+    renderRouter('src/app');
+    expect(screen.queryByRole('button', { name: '전체 기록 보기' })).not.toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '설정' }));
+    await user.press(screen.getByRole('button', { name: '백업 불러오기' }));
+    expect(Alert.alert).toHaveBeenLastCalledWith('코스 1개를 불러왔어요', undefined);
+
+    await nav(() => router.back());
+    await user.press(screen.getByRole('tab', { name: '내 코스' }));
+    expect(screen.getByRole('button', { name: '옮긴 코스' })).toBeOnTheScreen();
   });
 });
 

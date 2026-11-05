@@ -14,14 +14,17 @@ export function HoldButton({
   onHold,
   holdMs = 800,
   tint,
+  textColor = '#fff',
   style,
   accessibilityHint = '길게 눌러서 실행',
 }: {
   label: string;
   onHold: () => void;
   holdMs?: number;
-  /** 버튼 바탕색. 글자는 흰색 */
+  /** 버튼 바탕색 */
   tint: string;
+  /** 글자색(기본 흰색). 밝은 바탕(보조 버튼)이면 어두운 색을 넘긴다 */
+  textColor?: string;
   style?: StyleProp<ViewStyle>;
   accessibilityHint?: string;
 }) {
@@ -43,14 +46,15 @@ export function HoldButton({
       // 채움과 같은 시간에 끝나도록 길게 누르기 기준을 맞춘다
       onLongPress={onHold}
       delayLongPress={holdMs}
-      android_ripple={{ color: 'rgba(255,255,255,0.35)' }}
+      // 물결은 글자색 계열로(흰 바탕 보조 버튼에서도 보이게)
+      android_ripple={{ color: textColor === '#fff' ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.12)' }}
       // iOS에는 ripple이 없어 누른 순간의 반응을 살짝 어두워지는 것으로 대신한다
       style={({ pressed }) => [styles.btn, { backgroundColor: tint }, style, pressed && Platform.OS === 'ios' && styles.iosPressed]}
       accessibilityRole="button"
       accessibilityHint={accessibilityHint}
     >
       <Animated.View pointerEvents="none" style={[styles.fill, { transform: [{ scaleX: progress }] }]} />
-      <Text style={styles.text} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3}>
+      <Text style={[styles.text, { color: textColor }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3}>
         {label}
       </Text>
     </Pressable>
@@ -61,6 +65,6 @@ const styles = StyleSheet.create({
   // 둥근 모서리 밖으로 채움·물결이 나가지 않게 자른다
   btn: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   fill: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.22)', transformOrigin: 'left' },
-  text: { fontSize: 18, fontWeight: '700', color: '#fff' },
+  text: { fontSize: 18, fontWeight: '700' },
   iosPressed: { opacity: 0.9 },
 });

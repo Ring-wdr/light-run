@@ -30,7 +30,7 @@ tags:
 - assertVisible: '길게 눌러 종료'
 
 # 일시정지 중에 나갔다 와도 그대로
-- tapOn: '일시정지'
+- longPressOn: '길게 눌러 일시정지'
 - back
 - launchApp:
     stopApp: false

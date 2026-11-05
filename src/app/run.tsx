@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ACTIVITY_DOING, courseLabel, courseProgress } from '../core/course';
 import { expand, formatStepSec, INTENSITY_LABEL, segmentAt, type CourseSnapshot } from '../core/my-course';
@@ -98,11 +98,11 @@ function VoiceToggle({ on }: { on: boolean }) {
 }
 
 /** 시간·현재 페이스 칸 */
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, testID }: { label: string; value: string; testID?: string }) {
   const L = useLayout();
   return (
     <View style={styles.metric}>
-      <Text style={[styles.metricValue, { fontSize: L.font.metric }]} numberOfLines={1} adjustsFontSizeToFit>
+      <Text testID={testID} style={[styles.metricValue, { fontSize: L.font.metric }]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
       <Text style={styles.metricLabel} numberOfLines={1}>
@@ -165,15 +165,19 @@ export default function RunScreen() {
   const onStop = async () => {
     if (stopOnce.current) return;
     stopOnce.current = true;
-    // 끝나면 가드가 이 화면을 치우고 홈을 새로 띄운다. 홈이 이어서 방금 기록의 상세를 연다
-    setDetailAfterStop(runId);
+    let savedId: number | null;
     try {
-      await stopRun();
+      // 끝나면 가드가 이 화면을 치우고 홈을 새로 띄운다. 홈이 이어서 방금 기록의 상세를 연다.
+      // 너무 짧아 저장하지 않았으면(null) 상세 없이 홈
+      savedId = await stopRun(setDetailAfterStop);
     } catch (e) {
       setDetailAfterStop(null);
       stopOnce.current = false;
       alertError('기록을 끝내지 못했어요', e);
+      return;
     }
+    // 저장하지 않았다는 것은 음성(켰을 때)과 함께 Android 토스트로도 알린다. 종료가 다 끝난 뒤라 실패해도 기록에 영향 없다
+    if (savedId == null && Platform.OS === 'android') ToastAndroid.show('기록이 짧아서 저장하지 않았어요', ToastAndroid.SHORT);
   };
 
   return (
@@ -231,7 +235,8 @@ export default function RunScreen() {
               <Text style={styles.heroUnit}>km</Text>
             </View>
             <View style={styles.grid}>
-              <Metric label="시간" value={formatDuration(ms)} />
+              {/* testID: E2E가 저장 기준 시간(MIN_SAVED_MS)을 넘길 때까지 기다리는 데 쓴다(.maestro/subflows/wait-saveable.yml) */}
+              <Metric label="시간" value={formatDuration(ms)} testID="run-time" />
               <View style={styles.gridLine} />
               <Metric label="현재 페이스" value={paused ? `-'--"` : formatPace(currentPace(run.recent))} />
             </View>
@@ -254,16 +259,31 @@ export default function RunScreen() {
 
       {/* 내용이 길어도(작은 화면, 내 코스) 스크롤 없이 누르도록 아래에 고정 */}
       <View style={[styles.buttons, { paddingHorizontal: L.pad, paddingBottom: L.pad + insets.bottom }]}>
-        <Pressable
-          style={({ pressed }) => [btn, styles.secondary, pressed && { opacity: 0.7 }]}
-          onPress={paused ? resumeRun : pauseRun}
-          accessibilityRole="button"
-        >
-          <Icon name={paused ? 'play' : 'pause'} size={24} color={color.ink} />
-          <Text style={styles.btnText} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3}>
-            {paused ? '재개' : '일시정지'}
-          </Text>
-        </Pressable>
+        {/*
+          일시정지도 종료처럼 길게 눌러야 한다. 주머니 속에서 잘못 눌리면 모르는 채 나머지를 기록하지 못한다.
+          재개는 한 번 누르면 된다(잘못 눌려도 기록이 더 남을 뿐 잃지 않는다)
+        */}
+        {paused ? (
+          <Pressable
+            style={({ pressed }) => [btn, styles.secondary, pressed && { opacity: 0.7 }]}
+            onPress={resumeRun}
+            accessibilityRole="button"
+          >
+            <Icon name="play" size={24} color={color.ink} />
+            <Text style={styles.btnText} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.3}>
+              재개
+            </Text>
+          </Pressable>
+        ) : (
+          <HoldButton
+            label="길게 눌러 일시정지"
+            onHold={pauseRun}
+            tint={color.card}
+            textColor={color.ink}
+            style={[btn, styles.secondary]}
+            accessibilityHint="길게 눌러서 일시정지"
+          />
+        )}
         {/* 주머니 속 오작동을 막으려고 종료는 길게 눌러야 한다. 누르는 동안 버튼이 차오른다 */}
         <HoldButton
           label="길게 눌러 종료"

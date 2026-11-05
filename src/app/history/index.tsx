@@ -1,6 +1,6 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   activeDays,
@@ -17,10 +17,7 @@ import {
   type YearMonth,
 } from '../../core/calendar';
 import { formatDuration, formatKm } from '../../core/pace';
-import { prepareAllGpx } from '../../services/export';
-import { importGpx, pickGpxFile } from '../../services/import';
 import { listRunDates, listRunsBetween, type RunRow } from '../../services/storage';
-import { alertError } from '../../ui/alert';
 import { BusyOverlay } from '../../ui/BusyOverlay';
 import { useLayout } from '../../ui/layout';
 import { MonthPicker } from '../../ui/MonthPicker';
@@ -29,7 +26,7 @@ import { RunCalendar } from '../../ui/RunCalendar';
 import { RunListItem } from '../../ui/RunListItem';
 import { Stat } from '../../ui/Stat';
 import { color, space } from '../../ui/theme';
-import { useGpxExport } from '../../ui/useGpxExport';
+import { useBackup } from '../../ui/useBackup';
 
 export default function History() {
   const insets = useSafeAreaInsets();
@@ -39,8 +36,6 @@ export default function History() {
   const [month, setMonth] = useState<YearMonth>(() => monthOf(Date.now()));
   const [day, setDay] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
   /** 오늘 표시·이번 달 판단 기준. 화면에 들어올 때마다 새로 잰다 */
   const [today, setToday] = useState(() => Date.now());
 
@@ -50,41 +45,7 @@ export default function History() {
     setDated(listRunDates());
   }, [month]);
 
-  const backup = useGpxExport({
-    prepare: prepareAllGpx,
-    emptyMessage: '내보낼 기록이 없어요',
-    failTitle: '백업하지 못했어요',
-  });
-  // 새 폰·새 빌드로 옮길 때: 전체 백업 GPX를 다시 넣는다. 이미 있는 기록은 건너뛴다
-  const onImport = async () => {
-    let xml: string | null;
-    try {
-      xml = await pickGpxFile();
-    } catch (e) {
-      alertError('파일을 열지 못했어요', e);
-      return;
-    }
-    if (xml == null) return;
-    setImporting(true);
-    setImportProgress(0);
-    try {
-      const r = await importGpx(xml, setImportProgress);
-      setImporting(false);
-      reload();
-      const skipped = [
-        r.duplicates ? `이미 있는 기록 ${r.duplicates}개` : '',
-        r.empty ? `GPS 점 없는 기록 ${r.empty}개` : '',
-      ].filter(Boolean);
-      Alert.alert(
-        r.imported ? `기록 ${r.imported}개를 불러왔어요` : '새로 불러온 기록이 없어요',
-        skipped.length ? `건너뜀: ${skipped.join(', ')}` : undefined,
-      );
-    } catch (e) {
-      alertError('불러오지 못했어요', e);
-    } finally {
-      setImporting(false);
-    }
-  };
+  const backup = useBackup(reload);
   // 목록은 달력에서 보고 있는 달의 기록만
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +54,7 @@ export default function History() {
     }, [reload]),
   );
 
-  const busy = backup.busy || importing;
+  const busy = backup.busy;
   const thisMonth = monthOf(today);
   const isThisMonth = sameMonth(month, thisMonth);
   const all = useMemo(() => totals(dated), [dated]);
@@ -112,12 +73,13 @@ export default function History() {
     <View style={styles.screen}>
       <Stack.Screen
         options={{
-          // 자주 안 쓰는 동작은 기록 상세처럼 헤더 ··· 메뉴로. 전체 기록을 한 파일로 내보내고 다시 넣는다(다른 폰·빌드로 옮길 때)
+          // 자주 안 쓰는 동작은 기록 상세처럼 헤더 ··· 메뉴로. 전체 기록과 내 코스·플랜을 한 파일로 내보내고 다시 넣는다(다른 폰·빌드로 옮길 때).
+          // 다른 러닝 앱으로 옮기는 파일은 기록 상세의 "GPX 내보내기"(기록 하나)라서 이름에서 "라이트런" 백업임을 드러낸다
           headerRight: () => (
             <MoreMenu
               items={[
-                { label: '전체 기록 백업 (GPX)', onPress: backup.start, disabled: busy },
-                { label: '백업 불러오기', onPress: onImport, disabled: busy },
+                { label: '라이트런 전체 백업', onPress: backup.startBackup, disabled: busy },
+                { label: '백업 불러오기', onPress: backup.startImport, disabled: busy },
               ]}
             />
           ),
@@ -190,11 +152,7 @@ export default function History() {
         onClose={() => setPicking(false)}
         tint={color.ink}
       />
-      <BusyOverlay
-        visible={busy}
-        label={importing ? '기록 불러오는 중' : '백업 파일 만드는 중'}
-        progress={importing ? importProgress : backup.progress}
-      />
+      <BusyOverlay {...backup.overlay} />
     </View>
   );
 }

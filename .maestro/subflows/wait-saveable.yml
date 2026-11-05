@@ -1,0 +1,15 @@
+# 기록 화면에서 움직인 시간이 저장 기준(15초, src/core/session.ts MIN_SAVED_MS)을 넘길 때까지 기다린다.
+# 그보다 짧게 끝내면 기록을 저장하지 않아 상세가 열리지 않는다. 일시정지 중이면 시간이 안 가므로 재개부터 한다.
+# 시간 칸은 testID "run-time"(src/app/run.tsx)으로 찾는다. 내 코스의 구간 남은 시간도 같은 모양이라 글자만으로는 구분이 안 된다
+appId: com.ringwdr.lightrun.dev
+---
+- runFlow:
+    when:
+      visible: '재개'
+    commands:
+      - tapOn: '재개'
+- extendedWaitUntil:
+    visible:
+      id: 'run-time'
+      text: '0:(1[5-9]|[2-5][0-9])|[1-9][0-9]*:[0-5][0-9](:[0-5][0-9])?'
+    timeout: 30000

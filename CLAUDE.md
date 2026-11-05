@@ -21,7 +21,8 @@ npm run lint           # ESLint(eslint-config-expo + 프로젝트 규칙)
 npm run report:filter  # GPS 필터 오차표(튜닝할 때)
 maestro test .maestro  # E2E(Maestro). 기기·에뮬레이터에 개발용 릴리스 앱 필요. EAS Workflows는 손으로만(유료 요금제 필요, README "E2E")
 npx expo export --platform android --output-dir /tmp/export  # JS 번들 확인(CI와 같음)
-npx expo start         # 개발 서버(폰에 development build 필요)
+npx expo start         # 개발 서버(폰·에뮬레이터에 development build 필요)
+adb devices            # 연결된 기기·에뮬레이터. 없으면 android emulator list → android emulator start <AVD>
 npm run android          # 개발용 앱(debug)을 폰에 설치. 이후 npx expo start
 npm run android:release  # android/를 새로 만든 뒤(prebuild --clean) 개발용 앱의 릴리스 APK를 폰에 설치
 npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 서명). 사용자가 직접 실행
@@ -38,7 +39,10 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
   기록 화면으로 가거나 나오는 이동을 직접 하지 않는다. `<Redirect>`·`router.push`·`dangerouslySingular` 대신 `router.navigate`,
   홈으로는 `goHome()`. 새 화면은 가드 안에 넣는다(금지 호출은 `eslint.config.js`, 스택 동작은 `tests/navigation.test.tsx`가 검사).
 - 화면 흐름을 바꾸면 `.maestro/` 흐름도 맞춘다. 흐름은 화면 문구·접근성 라벨로 찾으므로 문구를 바꾸면 같이 고친다.
-  에이전트는 에뮬레이터가 없어 E2E를 돌릴 수 없다. `maestro check-syntax`로 문법만 확인하고, PR의 "실기기 확인 필요"에 `maestro test .maestro`를 넣는다.
+  E2E를 건너뛰기 전에 기기를 먼저 확인한다: `adb devices` → 없으면 `android emulator list`로 AVD를 찾아 `android emulator start <이름>`.
+  기기가 있으면 `maestro test .maestro`를 돌리고 결과를 PR에 남긴다. 개발용 앱이 debug면 `npx expo start`(Metro)를 켜 둔다.
+  화면 확인은 `android layout`(접근성 라벨·좌표 JSON)과 `android screen capture -o <png>`.
+  adb·AVD·`maestro` 중 하나라도 없을 때만 `maestro check-syntax`로 문법을 확인하고, PR의 "실기기 확인 필요"에 `maestro test .maestro`를 넣는다.
 - 화면 동작 테스트는 `tests/navigation.test.tsx`처럼 실제 `src/app`을 `renderRouter('src/app')`로 띄우고 RNTL로 누른다.
   가짜는 기기 경계(SQLite → `tests/support/sqlite.ts`, 위치 서비스, 네이티브 뷰 → `tests/setup.tsx`)에만 둔다. 테스트 파일은 `src/app/` 밖에.
 - 화면의 보조 동작(내보내기·백업·삭제·복제 등 자주 안 쓰는 것)은 헤더 오른쪽 ··· 메뉴(`MoreMenu`)에 둔다. 본문에는 그 화면의 주요 동작만.
@@ -57,5 +61,5 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
 - 합성 트랙(`tests/helpers.ts`)만으로 튜닝하지 말 것. 실제 GPX가 `tests/fixtures/`에 생기면 그걸 우선한다.
 
 ## 검증 한계
-에이전트는 실기기의 백그라운드 동작, 절전 모드, GPS 품질을 확인할 수 없다.
+에이전트는 실기기의 백그라운드 동작, 절전 모드, GPS 품질을 확인할 수 없다(에뮬레이터의 가짜 위치는 흐름 확인용이고 필터 튜닝 근거가 아니다).
 이런 변경은 PR 본문에 "실기기 확인 필요" 체크리스트를 남긴다(화면 끔 30분, 일시정지/재개, 앱 강제 종료 후 복원).

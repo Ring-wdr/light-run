@@ -1,4 +1,4 @@
-import { elapsedMs, initialRun, reduce, replay, type RunEvent } from '../src/core/session';
+import { elapsedMs, initialRun, MIN_SAVED_MS, reduce, replay, worthSaving, type RunEvent } from '../src/core/session';
 import { currentPace } from '../src/core/pace';
 import { squareTrack, straightTrack } from './helpers';
 
@@ -23,6 +23,12 @@ describe('상태 전이', () => {
     ]);
     expect(s.status).toBe('finished');
     expect(elapsedMs(s, T0 + 999_999)).toBe(120_000);
+  });
+  it('움직인 시간이 저장 기준(15초)보다 짧은 기록은 남기지 않는다', () => {
+    expect(MIN_SAVED_MS).toBe(15_000);
+    expect(worthSaving(0)).toBe(false);
+    expect(worthSaving(14_999)).toBe(false);
+    expect(worthSaving(15_000)).toBe(true);
   });
   it('달리는 중 경과 시간은 now 기준으로 늘어난다', () => {
     const s = reduce(initialRun, { type: 'start', at: T0 });

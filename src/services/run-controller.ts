@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { Course } from '../core/course';
 import { resumePauseAt } from '../core/resume';
-import { elapsedMs, initialRun, reduce, replay, type RunEvent, type RunState } from '../core/session';
+import { elapsedMs, initialRun, reduce, replay, worthSaving, type RunEvent, type RunState } from '../core/session';
 import { DEFAULT_VOICE, type VoiceCue, type VoiceSettings } from '../core/voice';
 import {
   requestPermissions,
@@ -254,18 +254,26 @@ export function setVoiceOn(on: boolean): void {
   syncTimeCues();
 }
 
-/** 기록을 끝내고 저장한 run id를 돌려준다 */
-export async function stopRun(): Promise<number | null> {
+/**
+ * 기록을 끝내고 저장한 run id를 돌려준다. 너무 짧으면(core/session.ts worthSaving) 지우고 null.
+ * onEnd는 기록 화면이 치워지기 직전(가드가 바뀌기 전)에 같은 값으로 부른다. 화면이 종료 뒤 동작을 정할 때 쓴다
+ */
+export async function stopRun(onEnd?: (savedId: number | null) => void): Promise<number | null> {
   const runId = snap.runId;
   if (runId == null) return null;
   const at = Date.now();
   dispatch({ type: 'stop', at });
   const r = snap.run;
-  finishRun(runId, { endedAt: at, distanceM: r.distanceM, movingMs: elapsedMs(r, at), splits: r.splits });
+  const movingMs = elapsedMs(r, at);
+  const keep = worthSaving(movingMs);
+  if (keep) finishRun(runId, { endedAt: at, distanceM: r.distanceM, movingMs, splits: r.splits });
+  else deleteRun(runId);
   syncTimeCues();
   // 밀린 안내는 버리고 종료 멘트만 한다
-  say({ type: 'finish' }, true);
+  say({ type: keep ? 'finish' : 'discard' }, true);
   await stopTracking();
+  const saved = keep ? runId : null;
+  onEnd?.(saved);
   emit(EMPTY);
-  return runId;
+  return saved;
 }
