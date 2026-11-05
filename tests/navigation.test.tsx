@@ -3,6 +3,7 @@ import { router, type Href } from 'expo-router';
 import { act, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert, Linking, Platform, ToastAndroid, type AlertButton } from 'react-native';
 import type { Course } from '../src/core/course';
+import { gpxDocument } from '../src/core/gpx';
 import { step } from '../src/core/my-course';
 import { summarize } from '../src/core/record';
 import { MIN_SAVED_MS } from '../src/core/session';
@@ -442,9 +443,28 @@ describe('기록(전체)', () => {
     expect(screen.queryByText('백업 불러오기')).not.toBeOnTheScreen();
 
     await user.press(screen.getByRole('button', { name: '더보기' }));
-    expect(screen.getByRole('menuitem', { name: '전체 기록 백업 (GPX)' })).toBeOnTheScreen();
+    expect(screen.getByRole('menuitem', { name: '라이트런 전체 백업' })).toBeOnTheScreen();
     await user.press(screen.getByRole('menuitem', { name: '백업 불러오기' }));
     expect(pick).toHaveBeenCalledTimes(1);
+  });
+
+  it('새로 설치한 앱(기록 없음)도 홈 → 설정에서 백업을 불러온다', async () => {
+    // 기록이 없으면 홈에 기록 화면 입구("전체 보기")가 없다. 설정은 언제나 열린다
+    const xml = gpxDocument([], undefined, {
+      courses: [{ id: 9, name: '옮긴 코스', description: '', blocks: [step('run', 60)], createdAt: 1, favoritedAt: null, doneAt: null }],
+      plans: [],
+    });
+    jest.spyOn(gpxImport, 'pickGpxFile').mockResolvedValue(xml);
+    renderRouter('src/app');
+    expect(screen.queryByRole('button', { name: '전체 기록 보기' })).not.toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '설정' }));
+    await user.press(screen.getByRole('button', { name: '백업 불러오기' }));
+    expect(Alert.alert).toHaveBeenLastCalledWith('코스 1개를 불러왔어요', undefined);
+
+    await nav(() => router.back());
+    await user.press(screen.getByRole('tab', { name: '내 코스' }));
+    expect(screen.getByRole('button', { name: '옮긴 코스' })).toBeOnTheScreen();
   });
 });
 

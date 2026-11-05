@@ -1,12 +1,13 @@
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { isEmptyLibrary, type Library } from '../core/backup';
 import { courseLabel } from '../core/course';
 import { fileStamp, formatDateTimeMedium } from '../core/date';
 import { firstPointTime, gpxDocument, gpxTrack, type GpxTrack } from '../core/gpx';
 import { runEvents } from '../core/record';
 import { rawSegments } from '../core/track';
 import { yieldToUi, type OnProgress } from './progress';
-import { getRun, listRuns, loadSource, type RunRow } from './storage';
+import { getRun, listRuns, loadLibrary, loadSource, type RunRow } from './storage';
 
 /**
  * GPX 내보내기. 앱 캐시에 파일을 쓰고 공유 시트(드라이브·메일·메신저·다른 러닝 앱)로 넘긴다.
@@ -31,13 +32,13 @@ function trackOf(run: RunRow): GpxTrack {
     segments: src ? rawSegments(runEvents(src)) : [],
     meta:
       src && run.endedAt != null
-        ? { startedAt: run.startedAt, endedAt: run.endedAt, activity: run.activity, goalMin: run.goalMin, marks: src.marks }
+        ? { startedAt: run.startedAt, endedAt: run.endedAt, activity: run.activity, goalMin: run.goalMin, marks: src.marks, custom: run.custom }
         : undefined,
   };
 }
 
-/** 기록마다 <trk>를 만든다(진행률 0 → 0.9). 점이 없는 기록은 뺀다 */
-async function buildGpx(runs: RunRow[], onProgress?: OnProgress) {
+/** 기록마다 <trk>를 만든다(진행률 0 → 0.9). 점이 없는 기록은 뺀다. library는 전체 백업에만 */
+async function buildGpx(runs: RunRow[], onProgress?: OnProgress, library?: Library) {
   const trks: string[] = [];
   let firstT: number | undefined;
   onProgress?.(0);
@@ -51,7 +52,7 @@ async function buildGpx(runs: RunRow[], onProgress?: OnProgress) {
     onProgress?.(((i + 1) / runs.length) * 0.9);
     await yieldToUi();
   }
-  return { xml: gpxDocument(trks, firstT), count: trks.length };
+  return { xml: gpxDocument(trks, firstT, library), count: trks.length };
 }
 
 function writeCache(filename: string, xml: string): string {
@@ -72,13 +73,18 @@ export async function prepareRunGpx(runId: number, onProgress?: OnProgress): Pro
   return { uri, title: 'GPX 내보내기', count };
 }
 
-/** 전체 기록을 트랙 여러 개가 든 GPX 한 파일로. 내보낼 기록이 없으면 null */
+/**
+ * 라이트런 전체 백업: 모든 기록(트랙 여러 개) + 내 코스·플랜 목록을 GPX 한 파일로.
+ * 이 앱으로 되돌리는 용도다. 다른 앱으로 옮길 때는 기록 하나씩(prepareRunGpx)이 맞다(트랙 여러 개 파일은 첫 트랙만 읽는 앱이 있다).
+ * 기록도 코스도 없으면 null
+ */
 export async function prepareAllGpx(onProgress?: OnProgress): Promise<GpxFile | null> {
-  const { xml, count } = await buildGpx(listRuns(100_000), onProgress);
-  if (count === 0) return null;
+  const library = loadLibrary();
+  const { xml, count } = await buildGpx(listRuns(100_000), onProgress, library);
+  if (count === 0 && isEmptyLibrary(library)) return null;
   const uri = writeCache(`light-run-backup-${fileStamp(Date.now())}.gpx`, xml);
   onProgress?.(1);
-  return { uri, title: '전체 기록 백업', count };
+  return { uri, title: '라이트런 전체 백업', count };
 }
 
 export async function shareGpx(file: GpxFile): Promise<void> {

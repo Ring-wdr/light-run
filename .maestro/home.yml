@@ -8,3 +8,11 @@ name: 홈
 - assertVisible: '최근 기록'
 - assertVisible: '달리기 30분 시작'
 - assertVisible: '아직 기록이 없어요. 첫 코스를 시작해 보세요.'
+
+# 기록이 없으면 기록 화면 입구(전체 보기)가 없다. 새 폰으로 옮긴 사람도 설정에서 백업을 불러올 수 있어야 한다
+- assertNotVisible: '전체 기록 보기'
+- tapOn: '설정'
+- assertVisible: '라이트런 전체 백업'
+- assertVisible: '백업 불러오기'
+- back
+- assertVisible: '최근 기록'

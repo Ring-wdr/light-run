@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import type { BackupCourse, BackupPlan, Library, LibraryMatch } from '../core/backup';
 import type { DatedRun } from '../core/calendar';
 import type { Activity, Course } from '../core/course';
 import { parseBlocks, sortCourses, toBlocks, type CourseSnapshot, type Draft, type MyCourse } from '../core/my-course';
@@ -300,14 +301,18 @@ export function hasRunStartedAt(startedAt: number): boolean {
   return db.getFirstSync('SELECT 1 FROM runs WHERE started_at = ? LIMIT 1', startedAt) != null;
 }
 
-/** 불러온 기록을 끝난 기록으로 한 번에 저장한다(중간에 실패하면 아무것도 남기지 않음) */
+/**
+ * 불러온 기록을 끝난 기록으로 한 번에 저장한다(중간에 실패하면 아무것도 남기지 않음).
+ * 코스 사본의 id는 이 기기의 코스 id여야 한다(불러오기가 바꿔 넘긴다. 없는 코스면 null)
+ */
 export function insertImportedRun(r: ImportedRun, summary: RunSummary): number {
   let id = 0;
   db.withTransactionSync(() => {
     id = db.runSync(
-      `INSERT INTO runs (started_at, ended_at, status, distance_m, moving_ms, splits_json, activity, goal_min)
-       VALUES (?, ?, 'finished', ?, ?, ?, ?, ?)`,
+      `INSERT INTO runs (started_at, ended_at, status, distance_m, moving_ms, splits_json, activity, goal_min, course_id, course_json)
+       VALUES (?, ?, 'finished', ?, ?, ?, ?, ?, ?, ?)`,
       r.startedAt, r.endedAt, summary.distanceM, summary.movingMs, JSON.stringify(summary.splits), r.activity, r.goalMin,
+      r.custom?.id ?? null, r.custom ? JSON.stringify({ name: r.custom.name, blocks: r.custom.blocks }) : null,
     ).lastInsertRowId;
     for (const m of r.marks) addMark(id, m.type, m.at);
     appendSamplesTx(id, r.samples);
@@ -510,6 +515,63 @@ export function setCourseDone(courseId: number, on: boolean, now = Date.now()): 
 export function copyCourseToPlan(courseId: number, planId: number, now = Date.now()): number | null {
   const c = getCourse(courseId);
   return c ? createCourse({ name: c.name, description: c.description, blocks: c.blocks }, now, planId) : null;
+}
+
+// ── 백업(core/backup.ts) ─────────────────────────────
+
+const toBackupCourse = (r: CourseRecord): BackupCourse => ({
+  id: r.id,
+  name: r.name,
+  description: r.description,
+  blocks: parseBlocks(r.blocks_json),
+  createdAt: r.created_at,
+  favoritedAt: r.favorited_at,
+  doneAt: r.done_at,
+});
+
+/** 전체 백업에 넣을 내 코스·플랜 목록. 불러올 때 이 기기의 목록과 짝지을 때도 쓴다 */
+export function loadLibrary(): Library {
+  const courses = db.getAllSync<CourseRecord>('SELECT * FROM courses WHERE plan_id IS NULL ORDER BY id').map(toBackupCourse);
+  const plans = db.getAllSync<PlanRecord>('SELECT * FROM plans ORDER BY id').map((r): BackupPlan => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    createdAt: r.created_at,
+    favoritedAt: r.favorited_at,
+    nextCourseId: r.next_course_id,
+    progressFrom: r.progress_from,
+    perWeek: r.per_week,
+    courses: db.getAllSync<CourseRecord>('SELECT * FROM courses WHERE plan_id = ? ORDER BY plan_pos, id', r.id).map(toBackupCourse),
+  }));
+  return { courses, plans };
+}
+
+/**
+ * 짝짓지 못한 코스·플랜을 새로 만든다(만든 시각·즐겨찾기·완료 표시·진행도 그대로).
+ * 돌려주는 표: 백업 코스 id → 이 기기의 코스 id(짝지은 것 + 새로 만든 것). 기록을 코스에 다시 잇는 데 쓴다
+ */
+export function insertLibrary(m: LibraryMatch): Map<number, number> {
+  const idMap = new Map(m.idMap);
+  const insertCourse = (c: BackupCourse, planId: number | null, pos: number) =>
+    db.runSync(
+      `INSERT INTO courses (name, description, blocks_json, created_at, favorited_at, plan_id, plan_pos, done_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      c.name, c.description, JSON.stringify(c.blocks), c.createdAt, planId == null ? c.favoritedAt : null, planId, pos,
+      planId == null ? null : c.doneAt,
+    ).lastInsertRowId;
+  db.withTransactionSync(() => {
+    for (const c of m.newCourses) idMap.set(c.id, insertCourse(c, null, 0));
+    for (const p of m.newPlans) {
+      const planId = db.runSync(
+        'INSERT INTO plans (name, description, created_at, favorited_at, progress_from, per_week) VALUES (?, ?, ?, ?, ?, ?)',
+        p.name, p.description, p.createdAt, p.favoritedAt, p.progressFrom, p.perWeek,
+      ).lastInsertRowId;
+      p.courses.forEach((c, pos) => idMap.set(c.id, insertCourse(c, planId, pos)));
+      const next = p.nextCourseId != null ? idMap.get(p.nextCourseId) : undefined;
+      if (next != null) db.runSync('UPDATE plans SET next_course_id = ? WHERE id = ?', next, planId);
+    }
+  });
+  return idMap;
 }
 
 /** 플랜과 안의 코스를 지운다. 그 코스로 달린 기록은 사본이 있어 그대로 남는다 */

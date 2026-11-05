@@ -60,15 +60,16 @@ const WALK_TYPES = new Set(['walking', 'walk', 'hiking', 'hike']);
 
 /**
  * GPX 트랙을 기록으로 되살린다. 점이 없으면 null.
- * - 이 앱의 백업(<lr:run> 있음): 시작·종료·일시정지 시각, 종목, 목표를 그대로 쓴다.
+ * - 이 앱의 백업(<lr:run> 있음): 시작·종료·일시정지 시각, 종목, 목표, 내 코스 사본을 그대로 쓴다.
  * - 다른 앱의 GPX: 첫 점에 시작, 마지막 점에 종료, <trkseg> 사이 틈을 일시정지로 본다. 목표는 자유.
  */
 export function trackToRun(track: ParsedTrack): ImportedRun | null {
   const samples = dedupe(track.segments.flat().sort((a, b) => a.t - b.t));
   if (samples.length === 0) return null;
   if (track.meta) {
-    const { startedAt, endedAt, activity, goalMin, marks } = track.meta;
-    return { startedAt, endedAt, activity, goalMin, marks, samples };
+    const { startedAt, endedAt, activity, goalMin, marks, custom } = track.meta;
+    // 코스 사본의 id는 백업한 기기의 id다. 이 기기의 id로 바꾸는 것은 불러오기(services/import.ts)가 한다
+    return { startedAt, endedAt, activity, goalMin, marks, samples, custom: custom ?? null };
   }
 
   const marks: RunMark[] = [];
