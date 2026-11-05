@@ -191,6 +191,15 @@ describe('백업을 기기에 저장(공유 대상에 파일 앱이 없는 폰)'
     const before = mockFiles.size;
     pickDirectory().mockRejectedValue(Object.assign(new Error('The file picker was cancelled by the user'), { code: 'ERR_PICKER_CANCELLED' }));
     expect(await saveGpxToDevice(file)).toBeNull();
+    // 실기기에서 본 모양: code 없이 메시지에만 취소가 남는다
+    pickDirectory().mockRejectedValue(
+      new Error("Call to function 'FileSystem.pickDirectoryAsync' has been rejected.\n→ Caused by: The file picker was cancelled by the user"),
+    );
+    expect(await saveGpxToDevice(file)).toBeNull();
     expect(mockFiles.size).toBe(before);
+
+    // 취소가 아닌 오류는 그대로 올린다(화면이 "백업하지 못했어요"로 알린다)
+    pickDirectory().mockRejectedValue(new Error('저장 공간 부족'));
+    await expect(saveGpxToDevice(file)).rejects.toThrow('저장 공간 부족');
   });
 });

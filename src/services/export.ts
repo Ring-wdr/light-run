@@ -99,9 +99,15 @@ export async function shareGpx(file: GpxFile): Promise<void> {
 /** 마지막으로 백업을 저장한 폴더(SAF 트리 URI). 다음에 폴더 고르기를 여기서 연다 */
 const SAVE_DIR_PREF = 'backup.saveDir';
 
-/** 폴더 고르기 취소. expo-file-system이 PickerCancelledException(코드 ERR_PICKER_CANCELLED)으로 던진다 */
+/**
+ * 폴더 고르기 취소. expo-file-system이 PickerCancelledException(코드 ERR_PICKER_CANCELLED)으로 던진다.
+ * 실기기(노트10, 릴리스 빌드)에서는 JS 오류의 code가 그 값이 아니었고 메시지만 남았다
+ * ("Call to function 'FileSystem.pickDirectoryAsync' has been rejected. → Caused by: The file picker was cancelled by the user").
+ * 그래서 메시지도 본다. File.pickFileAsync도 취소를 이렇게 거르지 않고 오류면 다 취소로 본다
+ */
 function isPickerCancelled(e: unknown): boolean {
-  return (e as { code?: unknown } | null)?.code === 'ERR_PICKER_CANCELLED';
+  const { code, message } = (e ?? {}) as { code?: unknown; message?: unknown };
+  return code === 'ERR_PICKER_CANCELLED' || (typeof message === 'string' && message.includes('file picker was cancelled'));
 }
 
 /**
