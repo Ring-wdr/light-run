@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { Course } from '../core/course';
 import { resumePauseAt } from '../core/resume';
 import { elapsedMs, initialRun, reduce, replay, worthSaving, type RunEvent, type RunState } from '../core/session';
-import { DEFAULT_VOICE, type VoiceCue, type VoiceSettings } from '../core/voice';
+import { DEFAULT_VOICE, startCue, type VoiceCue, type VoiceSettings } from '../core/voice';
 import {
   requestPermissions,
   startTracking,
@@ -55,7 +55,7 @@ const EMPTY: RunSnapshot = {
 /** 시작 버튼을 누른 뒤 기록이 시작되기까지 세는 초 */
 export const COUNTDOWN_SEC = 3;
 let snap: RunSnapshot = EMPTY;
-/** 기록을 시작(이어가기)할 때 읽은 설정. 시간 안내 간격에 쓴다 */
+/** 기록을 시작(이어가기)할 때 읽은 설정. 시간 안내 간격·구간 안내에 쓴다 */
 let voice: VoiceSettings = DEFAULT_VOICE;
 const subs = new Set<() => void>();
 
@@ -221,7 +221,7 @@ export async function startRun(course: Course): Promise<PermissionResult | null>
     emit(EMPTY);
     throw e;
   }
-  say({ type: 'start' });
+  say(startCue(course, voice));
   syncTimeCues();
   return perm;
 }

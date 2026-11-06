@@ -1,4 +1,5 @@
 // 아래 jest.mock들은 babel-jest가 이 import보다 먼저 실행되게 끌어올린다
+import { step } from '../src/core/my-course';
 import { MIN_SAVED_MS } from '../src/core/session';
 import * as rc from '../src/services/run-controller';
 
@@ -119,6 +120,20 @@ describe('음성 안내 예약', () => {
     mockSettings.set('voice.intervalMin', '0');
     await startRun({ activity: 'walk', goalMin: 30 });
     expect(lastSchedule()[2]).toEqual(['절반 왔어요. 15분 남았어요.', '5분 남았어요.', '30분 걷기 목표 달성! 계속하거나 종료하세요.']);
+  });
+
+  it('내 코스: 시작에 이름·총 시간·첫 구간, 구간 안내를 예약한다. 설정에서 끄면 지금 문구 그대로', async () => {
+    const custom = { id: 1, name: '입문', blocks: [step('walk', 300), step('run', 60)] };
+    await startRun({ activity: 'walk', goalMin: null, custom });
+    expect(mockCalls[0]).toEqual(['speak', '입문 코스를 시작할게요. 총 6분, 걷기 5분부터.', false]);
+    expect(lastSchedule()[2].slice(0, 5)).toEqual(['1분 뒤 달리기.', '셋.', '둘.', '하나.', '달리기 1분. 마지막 구간이에요.']);
+    await rc.stopRun();
+    mockCalls.length = 0;
+
+    mockSettings.set('voice.segments', '0');
+    await startRun({ activity: 'walk', goalMin: null, custom });
+    expect(mockCalls[0]).toEqual(['speak', '걷기를 시작할게요.', false]);
+    expect(lastSchedule()[2].slice(0, 2)).toEqual(['5분 지났어요. 1분 남았어요.', '입문 코스 완료! 계속하거나 종료하세요.']);
   });
 
   it('설정에서 음성 안내를 끄면 아무것도 말하거나 예약하지 않는다', async () => {
