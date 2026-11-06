@@ -32,6 +32,7 @@ export function useBackup(onImported?: () => void) {
     prepare: prepareAllGpx,
     emptyMessage: '백업할 기록이나 코스가 없어요',
     failTitle: '백업하지 못했어요',
+    offerSave: true,
   });
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);

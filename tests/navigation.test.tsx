@@ -7,6 +7,7 @@ import { gpxDocument } from '../src/core/gpx';
 import { step } from '../src/core/my-course';
 import { summarize } from '../src/core/record';
 import { MIN_SAVED_MS } from '../src/core/session';
+import * as gpxExport from '../src/services/export';
 import * as gpxImport from '../src/services/import';
 import { requestPermissions, startTracking } from '../src/services/location';
 import { cancelCountdown, stopRun } from '../src/services/run-controller';
@@ -446,6 +447,31 @@ describe('기록(전체)', () => {
     expect(screen.getByRole('menuitem', { name: '라이트런 전체 백업' })).toBeOnTheScreen();
     await user.press(screen.getByRole('menuitem', { name: '백업 불러오기' }));
     expect(pick).toHaveBeenCalledTimes(1);
+  });
+
+  it('전체 백업은 Android에서 "기기에 저장"과 "다른 앱으로 보내기"를 고른다(iOS는 공유 시트에 "파일에 저장"이 있다)', async () => {
+    // 파일 만들기·폴더 고르기·공유 시트는 기기 경계라 가짜로
+    const file = { uri: 'cache/light-run-backup.gpx', title: '라이트런 전체 백업', count: 1 };
+    jest.spyOn(gpxExport, 'prepareAllGpx').mockResolvedValue(file);
+    const save = jest.spyOn(gpxExport, 'saveGpxToDevice').mockResolvedValue('light-run-backup.gpx');
+    const share = jest.spyOn(gpxExport, 'shareGpx').mockResolvedValue();
+    renderRouter('src/app');
+    await user.press(screen.getByRole('button', { name: '설정' }));
+    await user.press(screen.getByRole('button', { name: '라이트런 전체 백업' }));
+
+    if (Platform.OS !== 'android') {
+      expect(share).toHaveBeenCalledWith(file);
+      return;
+    }
+    expect(share).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenLastCalledWith('라이트런 전체 백업', expect.any(String), expect.any(Array));
+    await pressAlertButton('기기에 저장');
+    expect(save).toHaveBeenCalledWith(file);
+    expect(Alert.alert).toHaveBeenLastCalledWith('기기에 저장했어요', 'light-run-backup.gpx');
+
+    await user.press(screen.getByRole('button', { name: '라이트런 전체 백업' }));
+    await pressAlertButton('다른 앱으로 보내기');
+    expect(share).toHaveBeenCalledWith(file);
   });
 
   it('새로 설치한 앱(기록 없음)도 홈 → 설정에서 백업을 불러온다', async () => {

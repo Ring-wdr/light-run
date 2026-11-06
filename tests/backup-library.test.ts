@@ -1,6 +1,6 @@
 import type { Course } from '../src/core/course';
 import { step, totalSec, type Block } from '../src/core/my-course';
-import { prepareAllGpx } from '../src/services/export';
+import { prepareAllGpx, saveGpxToDevice } from '../src/services/export';
 import { importGpx } from '../src/services/import';
 import * as storage from '../src/services/storage';
 import { straightTrack } from './helpers';
@@ -13,19 +13,36 @@ import type { FakeExpoSqlite } from './support/sqlite';
  */
 jest.mock('expo-sqlite', () => require('./support/sqlite').createExpoSqlite());
 const mockFiles = new Map<string, string>();
-jest.mock('expo-file-system', () => ({
-  Paths: { cache: 'cache' },
-  File: class {
+jest.mock('expo-file-system', () => {
+  class File {
     uri: string;
-    constructor(dir: string, name: string) {
-      this.uri = `${dir}/${name}`;
+    constructor(...parts: string[]) {
+      this.uri = parts.join('/');
+    }
+    get name() {
+      return this.uri.split('/').at(-1)!;
     }
     create() {}
     write(text: string) {
       mockFiles.set(this.uri, text);
     }
-  },
-}));
+    async text() {
+      return mockFiles.get(this.uri)!;
+    }
+  }
+  /** 사용자가 고른 폴더(Android SAF). createFile은 폴더 안에 새 파일을 만든다 */
+  class Directory {
+    static pickDirectoryAsync = jest.fn();
+    uri: string;
+    constructor(path: string) {
+      this.uri = path;
+    }
+    createFile(name: string) {
+      return new File(this.uri, name);
+    }
+  }
+  return { Paths: { cache: 'cache' }, File, Directory };
+});
 jest.mock('expo-sharing', () => ({}));
 
 const T0 = Date.UTC(2026, 10, 1, 6);
@@ -136,5 +153,53 @@ describe('라이트런 전체 백업: 내 코스·플랜', () => {
 
   it('기록도 코스도 없으면 백업 파일을 만들지 않는다', async () => {
     expect(await prepareAllGpx()).toBeNull();
+  });
+});
+
+describe('백업을 기기에 저장(공유 대상에 파일 앱이 없는 폰)', () => {
+  const { Directory } = jest.requireMock<typeof import('expo-file-system')>('expo-file-system');
+  const pickDirectory = () => jest.mocked(Directory.pickDirectoryAsync);
+
+  it('고른 폴더에 같은 이름으로 저장하고, 그 파일로 다른 폰에서 불러온다', async () => {
+    storage.createCourse({ name: '혼자', description: '', blocks: RUN_ONLY }, T0);
+    runWith(T0 + 60_000, { activity: 'run', goalMin: null, custom: null });
+    const file = (await prepareAllGpx())!;
+    pickDirectory().mockResolvedValue(new Directory('content://tree/Download%2FLightRun'));
+
+    const name = await saveGpxToDevice(file);
+    expect(name).toMatch(/^light-run-backup-.*\.gpx$/);
+    const saved = mockFiles.get(`content://tree/Download%2FLightRun/${name}`);
+    expect(saved).toBe(mockFiles.get(file.uri));
+
+    resetDb();
+    expect(await importGpx(saved!)).toMatchObject({ imported: 1, courses: 1 });
+  });
+
+  it('다음 저장은 지난번에 고른 폴더에서 연다', async () => {
+    storage.createCourse({ name: '혼자', description: '', blocks: RUN_ONLY }, T0);
+    const file = (await prepareAllGpx())!;
+    pickDirectory().mockResolvedValue(new Directory('content://tree/Documents'));
+    await saveGpxToDevice(file);
+    expect(pickDirectory()).toHaveBeenLastCalledWith(undefined);
+    await saveGpxToDevice(file);
+    expect(pickDirectory()).toHaveBeenLastCalledWith('content://tree/Documents');
+  });
+
+  it('폴더 고르기를 취소하면 아무것도 저장하지 않는다', async () => {
+    storage.createCourse({ name: '혼자', description: '', blocks: RUN_ONLY }, T0);
+    const file = (await prepareAllGpx())!;
+    const before = mockFiles.size;
+    pickDirectory().mockRejectedValue(Object.assign(new Error('The file picker was cancelled by the user'), { code: 'ERR_PICKER_CANCELLED' }));
+    expect(await saveGpxToDevice(file)).toBeNull();
+    // 실기기에서 본 모양: code 없이 메시지에만 취소가 남는다
+    pickDirectory().mockRejectedValue(
+      new Error("Call to function 'FileSystem.pickDirectoryAsync' has been rejected.\n→ Caused by: The file picker was cancelled by the user"),
+    );
+    expect(await saveGpxToDevice(file)).toBeNull();
+    expect(mockFiles.size).toBe(before);
+
+    // 취소가 아닌 오류는 그대로 올린다(화면이 "백업하지 못했어요"로 알린다)
+    pickDirectory().mockRejectedValue(new Error('저장 공간 부족'));
+    await expect(saveGpxToDevice(file)).rejects.toThrow('저장 공간 부족');
   });
 });
