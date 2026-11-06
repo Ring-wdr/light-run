@@ -123,6 +123,39 @@ export function segmentAt(segments: Segment[], elapsedMs: number): SegmentPositi
   };
 }
 
+/** 음성 안내용 구간. 같은 강도가 이어지면 하나로 합치고, 반복 블록의 회차 첫 구간에는 몇 번째인지 붙인다 */
+export interface SpokenSegment extends Segment {
+  /** 반복 블록의 n번째 회차 첫 구간(1부터). 합치다 회차가 섞이면 없앤다 */
+  round?: { n: number; of: number };
+}
+
+/**
+ * 음성 안내에 쓸 구간 열. 화면 차트는 expand()를 그대로 쓰고, 안내만 이것으로 한다.
+ * 예: 반복 마지막 걷기 2분 + 정리 걷기 5분 → 걷기 7분 하나("걷기 7분." 한 번만 말한다).
+ */
+export function spokenSegments(blocks: Block[]): SpokenSegment[] {
+  const pieces: SpokenSegment[] = [];
+  let t = 0;
+  const push = (s: Step, round?: SpokenSegment['round']) => {
+    pieces.push(round ? { intensity: s.intensity, sec: s.sec, startSec: t, round } : { intensity: s.intensity, sec: s.sec, startSec: t });
+    t += s.sec;
+  };
+  for (const b of blocks) {
+    if (b.kind === 'step') push(b);
+    else for (let n = 0; n < b.times; n++) b.steps.forEach((s, i) => push(s, i === 0 ? { n: n + 1, of: b.times } : undefined));
+  }
+  const out: SpokenSegment[] = [];
+  for (const p of pieces) {
+    const prev = out.at(-1);
+    if (prev && prev.intensity === p.intensity) {
+      prev.sec += p.sec;
+      // 다른 회차를 삼키면 "n번째"가 틀리므로 회차 표시를 뺀다
+      if (p.round) delete prev.round;
+    } else out.push({ ...p });
+  }
+  return out;
+}
+
 /** (prevMs, nowMs] 사이에 코스를 다 채웠는지. 음성 안내는 코스 완료 한 번만 한다 */
 export function courseDoneBetween(blocks: Block[], prevMs: number, nowMs: number): boolean {
   const at = totalSec(blocks) * 1000;

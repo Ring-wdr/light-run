@@ -11,15 +11,20 @@ import { getPref, setPref } from './storage';
  * - iOS·Expo Go: expo-speech + JS 타이머. 앱이 떠 있을 때만 동작한다(iOS 백그라운드는 3단계).
  * 음악 소리 줄이기(오디오 포커스)는 아직 하지 않는다(docs/PLAN.md §2-7).
  */
-const KEY = { enabled: 'voice.enabled', intervalMin: 'voice.intervalMin' } as const;
+const KEY = { enabled: 'voice.enabled', intervalMin: 'voice.intervalMin', segments: 'voice.segments' } as const;
 
 export function loadVoiceSettings(): VoiceSettings {
-  return parseVoiceSettings({ enabled: getPref(KEY.enabled), intervalMin: getPref(KEY.intervalMin) });
+  return parseVoiceSettings({
+    enabled: getPref(KEY.enabled),
+    intervalMin: getPref(KEY.intervalMin),
+    segments: getPref(KEY.segments),
+  });
 }
 
 export function saveVoiceSettings(v: VoiceSettings): void {
   setPref(KEY.enabled, v.enabled ? '1' : '0');
   setPref(KEY.intervalMin, String(v.intervalMin));
+  setPref(KEY.segments, v.segments ? '1' : '0');
 }
 
 function speakText(text: string, flush: boolean): void {
@@ -40,7 +45,7 @@ let timers: ReturnType<typeof setTimeout>[] = [];
  * 달리는 중에만 부르고, 일시정지하면 cancelTimeCues로 지운 뒤 재개할 때 다시 부른다.
  */
 export function scheduleTimeCues(course: Course, settings: VoiceSettings, movingMs: number, now: number): void {
-  const cues = upcomingTimeCues(course, settings.intervalMin, movingMs);
+  const cues = upcomingTimeCues(course, settings, movingMs);
   const atMs = cues.map((c) => now + (c.atMs - movingMs));
   const texts = cues.map((c) => cueText(c.cue, course));
   if (VoiceGuide) return VoiceGuide.schedule(atMs, texts);

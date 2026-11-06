@@ -78,7 +78,9 @@ private object VoiceGuide {
         val last = due.last()
         if (now - last.first <= STALE_MS) speakNow(last.second, false)
       }
-      if (queue.isEmpty()) releaseWakeLock() else handler.postDelayed(this, TICK_MS)
+      // 다음 예약 시각에 맞춰 깬다(셋·둘·하나가 1초 간격으로 고르게 나오도록). 시계가 바뀔 때를 대비해 최대 TICK_MS
+      if (queue.isEmpty()) releaseWakeLock()
+      else handler.postDelayed(this, (queue.first().first - now).coerceIn(0L, TICK_MS))
     }
   }
 

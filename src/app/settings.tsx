@@ -50,12 +50,27 @@ export default function Settings() {
 
           <View style={styles.block}>
             <Text style={styles.label}>시간 안내 간격</Text>
-            <Text style={styles.hint}>“10분 지났어요.”처럼 움직인 시간을 알려 줘요. 목표 절반·5분 전·달성 안내는 간격과 상관없이 해요.</Text>
+            <Text style={styles.hint}>“10분 지났어요.”처럼 움직인 시간을 알려 줘요. 내 코스는 남은 시간도 함께 말해요. 목표 절반·5분 전·달성 안내는 간격과 상관없이 해요.</Text>
             <Segmented
               options={VOICE_INTERVALS.map((m) => ({ value: String(m), label: intervalLabel(m) }))}
               value={String(voice.intervalMin)}
               onChange={(v) => update({ ...voice, intervalMin: Number(v) as VoiceInterval })}
               tint={color.ink}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.label}>구간 안내</Text>
+              <Text style={styles.hint}>
+                내 코스에서 구간이 바뀌기 전에 “10초 뒤 달리기.”와 셋·둘·하나로, 바뀔 때 “달리기 1분.”으로 알려 줘요.
+              </Text>
+            </View>
+            <Switch
+              value={voice.segments}
+              onValueChange={(segments) => update({ ...voice, segments })}
+              trackColor={{ true: color.accent }}
+              accessibilityLabel="구간 안내"
             />
           </View>
         </View>
