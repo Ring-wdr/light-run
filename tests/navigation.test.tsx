@@ -442,6 +442,24 @@ describe('기록 상세', () => {
     await user.press(screen.getByRole('button', { name: '더보기' }));
     expect(screen.getByRole('menuitem', { name: '3D로 다시 보기' })).toBeDisabled();
   });
+
+  it('위에 연 화면에서 이 기록을 지우고 돌아오면 지운 기록과 ··· 메뉴를 보이지 않는다', async () => {
+    const runId = storage.createRun(Date.now() - 60_000, RUN_30, true);
+    storage.finishRun(runId, { endedAt: Date.now(), distanceM: 0, movingMs: 60_000, splits: [] });
+    const app = renderRouter('src/app', { initialUrl: `/history/${runId}` });
+    expect(screen.getByText('1:00')).toBeOnTheScreen();
+
+    // 상세 위에 전체 기록을 열고, 거기서(그 위의 상세에서) 이 기록을 지운 것과 같다
+    await nav(() => router.navigate('/history'));
+    expect(stack(app)).toEqual(['index', `history/[id]:${runId}`, 'history/index']);
+    await act(async () => storage.deleteRun(runId));
+    await nav(() => router.back());
+
+    expect(stack(app)).toEqual(['index', `history/[id]:${runId}`]);
+    expect(screen.getByText('기록을 찾을 수 없어요.')).toBeOnTheScreen();
+    expect(screen.queryByText('1:00')).not.toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '더보기' })).not.toBeOnTheScreen();
+  });
 });
 
 describe('기록(전체)', () => {
