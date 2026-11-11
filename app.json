@@ -45,6 +45,7 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
+      "./plugins/with-notification-icon",
       "@rnmapbox/maps",
       [
         "expo-build-properties",
