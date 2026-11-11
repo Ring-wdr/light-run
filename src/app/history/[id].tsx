@@ -1,5 +1,5 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { courseLabel, courseProgress } from '../../core/course';
@@ -21,9 +21,11 @@ import { useGpxExport } from '../../ui/useGpxExport';
 export default function RunDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const runId = Number(id);
-  const run = getRun(runId);
+  const [run, setRun] = useState(() => getRun(runId));
+  // 위에 연 화면(전체 기록 등)에서 이 기록을 지우고 돌아오면 지운 기록이 남아 보이지 않게 다시 읽는다
+  useFocusEffect(useCallback(() => setRun(getRun(runId)), [runId]));
   // 저장된 원본 이벤트를 다시 재생해 거리 계산과 같은 경로를 얻는다
-  const segments = useMemo(() => routeSegments(loadEvents(runId)), [runId]);
+  const segments = useMemo(() => (run ? routeSegments(loadEvents(run.id)) : []), [run]);
   const gpx = useGpxExport({
     prepare: (onProgress) => prepareRunGpx(runId, onProgress),
     emptyMessage: '내보낼 GPS 기록이 없어요',
@@ -33,7 +35,14 @@ export default function RunDetail() {
   const insets = useSafeAreaInsets();
   const L = useLayout();
   const pad = L.pad;
-  if (!run) return <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>;
+  if (!run)
+    return (
+      <>
+        {/* 지운 기록의 제목과 ··· 메뉴(삭제·내보내기)가 남지 않게 헤더도 비운다 */}
+        <Stack.Screen options={{ title: '기록', headerRight: () => null }} />
+        <Text style={styles.empty}>기록을 찾을 수 없어요.</Text>
+      </>
+    );
 
   const goal = courseProgress(run, run.movingMs);
   const bars = splitBars(run.splits);

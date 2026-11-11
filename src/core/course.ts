@@ -2,7 +2,8 @@ import { totalSec, type CourseSnapshot } from './my-course';
 
 /**
  * 코스 = 종목(걷기·달리기) × 시간 목표(30분·50분·자유), 또는 내 코스(구간 열, my-course.ts).
- * 목표는 기록을 자동으로 끝내지 않는다. 진행률과 음성 안내(core/voice.ts)만 주고, 종료는 사용자가 한다.
+ * 목표(시간 목표·내 코스 총 시간)를 다 채우면 기본으로 기록을 자동 종료한다(설정에서 끌 수 있다, autoFinish).
+ * 끄면 목표는 진행률과 음성 안내(core/voice.ts)만 주고, 종료는 사용자가 한다. 자유 코스는 언제나 사용자가 끝낸다.
  */
 export type Activity = 'walk' | 'run';
 
@@ -39,8 +40,20 @@ export function goalProgress(goalMin: number | null, elapsedMs: number): GoalPro
 
 /** 코스의 목표 진행률. 내 코스는 총 시간, 시간 목표는 목표 분, 자유는 null */
 export function courseProgress(c: Course, elapsedMs: number): GoalProgress | null {
-  if (c.custom) return progressToward(totalSec(c.custom.blocks) * 1000, elapsedMs);
-  return goalProgress(c.goalMin, elapsedMs);
+  const goalMs = courseGoalMs(c);
+  return goalMs == null ? null : progressToward(goalMs, elapsedMs);
+}
+
+/** 코스의 목표 이동 시간(ms). 자유 코스·빈 내 코스면 null(자동 종료 없음) */
+export function courseGoalMs(c: Pick<Course, 'goalMin' | 'custom'>): number | null {
+  const ms = c.custom ? totalSec(c.custom.blocks) * 1000 : c.goalMin != null ? c.goalMin * 60_000 : null;
+  return ms != null && ms > 0 ? ms : null;
+}
+
+/** 목표를 다 채우면 자동 종료할지(설정). 저장값이 없으면 켬 */
+export const DEFAULT_AUTO_FINISH = true;
+export function parseAutoFinish(raw: string | null | undefined): boolean {
+  return raw == null || raw === '' ? DEFAULT_AUTO_FINISH : raw === '1';
 }
 
 function progressToward(goalMs: number, elapsedMs: number): GoalProgress | null {

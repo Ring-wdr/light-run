@@ -94,6 +94,22 @@ describe('upcomingTimeCues', () => {
     );
   });
 
+  it('자동 종료 켬: 목표 달성·코스 완료 대신 끝낼 때 한 번에 말하고, 목표 시각부터는 예약하지 않는다', () => {
+    expect(times(upcomingTimeCues(run30, { ...v(5), autoFinish: true }, 0)).map(([m]) => m)).toEqual([5, 10, 15, 20, 25]);
+    const custom = { id: 1, name: '인터벌', blocks: [step('run', 60), step('walk', 540)] };
+    expect(times(upcomingTimeCues({ goalMin: null, custom }, { ...v(5, false), autoFinish: true }, 0))).toEqual([
+      [5, { type: 'elapsed', min: 5, remainSec: 300 }],
+    ]);
+    expect(cueText({ type: 'courseFinish' }, run30)).toBe('30분 달리기 목표 달성! 수고했어요. 기록을 저장했어요.');
+    expect(cueText({ type: 'courseFinish' }, { activity: 'run', goalMin: null, custom })).toBe(
+      '인터벌 코스 완료! 수고했어요. 기록을 저장했어요.',
+    );
+  });
+
+  it('자동 종료 켬이어도 자유 코스는 그대로', () => {
+    expect(upcomingTimeCues({ goalMin: null }, { ...v(5), autoFinish: true }, 0).at(-1)!.atMs).toBe(12 * 60 * MIN);
+  });
+
   it('기본 범위는 12시간', () => {
     expect(upcomingTimeCues({ goalMin: null }, v(5), 0).at(-1)!.atMs).toBe(12 * 60 * MIN);
   });

@@ -9,7 +9,7 @@ import { summarize } from '../src/core/record';
 import { MIN_SAVED_MS } from '../src/core/session';
 import * as gpxExport from '../src/services/export';
 import * as gpxImport from '../src/services/import';
-import { requestPermissions, startTracking } from '../src/services/location';
+import { requestPermissions, startTracking, stopTracking } from '../src/services/location';
 import { cancelCountdown, stopRun } from '../src/services/run-controller';
 import * as storage from '../src/services/storage';
 import { goHome } from '../src/ui/navigation';
@@ -31,6 +31,7 @@ jest.mock('../src/services/location', () => ({
   startTracking: jest.fn(async () => 'background'),
   stopTracking: jest.fn(async () => {}),
   subscribeSamples: () => () => {},
+  subscribeLocationWake: () => () => {},
 }));
 
 const RUN_30: Course = { activity: 'run', goalMin: 30, custom: null };
@@ -232,12 +233,13 @@ describe('기록 시작·종료(가드)', () => {
     expect(storage.getRun(old)).toBeNull();
   });
 
-  it('시작이 되돌려지면(위치 추적 실패) 홈', async () => {
+  it('위치 추적을 못 켜면 카운트를 멈추고 기록 없이 홈', async () => {
     jest.mocked(startTracking).mockRejectedValueOnce(new Error('위치 서비스 꺼짐'));
     const app = renderRouter('src/app');
-    await pressStart('달리기 30분 시작');
+    await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
     expect(stack(app)).toEqual(['index']);
     expect(Alert.alert).toHaveBeenCalledWith('기록을 시작하지 못했어요', '위치 서비스 꺼짐');
+    expect(storage.listRuns()).toEqual([]);
   });
 
   it('기록 중에는 다른 화면을, 기록이 없으면 기록 화면을 열 수 없다', async () => {
@@ -256,6 +258,7 @@ describe('대기 카운트', () => {
   it('3초를 센 뒤 기록을 시작한다. 세는 동안은 아무것도 저장하지 않는다', async () => {
     jest.useFakeTimers();
     try {
+      jest.mocked(startTracking).mockClear();
       const app = renderRouter('src/app');
       const before = Date.now();
       // 누른 핸들러는 카운트가 끝날 때까지 기다리므로 그 프라미스는 기다리지 않는다
@@ -266,6 +269,8 @@ describe('대기 카운트', () => {
       expect(screen.getByText('3')).toBeOnTheScreen();
       expect(screen.queryByText('길게 눌러 종료')).not.toBeOnTheScreen();
       expect(storage.getActiveRunId()).toBeNull();
+      // 위치 추적(포그라운드 서비스)은 카운트 동안 이미 켜져 있다. 카운트 중에 화면이 꺼져도 시작되게
+      expect(startTracking).toHaveBeenCalledTimes(1);
 
       await act(async () => jest.advanceTimersByTime(1000));
       expect(screen.getByText('2')).toBeOnTheScreen();
@@ -290,10 +295,13 @@ describe('대기 카운트', () => {
     await user.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
     expect(screen.getByText('3')).toBeOnTheScreen();
 
+    jest.mocked(stopTracking).mockClear();
     await user.press(screen.getByRole('button', { name: '취소' }));
     expect(stack(app)).toEqual(['index']);
     expect(storage.getActiveRunId()).toBeNull();
     expect(storage.listRuns()).toEqual([]);
+    // 카운트 동안 켜 둔 위치 추적을 끈다
+    expect(stopTracking).toHaveBeenCalled();
   });
 
   it('앱을 다시 켜 이어가기는 카운트 없이 바로 기록 화면', async () => {
@@ -434,6 +442,24 @@ describe('기록 상세', () => {
     await user.press(screen.getByRole('button', { name: '더보기' }));
     expect(screen.getByRole('menuitem', { name: '3D로 다시 보기' })).toBeDisabled();
   });
+
+  it('위에 연 화면에서 이 기록을 지우고 돌아오면 지운 기록과 ··· 메뉴를 보이지 않는다', async () => {
+    const runId = storage.createRun(Date.now() - 60_000, RUN_30, true);
+    storage.finishRun(runId, { endedAt: Date.now(), distanceM: 0, movingMs: 60_000, splits: [] });
+    const app = renderRouter('src/app', { initialUrl: `/history/${runId}` });
+    expect(screen.getByText('1:00')).toBeOnTheScreen();
+
+    // 상세 위에 전체 기록을 열고, 거기서(그 위의 상세에서) 이 기록을 지운 것과 같다
+    await nav(() => router.navigate('/history'));
+    expect(stack(app)).toEqual(['index', `history/[id]:${runId}`, 'history/index']);
+    await act(async () => storage.deleteRun(runId));
+    await nav(() => router.back());
+
+    expect(stack(app)).toEqual(['index', `history/[id]:${runId}`]);
+    expect(screen.getByText('기록을 찾을 수 없어요.')).toBeOnTheScreen();
+    expect(screen.queryByText('1:00')).not.toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '더보기' })).not.toBeOnTheScreen();
+  });
 });
 
 describe('기록(전체)', () => {
@@ -491,6 +517,42 @@ describe('기록(전체)', () => {
     await nav(() => router.back());
     await user.press(screen.getByRole('tab', { name: '내 코스' }));
     expect(screen.getByRole('button', { name: '옮긴 코스' })).toBeOnTheScreen();
+  });
+
+  it('코스를 마치면 자동 종료는 기본으로 켜져 있고, 끄면 저장된다', async () => {
+    renderRouter('src/app');
+    await user.press(screen.getByRole('button', { name: '설정' }));
+    // 네이티브 Switch는 테스트 렌더러에서 역할(switch)이 없어 라벨로 찾는다. 켬 여부는 iOS value, Android on
+    const toggle = () => screen.getByLabelText('코스를 마치면 자동 종료');
+    const isOn = () => toggle().props.value ?? toggle().props.on;
+    expect(isOn()).toBe(true);
+    fireEvent(toggle(), 'valueChange', false);
+    expect(isOn()).toBe(false);
+    expect(storage.getPref('run.autoFinish')).toBe('0');
+  });
+});
+
+describe('코스를 마치면 자동 종료', () => {
+  it('목표 시간을 채우면 저절로 끝나고, 길게 눌러 끝낼 때처럼 [홈, 상세]', async () => {
+    jest.useFakeTimers();
+    try {
+      const app = renderRouter('src/app');
+      await act(async () => {
+        fireEvent.press(screen.getByRole('button', { name: '달리기 30분 시작' }));
+      });
+      await act(async () => jest.advanceTimersByTime(3000));
+      const id = activeRunId();
+
+      await act(async () => jest.advanceTimersByTime(30 * 60_000 - 1));
+      expect(stack(app)).toEqual(['run']);
+      await act(async () => jest.advanceTimersByTime(1));
+
+      expect(stack(app)).toEqual(['index', `history/[id]:${id}`]);
+      expect(storage.getRun(id)).toMatchObject({ status: 'finished', movingMs: 30 * 60_000 });
+    } finally {
+      screen.unmount();
+      jest.useRealTimers();
+    }
   });
 });
 

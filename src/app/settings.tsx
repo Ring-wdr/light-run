@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VOICE_INTERVALS, type VoiceInterval, type VoiceSettings } from '../core/voice';
+import { loadAutoFinish, saveAutoFinish } from '../services/run-settings';
 import { hasKoreanVoice, loadVoiceSettings, saveVoiceSettings } from '../services/voice';
 import { BusyOverlay } from '../ui/BusyOverlay';
 import { Icon } from '../ui/Icon';
@@ -17,6 +18,7 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const { pad } = useLayout();
   const [voice, setVoice] = useState<VoiceSettings>(loadVoiceSettings);
+  const [autoFinish, setAutoFinish] = useState(loadAutoFinish);
   const [koreanMissing, setKoreanMissing] = useState(false);
   const backup = useBackup();
 
@@ -33,7 +35,28 @@ export default function Settings() {
     // 로딩 표시(BusyOverlay)는 스크롤 밖 화면 최상위에 덮는다
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={[styles.wrap, { padding: pad, paddingBottom: pad + insets.bottom }]}>
-        <Text style={styles.h2}>음성 안내</Text>
+        <Text style={styles.h2}>기록</Text>
+        <View style={[styles.card, { padding: pad }]}>
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.label}>코스를 마치면 자동 종료</Text>
+              <Text style={styles.hint}>
+                시간 목표를 채우거나 내 코스의 모든 구간을 마치면 기록을 끝내고 저장해요. 끄면 직접 종료할 때까지 계속 기록해요. 자유 코스는 언제나 직접 종료해요.
+              </Text>
+            </View>
+            <Switch
+              value={autoFinish}
+              onValueChange={(on) => {
+                setAutoFinish(on);
+                saveAutoFinish(on);
+              }}
+              trackColor={{ true: color.accent }}
+              accessibilityLabel="코스를 마치면 자동 종료"
+            />
+          </View>
+        </View>
+
+        <Text style={[styles.h2, { marginTop: space.l }]}>음성 안내</Text>
         <View style={[styles.card, { padding: pad, gap: pad }]}>
           <View style={styles.row}>
             <View style={styles.rowText}>
