@@ -8,12 +8,22 @@ import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { courseLabel } from '../core/course';
 import { formatDuration } from '../core/pace';
-import { discardUnfinishedRun, findUnfinishedRun, resumeUnfinishedRun, useRun } from '../services/run-controller';
+import {
+  discardUnfinishedRun,
+  findUnfinishedRun,
+  resumeUnfinishedRun,
+  setAutoFinishHandler,
+  useRun,
+} from '../services/run-controller';
 import { migrate } from '../services/storage';
+import { setDetailAfterStop } from '../ui/navigation';
 import { NATIVE_SPLASH_FADE_MS, SplashOverlay } from '../ui/SplashOverlay';
 import { color } from '../ui/theme';
 
 migrate();
+
+// 목표를 다 채워 자동 종료하면(화면이 꺼져 있어도) 길게 눌러 끝낼 때처럼 홈에서 방금 기록의 상세를 연다
+setAutoFinishHandler(setDetailAfterStop);
 
 // 네이티브 스플래시는 같은 자리에 JS 스플래시(SplashOverlay)가 그려진 뒤에 걷는다
 SplashScreen.preventAutoHideAsync().catch(() => {});

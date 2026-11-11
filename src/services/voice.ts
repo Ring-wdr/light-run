@@ -44,7 +44,12 @@ let timers: ReturnType<typeof setTimeout>[] = [];
  * 시간 안내를 예약한다(기존 예약은 버림). 이동 시간 movingMs 이후의 안내를 벽시계 시각으로 바꿔 넘긴다.
  * 달리는 중에만 부르고, 일시정지하면 cancelTimeCues로 지운 뒤 재개할 때 다시 부른다.
  */
-export function scheduleTimeCues(course: Course, settings: VoiceSettings, movingMs: number, now: number): void {
+export function scheduleTimeCues(
+  course: Course,
+  settings: VoiceSettings & { autoFinish?: boolean },
+  movingMs: number,
+  now: number,
+): void {
   const cues = upcomingTimeCues(course, settings, movingMs);
   const atMs = cues.map((c) => now + (c.atMs - movingMs));
   const texts = cues.map((c) => cueText(c.cue, course));

@@ -1,4 +1,4 @@
-import { elapsedMs, initialRun, MIN_SAVED_MS, reduce, replay, worthSaving, type RunEvent } from '../src/core/session';
+import { elapsedMs, initialRun, MIN_SAVED_MS, reachedMovingAt, reduce, replay, worthSaving, type RunEvent } from '../src/core/session';
 import { currentPace } from '../src/core/pace';
 import { squareTrack, straightTrack } from './helpers';
 
@@ -121,5 +121,25 @@ describe('거리와 구간', () => {
     const chunked: RunEvent[] = [{ type: 'start', at: T0 }];
     for (let i = 0; i < samples.length; i += 7) chunked.push({ type: 'samples', samples: samples.slice(i, i + 7) });
     expect(replay(chunked)).toEqual(replay(events));
+  });
+});
+
+describe('reachedMovingAt (코스 자동 종료 시각)', () => {
+  const MIN = 60_000;
+  const run = replay([
+    { type: 'start', at: T0 },
+    { type: 'pause', at: T0 + 10 * MIN },
+    { type: 'resume', at: T0 + 15 * MIN },
+  ]);
+
+  it('아직 못 닿았으면 null', () => {
+    expect(reachedMovingAt(run, 30 * MIN, T0 + 30 * MIN)).toBeNull();
+  });
+  it('늦게 알아채도 일시정지를 뺀 이동 시간이 목표에 닿은 시각', () => {
+    expect(reachedMovingAt(run, 30 * MIN, T0 + 40 * MIN)).toBe(T0 + 35 * MIN);
+  });
+  it('일시정지 중에 이미 넘었으면(이어가기) now', () => {
+    const paused = reduce(run, { type: 'pause', at: T0 + 50 * MIN });
+    expect(reachedMovingAt(paused, 30 * MIN, T0 + 60 * MIN)).toBe(T0 + 60 * MIN);
   });
 });

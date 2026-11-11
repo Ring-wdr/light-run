@@ -1,4 +1,4 @@
-import { ACTIVITY_LABEL, goalCuePoints, goalLabel, type Course, type GoalCue } from './course';
+import { ACTIVITY_LABEL, courseGoalMs, goalCuePoints, goalLabel, type Course, type GoalCue } from './course';
 import { courseDoneText, spokenSegments, totalSec, type Intensity, type SpokenSegment } from './my-course';
 
 /**
@@ -26,6 +26,8 @@ export type VoiceCue =
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'finish' }
+  /** 목표(시간 목표·내 코스 총 시간)를 다 채워 자동 종료하고 저장함. 목표 달성 안내를 겸한다 */
+  | { type: 'courseFinish' }
   /** 너무 짧아 저장하지 않고 끝냄(core/session.ts worthSaving) */
   | { type: 'discard' };
 
@@ -97,6 +99,7 @@ const PRIORITY: Record<VoiceCue['type'], number> = {
   pause: 0,
   resume: 0,
   finish: 0,
+  courseFinish: 0,
   discard: 0,
 };
 
@@ -133,16 +136,19 @@ function segmentCues(segs: SpokenSegment[]): TimedCue[] {
  * - 0분에는 말하지 않는다(시작 안내가 따로 있다).
  * - 내 코스는 절반·5분 전 없이 코스 완료(총 시간)를 목표 안내로 하고, "N분 지났어요"에 남은 시간을 붙인다.
  *   구간 안내(settings.segments)가 켜져 있으면 구간 안내를 더하고, 그 앞뒤 20초 안의 "N분 지났어요"는 뺀다.
+ * 자동 종료(settings.autoFinish)가 켜져 있으면 목표 달성·코스 완료 안내를 빼고, 끝낼 때 courseFinish 하나로 말한다.
  * 전체 목록을 먼저 정한 뒤 fromMs로 자르므로, 재개·이어가기에서도 같은 규칙이 그대로 적용된다.
  * 달리는 동안 이 목록을 벽시계 시각으로 바꿔 예약하고, 일시정지하면 취소, 재개하면 다시 만든다.
  */
 export function upcomingTimeCues(
   course: Pick<Course, 'goalMin' | 'custom'>,
-  settings: Pick<VoiceSettings, 'intervalMin' | 'segments'>,
+  settings: Pick<VoiceSettings, 'intervalMin' | 'segments'> & { autoFinish?: boolean },
   fromMs: number,
   horizonMs = SCHEDULE_HORIZON_MS,
 ): TimedCue[] {
   const totalMs = course.custom ? totalSec(course.custom.blocks) * 1000 : null;
+  // 자동 종료면 목표 시각부터는 기록이 끝나 있다. 그 시각의 "N분 지났어요"도 courseFinish와 겹치므로 뺀다
+  const endMs = settings.autoFinish ? (courseGoalMs(course) ?? Infinity) : Infinity;
   const all: TimedCue[] = [];
   if (settings.intervalMin > 0) {
     const step = settings.intervalMin * 60_000;
@@ -152,10 +158,11 @@ export function upcomingTimeCues(
     }
   }
   if (course.custom) {
-    all.push({ atMs: totalMs!, cue: { type: 'courseDone' } });
+    if (!settings.autoFinish) all.push({ atMs: totalMs!, cue: { type: 'courseDone' } });
     if (settings.segments) all.push(...segmentCues(spokenSegments(course.custom.blocks)));
   } else if (course.goalMin != null) {
-    for (const [cue, at] of goalCuePoints(course.goalMin)) all.push({ atMs: at, cue: { type: 'goal', cue } });
+    for (const [cue, at] of goalCuePoints(course.goalMin))
+      if (!(settings.autoFinish && cue === 'done')) all.push({ atMs: at, cue: { type: 'goal', cue } });
   }
 
   // 한 시각에 하나: 우선순위가 높은 것
@@ -174,7 +181,7 @@ export function upcomingTimeCues(
         return !starts.some((t) => at - t >= 0 && at - t <= SOON_AFTER_START_MS);
       return true;
     })
-    .filter(([at]) => at > fromMs && at <= horizonMs)
+    .filter(([at]) => at > fromMs && at <= horizonMs && at < endMs)
     .map(([atMs, cue]) => ({ atMs, cue }));
 }
 
@@ -248,6 +255,10 @@ export function cueText(cue: VoiceCue, course: Course): string {
       return '다시 시작해요.';
     case 'finish':
       return '수고했어요. 기록을 저장했어요.';
+    case 'courseFinish': {
+      const done = course.custom ? `${course.custom.name} 코스 완료!` : `${goalLabel(course.goalMin)} ${activity} 목표 달성!`;
+      return `${done} 수고했어요. 기록을 저장했어요.`;
+    }
     case 'discard':
       return '기록이 짧아서 저장하지 않았어요.';
     case 'courseDone':

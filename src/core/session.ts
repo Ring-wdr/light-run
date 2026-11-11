@@ -79,6 +79,17 @@ export function elapsedMs(s: RunState, now: number): number {
   return s.movingMsBeforeResume + Math.max(0, now - s.resumedAt);
 }
 
+/**
+ * 이동 시간이 targetMs에 닿은 벽시계 시각. now까지 아직 못 닿았으면 null.
+ * 달리는 중이면 마지막 재개 이후 구간에서 정확한 시각을 계산한다(감지가 늦어도 그 시각으로 끝낼 수 있게).
+ * 그 전 구간에서 이미 넘었거나(이어가기) 일시정지 중이면 정확한 시각을 모르므로 now
+ */
+export function reachedMovingAt(s: RunState, targetMs: number, now: number): number | null {
+  if (elapsedMs(s, now) < targetMs) return null;
+  if (s.resumedAt == null || s.movingMsBeforeResume >= targetMs) return now;
+  return s.resumedAt + (targetMs - s.movingMsBeforeResume);
+}
+
 export function reduce(s: RunState, e: RunEvent, filter: FilterOptions = FILTER): RunState {
   switch (e.type) {
     case 'start':

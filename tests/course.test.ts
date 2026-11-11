@@ -1,4 +1,5 @@
-import { courseLabel, goalCuePoints, goalProgress } from '../src/core/course';
+import { courseGoalMs, courseLabel, goalCuePoints, goalProgress, parseAutoFinish } from '../src/core/course';
+import { step } from '../src/core/my-course';
 
 const MIN = 60_000;
 
@@ -27,5 +28,19 @@ describe('goalCuePoints', () => {
   });
   it('10분 이하 목표에는 5분 전 안내가 없다', () => {
     expect(goalCuePoints(10).map(([c]) => c)).toEqual(['half', 'done']);
+  });
+});
+
+describe('코스 자동 종료', () => {
+  it('목표 이동 시간: 시간 목표는 분, 내 코스는 총 시간, 자유·빈 코스는 없음', () => {
+    expect(courseGoalMs({ goalMin: 30 })).toBe(30 * 60_000);
+    expect(courseGoalMs({ goalMin: null, custom: { id: 1, name: 'a', blocks: [step('walk', 90), step('run', 30)] } })).toBe(120_000);
+    expect(courseGoalMs({ goalMin: null })).toBeNull();
+    expect(courseGoalMs({ goalMin: null, custom: { id: 1, name: 'a', blocks: [] } })).toBeNull();
+  });
+  it('설정은 저장값이 없으면 켬', () => {
+    expect(parseAutoFinish(null)).toBe(true);
+    expect(parseAutoFinish('0')).toBe(false);
+    expect(parseAutoFinish('1')).toBe(true);
   });
 });

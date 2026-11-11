@@ -39,8 +39,20 @@ export const toSample = (l: Location.LocationObject): Sample => ({
   speed: l.coords.speed,
 });
 
+const wakeListeners = new Set<() => void>();
+
+/**
+ * 위치가 올 때마다(기록 중이 아니어도) 부른다. 화면이 꺼지면 Android는 JS 타이머(setTimeout)를 멈추지만
+ * 포그라운드 서비스의 위치 이벤트는 계속 온다. 대기 카운트처럼 화면이 꺼져도 시간대로 진행해야 하는 일이 쓴다
+ */
+export function subscribeLocationWake(fn: () => void): () => void {
+  wakeListeners.add(fn);
+  return () => wakeListeners.delete(fn);
+}
+
 /** 백그라운드 태스크와 포그라운드 구독이 함께 쓰는 점 처리: SQLite에 쓰고 화면에 알린다 */
 function handleLocations(locations: Location.LocationObject[]): void {
+  for (const fn of wakeListeners) fn();
   const runId = getActiveRunId();
   if (runId == null) return;
   const samples = locations.map(toSample).sort((a, b) => a.t - b.t);
