@@ -88,6 +88,7 @@ export default function CourseDetail() {
               items={[
                 ...(inPlan ? [] : [{ label: favorite ? '즐겨찾기 해제' : '즐겨찾기', onPress: onFavorite }]),
                 { label: '편집', onPress: () => router.navigate({ pathname: '/courses/edit', params: { id: String(c.id) } }) },
+                { label: '링크·QR로 공유', onPress: () => router.navigate({ pathname: '/courses/qr', params: { id: String(c.id) } }) },
                 { label: '복제', onPress: onDuplicate },
                 { label: '삭제', onPress: onDelete, destructive: true },
               ]}

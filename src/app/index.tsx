@@ -10,7 +10,7 @@ import { CourseGrid } from '../ui/CourseGrid';
 import { useBusy } from '../ui/hooks';
 import { Icon, IconLabel } from '../ui/Icon';
 import { useLayout } from '../ui/layout';
-import { openDetailAfterStop } from '../ui/navigation';
+import { openAfterRun } from '../ui/navigation';
 import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
 import { startCourse } from '../ui/start';
@@ -50,8 +50,8 @@ export default function Home() {
       setCourses(shelf(listCourses(), listPlans()));
       // 다른 화면(코스 저장 뒤 "나중에")이 탭을 바꿔 두었으면 따른다
       setTab(savedTab());
-      // 기록을 막 끝냈으면 그 상세를 홈 위에 연다(src/ui/navigation.ts)
-      openDetailAfterStop();
+      // 기록을 막 끝냈으면 그 상세를, 기록 중에 코스 링크를 받았으면 그 미리보기를 홈 위에 연다(src/ui/navigation.ts)
+      openAfterRun();
     }, []),
   );
 
