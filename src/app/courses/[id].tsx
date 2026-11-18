@@ -99,7 +99,7 @@ export default function CourseDetail() {
                 ...(inPlan ? [] : [{ label: favorite ? '즐겨찾기 해제' : '즐겨찾기', onPress: onFavorite }]),
                 { label: '편집', onPress: () => router.navigate({ pathname: '/courses/edit', params: { id: String(c.id) } }) },
                 { label: '복제', onPress: onDuplicate },
-                { label: '공유', onPress: () => void share.start(), disabled: share.busy },
+                { label: '파일로 공유', onPress: () => void share.start(), disabled: share.busy },
                 { label: '삭제', onPress: onDelete, destructive: true },
               ]}
             />

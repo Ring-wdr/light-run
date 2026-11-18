@@ -40,7 +40,7 @@ type Data = NonNullable<ReturnType<typeof getPlanProgress>>;
  * 플랜: 진행(완료 수) → 코스 칸(한 줄에 3개, 순서 번호·완료·다음 표시) → 코스 넣기 → 하단 고정 "다음 코스 시작".
  * 주차로 나눈 플랜(perWeek)은 진행 막대를 주차 수만큼 칸으로 나누고, 코스 칸도 주차별로 묶어 "이번 주"를 표시한다.
  * 칸을 누르면 아래 시트에서 지금 시작·코스 보기·다음 코스로 지정·순서 옮기기·완료 표시·빼기.
- * 헤더 ··· 메뉴: 즐겨찾기, 편집(이름·설명), 처음부터 다시, 공유, 삭제.
+ * 헤더 ··· 메뉴: 즐겨찾기, 편집(이름·설명), 처음부터 다시, 파일로 공유, 삭제.
  */
 export default function PlanDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -166,7 +166,7 @@ export default function PlanDetail() {
                 { label: favorite ? '즐겨찾기 해제' : '즐겨찾기', onPress: onFavorite },
                 { label: '편집', onPress: () => router.navigate({ pathname: '/plans/edit', params: { id: String(plan.id) } }) },
                 { label: '처음부터 다시', onPress: onRestart, disabled: progress.done === 0 },
-                { label: '공유', onPress: () => void share.start(), disabled: share.busy },
+                { label: '파일로 공유', onPress: () => void share.start(), disabled: share.busy },
                 { label: '삭제', onPress: onDelete, destructive: true },
               ]}
             />

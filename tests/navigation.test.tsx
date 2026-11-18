@@ -778,26 +778,26 @@ describe('코스·플랜 공유 파일', () => {
     expect(share).toHaveBeenCalledWith(file);
   }
 
-  it('코스 상세 ··· › 공유: 그 코스만 담은 파일을 보낸다', async () => {
+  it('코스 상세 ··· › 파일로 공유: 그 코스만 담은 파일을 보낸다', async () => {
     const [id] = seedCourses(2);
     const file = { uri: 'cache/light-run-course-코스-1.gpx', title: '코스 공유', count: 0 };
     const prepare = jest.spyOn(gpxExport, 'prepareCourseGpx').mockResolvedValue(file);
     jest.spyOn(gpxExport, 'shareGpx').mockResolvedValue();
     renderRouter('src/app', { initialUrl: `/courses/${id}` });
     await user.press(screen.getByRole('button', { name: '더보기' }));
-    await user.press(screen.getByRole('menuitem', { name: '공유' }));
+    await user.press(screen.getByRole('menuitem', { name: '파일로 공유' }));
     expect(prepare).toHaveBeenCalledWith(id);
     await expectShared(file);
   });
 
-  it('플랜 ··· › 공유: 플랜과 안의 코스를 담은 파일을 보낸다', async () => {
+  it('플랜 ··· › 파일로 공유: 플랜과 안의 코스를 담은 파일을 보낸다', async () => {
     const { planId } = seedPlan('4주', ['A', 'B']);
     const file = { uri: 'cache/light-run-plan-4주.gpx', title: '플랜 공유', count: 0 };
     const prepare = jest.spyOn(gpxExport, 'preparePlanGpx').mockResolvedValue(file);
     jest.spyOn(gpxExport, 'shareGpx').mockResolvedValue();
     renderRouter('src/app', { initialUrl: `/plans/${planId}` });
     await user.press(screen.getByRole('button', { name: '더보기' }));
-    await user.press(screen.getByRole('menuitem', { name: '공유' }));
+    await user.press(screen.getByRole('menuitem', { name: '파일로 공유' }));
     expect(prepare).toHaveBeenCalledWith(planId);
     await expectShared(file);
   });

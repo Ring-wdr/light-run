@@ -17,7 +17,7 @@ import { useGpxImport } from '../../ui/useGpxImport';
 
 /**
  * 홈 그리드의 "더보기": 내 코스·플랜 전부(홈과 같은 순서) + 새로 만들기.
- * ··· 메뉴의 "코스 불러오기"는 남이 보낸 코스·플랜 공유 파일(코스·플랜 상세 ··· › 공유)을 넣는다. 전체 백업 파일도 들어간다
+ * ··· 메뉴의 "코스 불러오기"는 남이 보낸 코스·플랜 공유 파일(코스·플랜 상세 ··· › 파일로 공유)을 넣는다. 전체 백업 파일도 들어간다
  */
 export default function CourseList() {
   const insets = useSafeAreaInsets();
