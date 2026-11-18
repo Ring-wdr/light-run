@@ -46,6 +46,7 @@
         }
       ],
       "./plugins/with-notification-icon",
+      "./plugins/with-optional-portrait",
       "@rnmapbox/maps",
       [
         "expo-build-properties",
