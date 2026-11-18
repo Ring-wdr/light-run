@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { courseActivity, formatTotalSec, totalSec, type MyCourse } from '../../core/my-course';
 import { currentWeek, moveId, planWeeks, progressRatio, type PlanCourse, type PlanWeek } from '../../core/plan';
+import { preparePlanGpx } from '../../services/export';
 import {
   copyCourseToPlan,
   deleteCourse,
@@ -17,6 +18,7 @@ import {
   setPlanOrder,
 } from '../../services/storage';
 import { ActionSheet, type ActionSheetItem } from '../../ui/ActionSheet';
+import { BusyOverlay } from '../../ui/BusyOverlay';
 import { useBusy } from '../../ui/hooks';
 import { Icon, IconLabel } from '../../ui/Icon';
 import { useLayout } from '../../ui/layout';
@@ -25,6 +27,7 @@ import { goBackOrHome } from '../../ui/navigation';
 import { ProgressBar } from '../../ui/ProgressBar';
 import { startCourse } from '../../ui/start';
 import { color, courseTheme, space, statusColor } from '../../ui/theme';
+import { useGpxExport } from '../../ui/useGpxExport';
 
 /** 한 줄에 놓는 코스 칸 수. 작은 화면에서도 이름 두 줄이 읽히는 만큼만 */
 const COLS = 3;
@@ -37,7 +40,7 @@ type Data = NonNullable<ReturnType<typeof getPlanProgress>>;
  * 플랜: 진행(완료 수) → 코스 칸(한 줄에 3개, 순서 번호·완료·다음 표시) → 코스 넣기 → 하단 고정 "다음 코스 시작".
  * 주차로 나눈 플랜(perWeek)은 진행 막대를 주차 수만큼 칸으로 나누고, 코스 칸도 주차별로 묶어 "이번 주"를 표시한다.
  * 칸을 누르면 아래 시트에서 지금 시작·코스 보기·다음 코스로 지정·순서 옮기기·완료 표시·빼기.
- * 헤더 ··· 메뉴: 즐겨찾기, 편집(이름·설명), 처음부터 다시, 삭제.
+ * 헤더 ··· 메뉴: 즐겨찾기, 편집(이름·설명), 처음부터 다시, 공유, 삭제.
  */
 export default function PlanDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,6 +53,13 @@ export default function PlanDetail() {
   const [importing, setImporting] = useState(false);
   const [importable, setImportable] = useState<MyCourse[]>([]);
   const [starting, runStart] = useBusy();
+  // 플랜과 안의 코스만 담은 파일(core/course-file.ts). 진행 상태는 넣지 않는다
+  const share = useGpxExport({
+    prepare: () => preparePlanGpx(planId),
+    emptyMessage: '플랜을 찾을 수 없어요',
+    failTitle: '공유하지 못했어요',
+    offerSave: true,
+  });
 
   const reload = useCallback(() => {
     setData(getPlanProgress(planId));
@@ -156,6 +166,7 @@ export default function PlanDetail() {
                 { label: favorite ? '즐겨찾기 해제' : '즐겨찾기', onPress: onFavorite },
                 { label: '편집', onPress: () => router.navigate({ pathname: '/plans/edit', params: { id: String(plan.id) } }) },
                 { label: '처음부터 다시', onPress: onRestart, disabled: progress.done === 0 },
+                { label: '공유', onPress: () => void share.start(), disabled: share.busy },
                 { label: '삭제', onPress: onDelete, destructive: true },
               ]}
             />
@@ -271,6 +282,7 @@ export default function PlanDetail() {
         }))}
         onClose={() => setImporting(false)}
       />
+      <BusyOverlay visible={share.busy} label="공유 파일 만드는 중" />
     </View>
   );
 }

@@ -5,35 +5,46 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatTotalSec, totalSec } from '../../core/my-course';
 import { progressRatio, shelf, shelfKey, type ShelfItem } from '../../core/plan';
 import { listCourses, listPlans } from '../../services/storage';
+import { BusyOverlay } from '../../ui/BusyOverlay';
 import { Icon, IconLabel } from '../../ui/Icon';
 import { CourseBar } from '../../ui/CourseBar';
 import { CreateSheet } from '../../ui/CreateSheet';
 import { useLayout } from '../../ui/layout';
+import { MoreMenu } from '../../ui/MoreMenu';
 import { ProgressBar } from '../../ui/ProgressBar';
 import { color, courseTheme, space } from '../../ui/theme';
+import { useGpxImport } from '../../ui/useGpxImport';
 
-/** 홈 그리드의 "더보기": 내 코스·플랜 전부(홈과 같은 순서) + 새로 만들기 */
+/**
+ * 홈 그리드의 "더보기": 내 코스·플랜 전부(홈과 같은 순서) + 새로 만들기.
+ * ··· 메뉴의 "코스 불러오기"는 남이 보낸 코스·플랜 공유 파일(코스·플랜 상세 ··· › 공유)을 넣는다. 전체 백업 파일도 들어간다
+ */
 export default function CourseList() {
   const insets = useSafeAreaInsets();
   const { pad } = useLayout();
   const [items, setItems] = useState<ShelfItem[]>([]);
   const [creating, setCreating] = useState(false);
-  useFocusEffect(useCallback(() => setItems(shelf(listCourses(), listPlans())), []));
+  const reload = useCallback(() => setItems(shelf(listCourses(), listPlans())), []);
+  useFocusEffect(reload);
+  const load = useGpxImport(reload);
 
   return (
-    <>
+    <View style={styles.screen}>
       <Stack.Screen
         options={{
           headerRight: () => (
-            <Pressable
-              onPress={() => setCreating(true)}
-              hitSlop={8}
-              style={({ pressed }) => pressed && { opacity: 0.5 }}
-              accessibilityRole="button"
-              accessibilityLabel="새로 만들기"
-            >
-              <IconLabel icon="plus" label="새로 만들기" style={styles.newText} />
-            </Pressable>
+            <View style={styles.headerRight}>
+              <Pressable
+                onPress={() => setCreating(true)}
+                hitSlop={8}
+                style={({ pressed }) => pressed && { opacity: 0.5 }}
+                accessibilityRole="button"
+                accessibilityLabel="새로 만들기"
+              >
+                <IconLabel icon="plus" label="새로 만들기" style={styles.newText} />
+              </Pressable>
+              <MoreMenu items={[{ label: '코스 불러오기', onPress: () => void load.start(), disabled: load.importing }]} />
+            </View>
           ),
         }}
       />
@@ -45,7 +56,8 @@ export default function CourseList() {
         renderItem={({ item }) => (item.kind === 'plan' ? <PlanRow plan={item.plan} /> : <CourseRow course={item.course} />)}
       />
       <CreateSheet visible={creating} onClose={() => setCreating(false)} />
-    </>
+      <BusyOverlay visible={load.importing} label="불러오는 중" progress={load.progress} />
+    </View>
   );
 }
 
@@ -102,7 +114,9 @@ function PlanRow({ plan: p }: { plan: Plan }) {
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   wrap: { gap: space.s },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: space.m },
   newText: { color: courseTheme.tint, fontWeight: '700', fontSize: 16 },
   item: {
     flexDirection: 'row',
