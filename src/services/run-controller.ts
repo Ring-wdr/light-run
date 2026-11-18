@@ -155,6 +155,9 @@ subscribeSamples((samples) => {
   if (endAt != null) finishCourse(endAt).catch((e) => console.warn('코스 자동 종료 실패', e));
 });
 
+/** 기록 중(대기 카운트 포함)인지. _layout.tsx의 가드와 같은 기준. 화면 밖(링크 처리)에서 쓴다 */
+export const isRecording = (): boolean => snap.runId != null || snap.countdown != null;
+
 export function useRun(): RunSnapshot {
   return useSyncExternalStore(
     (f) => {

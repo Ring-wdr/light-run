@@ -41,10 +41,30 @@ export function setDetailAfterStop(runId: number | null): void {
   detailAfterStop = runId;
 }
 
-/** 홈이 포커스될 때 부른다. 방금 끝낸 기록이 있으면 상세를 연다 */
-export function openDetailAfterStop(): void {
+/** 홈이 포커스될 때 부른다. 방금 끝낸 기록이 있으면 상세를 연다(열었으면 true) */
+export function openDetailAfterStop(): boolean {
   const id = detailAfterStop;
-  if (id == null) return;
+  if (id == null) return false;
   detailAfterStop = null;
   router.navigate(`/history/${id}`);
+  return true;
+}
+
+/** 기록 중에 받은 코스 링크(# 뒤 내용). 기록을 방해하지 않게 끝난 뒤 홈에서 연다(app/+native-intent.tsx) */
+let receivedAfterRun: string | null = null;
+
+export function setReceivedAfterRun(payload: string): void {
+  receivedAfterRun = payload;
+}
+
+/**
+ * 홈이 포커스될 때 부른다. 방금 끝낸 기록의 상세가 먼저, 기록 중에 받은 코스 미리보기는 그다음
+ * (상세에서 홈으로 돌아와 다시 포커스될 때) 연다. 둘을 한 번에 쌓지 않는다
+ */
+export function openAfterRun(): void {
+  if (openDetailAfterStop()) return;
+  const d = receivedAfterRun;
+  if (d == null) return;
+  receivedAfterRun = null;
+  router.navigate({ pathname: '/courses/received', params: { d } });
 }
