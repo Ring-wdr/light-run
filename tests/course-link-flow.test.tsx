@@ -1,5 +1,5 @@
 import { userEvent } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { act, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert, Share, type AlertButton } from 'react-native';
 import { redirectSystemPath } from '../src/app/+native-intent';
@@ -50,10 +50,11 @@ const SHARED: SharedCourse = {
 const LINK = courseLink(SHARED, linkBase({ scheme: 'lightrun', appLinks: false }));
 
 /** 앱 밖에서 링크를 연 것처럼: native intent가 바꾼 경로 */
-function routeFor(url: string): string {
+function routeFor(url: string): Href {
   const path = redirectSystemPath({ path: url, initial: true });
   if (path == null) throw new Error('경로가 없다');
-  return path;
+  // native intent는 시스템 경로를 문자열로 돌려준다. 앱 경로인지는 아래 테스트가 화면으로 확인한다
+  return path as Href;
 }
 
 const user = userEvent.setup();
