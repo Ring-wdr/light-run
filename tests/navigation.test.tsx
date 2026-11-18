@@ -25,6 +25,10 @@ import type { FakeExpoSqlite } from './support/sqlite';
  *   - 지도(Google Maps·Mapbox) → 빈 View(tests/setup.tsx)
  */
 
+// 파일의 첫 테스트는 앱 화면 모듈을 처음 불러오느라 수 초 걸린다(로컬 약 4초, 이후 테스트는 수십 ms).
+// CI에서 기본 5초를 넘겨 첫 테스트만 가끔 실패해서 넉넉히 둔다
+jest.setTimeout(15_000);
+
 jest.mock('expo-sqlite', () => require('./support/sqlite').createExpoSqlite());
 jest.mock('../src/services/location', () => ({
   requestPermissions: jest.fn(async () => 'granted'),
