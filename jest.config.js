@@ -13,6 +13,10 @@ const reactCompiler = expo.experiments?.reactCompiler === true;
 
 /** 앱이 두 플랫폼으로 나가므로 테스트도 두 플랫폼 프리셋으로 돈다(jest-expo README "Platforms") */
 module.exports = {
+  // 화면 테스트(renderRouter('src/app'))는 파일의 첫 테스트가 앱 전체를 처음 변환·로드하느라 느리다.
+  // CI 러너에서 기본 5초를 넘겨 "Exceeded timeout"으로 떨어지는 일이 반복돼 여유를 둔다(단언은 그대로).
+  // testTimeout은 프로젝트별 옵션이 아니라 전체 옵션이다
+  testTimeout: 20000,
   projects: ['android', 'ios'].map((platform) => {
     const preset = `jest-expo/${platform}`;
     const [babelJest, options] = require(`${preset}/jest-preset`).transform[JS];

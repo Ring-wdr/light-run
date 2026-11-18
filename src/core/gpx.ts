@@ -1,4 +1,4 @@
-import { EMPTY_LIBRARY, isEmptyLibrary, parseLibrary, type Library } from './backup';
+import { EMPTY_LIBRARY, isEmptyLibrary, readLibrary, type Library, type LibraryRead } from './backup';
 import type { Activity } from './course';
 import { toBlocks, type CourseSnapshot } from './my-course';
 import type { RunMark, Sample } from './types';
@@ -149,17 +149,22 @@ export function toGpx(tracks: GpxTrack | GpxTrack[]): string {
   return gpxDocument(trks, firstT);
 }
 
-/** 전체 백업의 내 코스·플랜 목록. 없거나 읽을 수 없으면 빈 목록. 첫 <trk> 앞(<metadata>)에서만 찾는다 */
-export function parseLibraryXml(xml: string): Library {
-  const cut = xml.search(/<trk\b/);
+/**
+ * 전체 백업·코스 공유 파일의 내 코스·플랜 목록과 버린 수(core/backup.ts readLibrary).
+ * 없거나 읽을 수 없으면 빈 목록. 첫 <trk> 앞(<metadata>)에서만 찾는다
+ */
+export function readLibraryXml(xml: string): LibraryRead {
+  const cut = xml.search(/<trk/);
   const m = (cut < 0 ? xml : xml.slice(0, cut)).match(LR_LIBRARY);
-  if (!m) return EMPTY_LIBRARY;
+  if (!m) return { library: EMPTY_LIBRARY, rejected: 0 };
   try {
-    return parseLibrary(JSON.parse(unesc(m[1] ?? '')));
+    return readLibrary(JSON.parse(unesc(m[1] ?? '')));
   } catch {
-    return EMPTY_LIBRARY;
+    return { library: EMPTY_LIBRARY, rejected: 0 };
   }
 }
+
+export const parseLibraryXml = (xml: string): Library => readLibraryXml(xml).library;
 
 /** 읽어 들인 <trk> 하나 */
 export interface ParsedTrack {

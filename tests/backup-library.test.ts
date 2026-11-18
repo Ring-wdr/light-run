@@ -1,6 +1,7 @@
 import type { Course } from '../src/core/course';
 import { step, totalSec, type Block } from '../src/core/my-course';
-import { prepareAllGpx, saveGpxToDevice } from '../src/services/export';
+import { gpxDocument } from '../src/core/gpx';
+import { prepareAllGpx, prepareCourseGpx, preparePlanGpx, saveGpxToDevice } from '../src/services/export';
 import { importGpx } from '../src/services/import';
 import * as storage from '../src/services/storage';
 import { straightTrack } from './helpers';
@@ -201,5 +202,97 @@ describe('백업을 기기에 저장(공유 대상에 파일 앱이 없는 폰)'
     // 취소가 아닌 오류는 그대로 올린다(화면이 "백업하지 못했어요"로 알린다)
     pickDirectory().mockRejectedValue(new Error('저장 공간 부족'));
     await expect(saveGpxToDevice(file)).rejects.toThrow('저장 공간 부족');
+  });
+});
+
+describe('코스·플랜 하나씩 공유 파일(docs/PLAN.md §2-4)', () => {
+  const xmlOf = (file: { uri: string } | null) => {
+    if (!file) throw new Error('공유 파일이 없다');
+    return mockFiles.get(file.uri)!;
+  };
+
+  it('코스 하나만 담고, 받은 폰(다른 코스가 있는)에 새 코스로 들어간다. 즐겨찾기·만든 시각은 따라가지 않는다', async () => {
+    const solo = storage.createCourse({ name: '걷뛰/입문?', description: '처음', blocks: WALK_RUN }, T0);
+    storage.setCourseFavorite(solo, true, T0 + 1);
+    storage.createCourse({ name: '다른 코스', description: '', blocks: RUN_ONLY }, T0);
+    runWith(T0 + 60_000, { activity: 'run', goalMin: null, custom: { id: solo, name: '걷뛰/입문?', blocks: WALK_RUN } });
+
+    const file = (await prepareCourseGpx(solo))!;
+    expect(file.uri).toBe('cache/light-run-course-걷뛰_입문_.gpx');
+    const xml = xmlOf(file);
+    expect(xml).not.toContain('<trk>'); // 기록은 넣지 않는다
+    expect(xml).not.toContain('다른 코스');
+
+    resetDb();
+    const mine = storage.createCourse({ name: '받는 사람 코스', description: '', blocks: RUN_ONLY }, T0);
+    const before = Date.now();
+    expect(await importGpx(xml)).toMatchObject({ imported: 0, courses: 1, plans: 0, sameCourses: 0, rejected: 0 });
+    const got = storage.listCourses().find((c) => c.name === '걷뛰/입문?')!;
+    expect(got).toMatchObject({ description: '처음', blocks: WALK_RUN, favoritedAt: null, planId: null });
+    expect(got.createdAt).toBeGreaterThanOrEqual(before);
+    // 받은 코스는 원래 코스 뒤에 놓인다(만든 시각 = 불러온 시각)
+    expect(storage.listCourses().map((c) => c.id)[0]).toBe(mine);
+
+    // 같은 파일을 또 받으면 이미 있는 코스로 건너뛴다
+    expect(await importGpx(xml)).toMatchObject({ courses: 0, sameCourses: 1 });
+    expect(storage.listCourses()).toHaveLength(2);
+  });
+
+  it('플랜 하나와 안의 코스를 순서대로 담고, 진행 상태(완료·다음 코스·처음부터 다시)는 받은 폰에서 처음부터다', async () => {
+    const plan = storage.createPlan({ name: '4주 걷뛰', description: '설명', perWeek: 2 }, T0);
+    const day1 = storage.createCourse({ name: 'Day 1', description: '', blocks: WALK_RUN }, T0, plan);
+    const day2 = storage.createCourse({ name: 'Day 2', description: '', blocks: RUN_ONLY }, T0, plan);
+    storage.createCourse({ name: 'Day 3', description: '', blocks: RUN_ONLY }, T0, plan);
+    storage.setCourseDone(day1, true, T0 + 2);
+    storage.setPlanNext(plan, day2);
+    storage.setPlanFavorite(plan, true, T0 + 3);
+    storage.createCourse({ name: '플랜 밖', description: '', blocks: RUN_ONLY }, T0);
+
+    const file = (await preparePlanGpx(plan))!;
+    expect(file.uri).toBe('cache/light-run-plan-4주-걷뛰.gpx');
+    const xml = xmlOf(file);
+    expect(xml).not.toContain('플랜 밖');
+
+    resetDb();
+    expect(await importGpx(xml)).toMatchObject({ courses: 0, plans: 1 });
+    const got = storage.listPlans()[0]!;
+    expect(got).toMatchObject({ name: '4주 걷뛰', description: '설명', perWeek: 2, favoritedAt: null, nextCourseId: null, progressFrom: 0 });
+    expect(planSummary(got.id)).toEqual({
+      name: '4주 걷뛰',
+      perWeek: 2,
+      items: ['Day 1', 'Day 2', 'Day 3'].map((name) => ({ name, done: false, finished: false, marked: false })),
+      next: 0,
+    });
+    expect(storage.listCourses()).toEqual([]);
+
+    expect(await importGpx(xml)).toMatchObject({ plans: 0, samePlans: 1 });
+    expect(storage.listPlans()).toHaveLength(1);
+  });
+
+  it('플랜 안 코스 하나를 공유하면 받는 폰에서는 플랜 밖 코스', async () => {
+    const plan = storage.createPlan({ name: 'P', description: '', perWeek: null }, T0);
+    const day1 = storage.createCourse({ name: 'Day 1', description: '', blocks: WALK_RUN }, T0, plan);
+    const xml = xmlOf(await prepareCourseGpx(day1));
+    resetDb();
+    await importGpx(xml);
+    expect(storage.listCourses().map((c) => c.name)).toEqual(['Day 1']);
+    expect(storage.listPlans()).toEqual([]);
+  });
+
+  it('없는 코스·플랜이면 파일을 만들지 않는다', async () => {
+    expect(await prepareCourseGpx(99)).toBeNull();
+    expect(await preparePlanGpx(99)).toBeNull();
+  });
+
+  it('한도를 넘는 코스는 넣지 않고 수를 알린다. 모두 틀리면 불러오지 못한다', async () => {
+    const good = { id: 1, name: '좋음', description: '', blocks: RUN_ONLY, createdAt: 0, favoritedAt: null, doneAt: null };
+    const huge = { ...good, id: 2, name: '너무 김', blocks: [{ kind: 'repeat', times: 30, steps: [{ kind: 'step', intensity: 'run', sec: 3600 }] }] };
+    const xml = gpxDocument([], undefined, { courses: [good, huge as never], plans: [] });
+    expect(await importGpx(xml)).toMatchObject({ courses: 1, rejected: 1 });
+    expect(storage.listCourses().map((c) => c.name)).toEqual(['좋음']);
+
+    resetDb();
+    await expect(importGpx(gpxDocument([], undefined, { courses: [huge as never], plans: [] }))).rejects.toThrow('코스 형식이 맞지 않아 불러올 수 없어요.');
+    expect(storage.listCourses()).toEqual([]);
   });
 });

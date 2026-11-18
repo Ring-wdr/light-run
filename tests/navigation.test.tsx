@@ -25,10 +25,6 @@ import type { FakeExpoSqlite } from './support/sqlite';
  *   - 지도(Google Maps·Mapbox) → 빈 View(tests/setup.tsx)
  */
 
-// 파일의 첫 테스트는 앱 화면 모듈을 처음 불러오느라 수 초 걸린다(로컬 약 4초, 이후 테스트는 수십 ms).
-// CI에서 기본 5초를 넘겨 첫 테스트만 가끔 실패해서 넉넉히 둔다
-jest.setTimeout(15_000);
-
 jest.mock('expo-sqlite', () => require('./support/sqlite').createExpoSqlite());
 jest.mock('../src/services/location', () => ({
   requestPermissions: jest.fn(async () => 'granted'),
@@ -766,5 +762,97 @@ describe('구간 시간 직접 입력', () => {
     expect(min).toHaveDisplayValue('1');
     await user.press(screen.getByRole('button', { name: '추가' }));
     expect(screen.getByRole('button', { name: '달리기 1분, 눌러서 변경' })).toBeOnTheScreen();
+  });
+});
+
+describe('코스·플랜 공유 파일', () => {
+  /** 공유 파일 만들기·폴더 고르기·공유 시트는 기기 경계라 가짜로. Android는 "기기에 저장"/"다른 앱으로 보내기"를 고른다 */
+  async function expectShared(file: gpxExport.GpxFile) {
+    const share = jest.mocked(gpxExport.shareGpx);
+    if (Platform.OS !== 'android') {
+      expect(share).toHaveBeenCalledWith(file);
+      return;
+    }
+    expect(Alert.alert).toHaveBeenLastCalledWith(file.title, '파일을 어디에 둘까요?', expect.any(Array));
+    await pressAlertButton('다른 앱으로 보내기');
+    expect(share).toHaveBeenCalledWith(file);
+  }
+
+  it('코스 상세 ··· › 파일로 공유: 그 코스만 담은 파일을 보낸다', async () => {
+    const [id] = seedCourses(2);
+    const file = { uri: 'cache/light-run-course-코스-1.gpx', title: '코스 공유', count: 0 };
+    const prepare = jest.spyOn(gpxExport, 'prepareCourseGpx').mockResolvedValue(file);
+    jest.spyOn(gpxExport, 'shareGpx').mockResolvedValue();
+    renderRouter('src/app', { initialUrl: `/courses/${id}` });
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '파일로 공유' }));
+    expect(prepare).toHaveBeenCalledWith(id);
+    await expectShared(file);
+  });
+
+  it('플랜 ··· › 파일로 공유: 플랜과 안의 코스를 담은 파일을 보낸다', async () => {
+    const { planId } = seedPlan('4주', ['A', 'B']);
+    const file = { uri: 'cache/light-run-plan-4주.gpx', title: '플랜 공유', count: 0 };
+    const prepare = jest.spyOn(gpxExport, 'preparePlanGpx').mockResolvedValue(file);
+    jest.spyOn(gpxExport, 'shareGpx').mockResolvedValue();
+    renderRouter('src/app', { initialUrl: `/plans/${planId}` });
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '파일로 공유' }));
+    expect(prepare).toHaveBeenCalledWith(planId);
+    await expectShared(file);
+  });
+
+  /** 다른 폰에서 받은 플랜 공유 파일(services/export.ts preparePlanGpx와 같은 모양) */
+  const planFile = () =>
+    gpxDocument([], undefined, {
+      courses: [],
+      plans: [
+        {
+          id: 1,
+          name: '받은 플랜',
+          description: '',
+          createdAt: 0,
+          favoritedAt: null,
+          nextCourseId: null,
+          progressFrom: 0,
+          perWeek: null,
+          courses: [{ id: 1, name: 'Day 1', description: '', blocks: [step('run', 600)], createdAt: 0, favoritedAt: null, doneAt: null }],
+        },
+      ],
+    });
+
+  it('내 코스 목록 ··· › 코스 불러오기: 받은 파일을 넣고 목록에 바로 보인다. 다시 넣으면 건너뛴다', async () => {
+    seedCourses(1);
+    jest.spyOn(gpxImport, 'pickGpxFile').mockResolvedValue(planFile());
+    renderRouter('src/app', { initialUrl: '/courses' });
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '코스 불러오기' }));
+    expect(Alert.alert).toHaveBeenLastCalledWith('플랜 1개를 불러왔어요', undefined);
+    expect(screen.getByRole('button', { name: '플랜, 받은 플랜, 1개 중 0개 완료' })).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '코스 불러오기' }));
+    expect(Alert.alert).toHaveBeenLastCalledWith('새로 불러온 것이 없어요', '건너뜀: 이미 있는 플랜 1개');
+    expect(storage.listPlans()).toHaveLength(1);
+  });
+
+  it('코스 불러오기에서 파일 고르기를 취소하면 아무것도 하지 않는다', async () => {
+    const pick = jest.spyOn(gpxImport, 'pickGpxFile').mockResolvedValue(null);
+    const load = jest.spyOn(gpxImport, 'importGpx');
+    renderRouter('src/app', { initialUrl: '/courses' });
+    await user.press(screen.getByRole('button', { name: '더보기' }));
+    await user.press(screen.getByRole('menuitem', { name: '코스 불러오기' }));
+    expect(pick).toHaveBeenCalledTimes(1);
+    expect(load).not.toHaveBeenCalled();
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
+  it('같은 공유 파일을 설정 › 백업 불러오기로도 넣을 수 있다', async () => {
+    jest.spyOn(gpxImport, 'pickGpxFile').mockResolvedValue(planFile());
+    renderRouter('src/app');
+    await user.press(screen.getByRole('button', { name: '설정' }));
+    await user.press(screen.getByRole('button', { name: '백업 불러오기' }));
+    expect(Alert.alert).toHaveBeenLastCalledWith('플랜 1개를 불러왔어요', undefined);
+    expect(storage.listPlans().map((p) => p.name)).toEqual(['받은 플랜']);
   });
 });

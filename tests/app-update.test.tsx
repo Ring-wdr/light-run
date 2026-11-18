@@ -14,9 +14,6 @@ import type { FakeExpoSqlite } from './support/sqlite';
  * 바꿔 끼우는 것은 기기 경계뿐이다: Play 업데이트 네이티브 모듈, SQLite, 위치 추적.
  */
 
-// 앱을 처음 띄우는 테스트는 화면 모듈을 불러오느라 수 초 걸린다(navigation.test.tsx와 같은 이유)
-jest.setTimeout(15_000);
-
 jest.mock('expo-sqlite', () => require('./support/sqlite').createExpoSqlite());
 jest.mock('../src/services/location', () => ({
   requestPermissions: jest.fn(async () => 'granted'),

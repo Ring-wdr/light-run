@@ -1,4 +1,6 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+// 설정 파일은 src의 TS를 읽지 못해 도메인 목록만 JSON으로 같이 쓴다(src/core/link-hosts.ts)
+import { appLinkHosts } from './src/core/link-hosts.json';
 
 /**
  * app.json에 비밀값을 넣지 않기 위한 얇은 래퍼. 지도는 Google Maps SDK만 쓴다.
@@ -10,6 +12,9 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  * 같은 패키지면 서로 덮어 설치할 수 없다(지우고 깔면 기록이 사라진다). 그래서 로컬은 별도 앱으로 둔다.
  * - development(기본값, 로컬 `expo run`·`expo start`): com.ringwdr.lightrun.dev, "라이트런 (개발)"
  * - production(eas.json의 preview·production 프로필이 지정): com.ringwdr.lightrun, 공유·실사용
+ *
+ * 코스 링크(docs/PLAN.md §2-6-2, src/core/link-hosts.ts): 공유용만 https 앱 링크(인텐트 필터 autoVerify)를 받고 만든다.
+ * 개발용은 디버그 키라 도메인 인증에 넣을 수 없어 커스텀 스킴(lightrun-dev://course)만 쓴다.
  */
 const MISSING_KEY = 'MISSING_GOOGLE_MAPS_API_KEY';
 
@@ -19,15 +24,30 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const isDev = process.env.APP_VARIANT !== 'production';
   const base = config as ExpoConfig;
   const suffix = isDev ? '.dev' : '';
+  const scheme = isDev ? `${base.scheme}-dev` : (base.scheme as string);
   return {
     ...base,
     name: isDev ? `${base.name} (개발)` : base.name,
     // 두 앱이 같은 링크를 받으면 매번 어느 앱으로 열지 묻는다
-    scheme: isDev ? `${base.scheme}-dev` : base.scheme,
+    scheme,
     ios: { ...base.ios, bundleIdentifier: `${base.ios?.bundleIdentifier}${suffix}` },
     android: {
       ...base.android,
       package: `${base.android?.package}${suffix}`,
+      // 코스 링크 https 앱 링크. 도메인의 /.well-known/assetlinks.json(site/)에 공유용 서명 키 지문이 있어야 인증된다
+      intentFilters: [
+        ...(base.android?.intentFilters ?? []),
+        ...(isDev
+          ? []
+          : [
+              {
+                action: 'VIEW',
+                autoVerify: true,
+                data: appLinkHosts.map((h) => ({ scheme: 'https', host: h.host, pathPrefix: h.path })),
+                category: ['BROWSABLE', 'DEFAULT'],
+              },
+            ]),
+      ],
       // 공유·스토어용에서는 Expo 기본 템플릿이 넣는 다른 앱 위에 그리기 권한을 뺀다(쓰지 않는 권한은 심사 사유가 된다).
       // 개발용은 development build 메뉴가 쓸 수 있어 그대로 둔다
       blockedPermissions: [
@@ -51,6 +71,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.extra,
       // 키 자체가 아니라 "있는지"만 JS에 노출한다
       hasGoogleMapsKey: Boolean(androidKey),
+      // 코스 링크를 https 앱 링크로 만들지(src/services/course-link.ts → core/link-hosts.ts linkBase)
+      courseAppLinks: !isDev,
     },
   };
 };

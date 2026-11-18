@@ -1,0 +1,61 @@
+# 링크·QR로 코스 공유(docs/PLAN.md §2-6-2). 개발용 앱의 scheme은 lightrun-dev(app.config.ts).
+# 링크는 템플릿 "인터벌"(이름만, 설명 없음)을 담은 것. 형식이 바뀌면 tests/course-link.test.ts의 길이 표와 함께 다시 만든다
+# - 앱이 꺼진 채 링크 → 미리보기 → 추가 → 코스 상세, 뒤로 = 홈
+# - 같은 링크를 다시 추가 → "이미 내 코스에 있어요" → 코스 보기
+# - 코스 상세 ··· › 링크·QR로 공유 → QR과 링크 공유 버튼
+# - 잘린 링크 → 안내
+# - 기록 중 링크 → 기록 화면 그대로, 끝낸 뒤 상세 → 뒤로 → 미리보기
+appId: com.ringwdr.lightrun.dev
+name: 코스 링크 공유
+tags:
+  - nav
+  - android
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- runFlow: subflows/dismiss-battery-guide.yml
+
+# 앱이 꺼진 채 링크 → 미리보기(저장 전)
+- stopApp
+- openLink: 'lightrun-dev://course#AQEJ7J247YSw67KMAAO5Fx0CrwLCA90L'
+- assertVisible: '받은 코스'
+- assertVisible: '인터벌'
+- tapOn: '내 코스에 추가'
+- assertVisible: '인터벌 시작'
+- runFlow: subflows/assert-header-back.yml
+
+# 상세에서 링크·QR 화면
+- tapOn: '더보기'
+- tapOn: '링크·QR로 공유'
+- assertVisible: '인터벌 코스 QR 코드'
+- assertVisible: '링크 공유'
+- back
+- assertVisible: '인터벌 시작'
+
+# 같은 링크를 다시 → 이미 있음 → 코스 보기(같은 상세로 돌아간다)
+- openLink: 'lightrun-dev://course#AQEJ7J247YSw67KMAAO5Fx0CrwLCA90L'
+- tapOn: '내 코스에 추가'
+- assertVisible: '이미 내 코스에 있어요'
+- tapOn: '코스 보기'
+- assertVisible: '인터벌 시작'
+- back
+- runFlow: subflows/assert-home-root.yml
+
+# 잘린 링크 → 안내 → 홈으로
+- openLink: 'lightrun-dev://course#AQEJ7J247YSw67KMAAO5'
+- assertVisible: '코스 링크가 잘못됐거나 잘렸어요.*'
+- tapOn: '홈으로'
+- runFlow: subflows/assert-home-root.yml
+
+# 기록 중 링크 → 기록 화면 그대로. 끝내면 상세가 먼저, 뒤로 가면 미리보기
+- runFlow: subflows/start-run.yml
+- openLink: 'lightrun-dev://course#AQEJ7J247YSw67KMAAO5Fx0CrwLCA90L'
+- assertVisible: '길게 눌러 종료'
+- assertNotVisible: '받은 코스'
+- runFlow: subflows/stop-run.yml
+- back
+- assertVisible: '받은 코스'
+- back
+- runFlow: subflows/assert-home-root.yml
