@@ -9,24 +9,17 @@
 - **Expo SDK 57 고정.** 위 AGENTS.md 규칙대로 기억 말고 버전별 문서와 `node_modules`의 타입 정의(`*.d.ts`)를 기준으로 작성한다. 패키지는 `npx expo install`로만 추가.
 - **비밀값(`GOOGLE_MAPS_API_KEY` 등)을 코드·app.json·커밋에 넣지 말 것.** `app.config.ts`가 환경 변수에서 읽는다(EAS env / 로컬 `.env`).
 - `android/`, `ios/`는 생성물(CNG)이다. 커밋하지 말고 직접 고치지 말 것. 네이티브 설정은 `app.json` 플러그인으로.
-  `npx expo run:android`는 `android/`가 이미 있으면 prebuild를 다시 하지 않는다. 아이콘·app.json·플러그인을 바꿨으면 `npm run prebuild:android`(또는 `android:release`)로 다시 만든다.
-- **앱 변형(`APP_VARIANT`)**: 없으면 개발용(`com.ringwdr.lightrun.dev`, 디버그 키 서명), `eas.json`의 preview·production만 공유용(`com.ringwdr.lightrun`, EAS 키 서명).
-  서명이 다른 두 앱이 같은 패키지를 쓰면 덮어 설치가 안 되고 지우면 기록이 사라진다. 이 분리를 없애거나 로컬 빌드에 production을 넣지 말 것(README "앱 두 개").
+- **앱 변형(`APP_VARIANT`)**: 없으면 개발용(`com.ringwdr.lightrun.dev`), `eas.json`의 preview·production만 공유용(`com.ringwdr.lightrun`).
+  서명이 달라 같은 패키지면 덮어 설치가 안 되고 지우면 기록이 사라진다. 이 분리를 없애거나 로컬 빌드에 production을 넣지 말 것(README "앱 두 개").
 
 ## 명령
 ```bash
-npm run check          # 타입체크 + 린트 + 테스트. 작업 끝나기 전에 반드시
-npm test               # Jest(jest-expo). Android·iOS 두 프로젝트로 돈다
-npm run lint           # ESLint(eslint-config-expo + 프로젝트 규칙)
-npm run report:filter  # GPS 필터 오차표(튜닝할 때)
-maestro test .maestro  # E2E(Maestro). 기기·에뮬레이터에 개발용 릴리스 앱 필요. EAS Workflows는 손으로만(유료 요금제 필요, README "E2E")
-npx expo export --platform android --output-dir /tmp/export  # JS 번들 확인(CI와 같음)
-npx expo start         # 개발 서버(폰·에뮬레이터에 development build 필요)
-adb devices            # 연결된 기기·에뮬레이터. 없으면 android emulator list → android emulator start <AVD>
-npm run android          # 개발용 앱(debug)을 폰에 설치. 이후 npx expo start
-npm run android:release  # android/를 새로 만든 뒤(prebuild --clean) 개발용 앱의 릴리스 APK를 폰에 설치
-npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 서명). 사용자가 직접 실행
+npm run check   # 타입체크 + 린트 + 테스트. 작업 끝나기 전에 반드시
+npm test        # Jest(jest-expo). Android·iOS 두 프로젝트로 돈다
+npm run lint    # ESLint(eslint-config-expo + 프로젝트 규칙)
+npx expo start  # 개발 서버(폰·에뮬레이터에 development build 필요)
 ```
+EAS 빌드는 사용자가 직접 실행한다.
 
 ## 경계 규칙
 - `src/core/`는 순수 TS다. react·react-native·expo를 import하지 않는다(`eslint.config.js`가 막는다).
@@ -35,31 +28,20 @@ npx eas-cli@latest build -p android --profile preview  # 공유용 APK(EAS 키 �
 - 기록의 원본은 SQLite의 이벤트(runs, run_marks, samples)다. 거리·구간은 저장값이 아니라 `replay()` 결과로 본다.
   새 사용자 동작(예: 랩 버튼)은 `RunEvent`에 타입을 추가하고 리듀서에서 처리한다.
 - DB 스키마 변경은 `storage.ts`의 `MIGRATIONS` 배열 **끝에 추가만** 한다. 기존 항목 수정 금지.
-- 화면 스택 규칙은 `src/ui/navigation.ts` 머리 주석. 기록 중/아님은 `_layout.tsx`의 `Stack.Protected` 가드가 정하고,
-  기록 화면으로 가거나 나오는 이동을 직접 하지 않는다. `<Redirect>`·`router.push`·`dangerouslySingular` 대신 `router.navigate`,
-  홈으로는 `goHome()`. 새 화면은 가드 안에 넣는다(금지 호출은 `eslint.config.js`, 스택 동작은 `tests/navigation.test.tsx`가 검사).
-- 화면 흐름을 바꾸면 `.maestro/` 흐름도 맞춘다. 흐름은 화면 문구·접근성 라벨로 찾으므로 문구를 바꾸면 같이 고친다.
-  E2E를 건너뛰기 전에 기기를 먼저 확인한다: `adb devices` → 없으면 `android emulator list`로 AVD를 찾아 `android emulator start <이름>`.
-  기기가 있으면 `maestro test .maestro`를 돌리고 결과를 PR에 남긴다. 개발용 앱이 debug면 `npx expo start`(Metro)를 켜 둔다.
-  화면 확인은 `android layout`(접근성 라벨·좌표 JSON)과 `android screen capture -o <png>`.
-  adb·AVD·`maestro` 중 하나라도 없을 때만 `maestro check-syntax`로 문법을 확인하고, PR의 "실기기 확인 필요"에 `maestro test .maestro`를 넣는다.
-- 화면 동작 테스트는 `tests/navigation.test.tsx`처럼 실제 `src/app`을 `renderRouter('src/app')`로 띄우고 RNTL로 누른다.
-  가짜는 기기 경계(SQLite → `tests/support/sqlite.ts`, 위치 서비스, 네이티브 뷰 → `tests/setup.tsx`)에만 둔다. 테스트 파일은 `src/app/` 밖에.
-- 화면의 보조 동작(내보내기·백업·삭제·복제 등 자주 안 쓰는 것)은 헤더 오른쪽 ··· 메뉴(`MoreMenu`)에 둔다. 본문에는 그 화면의 주요 동작만.
-- 화면 크기 대응: 먼저 flex·%·`aspectRatio`·`adjustsFontSizeToFit`처럼 크기와 상관없이 맞는 레이아웃으로 푼다.
-  그래도 크기마다 달라야 하는 값(여백, 높이, 큰 글자)은 `src/ui/layout.ts`의 `useLayout()` 토큰에 두고, 화면에서 `compact ? a : b`로 분기하지 않는다.
-  작은 화면 기준은 `src/core/layout.ts`(글꼴 배율 반영 360×700dp 미만). 주요 버튼은 내용이 길어도 잘리지 않게 아래에 고정한다.
-- **React Compiler가 켜져 있다**(`app.json`의 `experiments.reactCompiler`). 대상은 `src/`만(`babel.config.js`), 테스트도 같은 설정으로 컴파일된 코드를 돈다(`jest.config.js`).
+- **React Compiler가 켜져 있다**(`app.json`의 `experiments.reactCompiler`, 대상은 `src/`만: `babel.config.js`). 테스트도 같은 설정으로 컴파일된 코드를 돈다(`jest.config.js`).
 - **React Compiler 규칙(`react-hooks/*` 린트)은 지킨다.** 걸리면 린트 설정(끄기·경고로 낮추기·`eslint-disable`)을 건드리지 말고 코드를 고친다.
   렌더 중 Date.now 같은 순수하지 않은 호출 금지, effect 안에서 바로 setState 대신 렌더 중 조정·key로 다시 마운트·이벤트 핸들러로.
   규칙을 지키면서 구현하기 어려우면 우회하기 전에 사용자에게 먼저 보고하고 정한다.
 - `location.ts`의 `defineTask`는 모듈 최상위에 있어야 하고, `_layout.tsx`가 가장 먼저 import한다. 순서를 바꾸지 말 것.
 
-## 튜닝 수치
-- `src/core/filter.ts`의 `FILTER`: 정확도 25m, 튐 9m/s, 칼만 q=3m/s, 최소 이동 5m.
-  바꿀 땐 `npm run report:filter` 전후 표를 커밋 메시지나 PR에 남길 것(근거: docs/PLAN.md §4).
-- 합성 트랙(`tests/helpers.ts`)만으로 튜닝하지 말 것. 실제 GPX가 `tests/fixtures/`에 생기면 그걸 우선한다.
+## 나머지 규칙이 있는 곳
+- 화면(스택 이동, ··· 메뉴, 화면 크기 대응): `src/app/CLAUDE.md`
+- 테스트 작성(화면 테스트, 가짜는 기기 경계에만): `tests/CLAUDE.md`
+- skill(`.claude/skills/`):
+  - `e2e`: Maestro 흐름 맞추기·돌리기, 실기기 확인 체크리스트. **화면 흐름·문구를 바꿨거나 PR을 쓸 때**
+  - `android-build`: 로컬 빌드·prebuild·설치. **네이티브 설정을 바꿨거나 기기에 깔 때**
+  - `filter-tuning`: GPS 필터 수치와 오차표. **`src/core/filter.ts`를 바꿀 때**
 
 ## 검증 한계
-에이전트는 실기기의 백그라운드 동작, 절전 모드, GPS 품질을 확인할 수 없다(에뮬레이터의 가짜 위치는 흐름 확인용이고 필터 튜닝 근거가 아니다).
-이런 변경은 PR 본문에 "실기기 확인 필요" 체크리스트를 남긴다(화면 끔 30분, 일시정지/재개, 앱 강제 종료 후 복원).
+에이전트는 실기기의 백그라운드 동작, 절전 모드, GPS 품질을 확인할 수 없다.
+이런 변경은 PR 본문에 "실기기 확인 필요" 체크리스트를 남긴다(항목은 `e2e` skill).
