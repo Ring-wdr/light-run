@@ -1,5 +1,12 @@
 import AppUpdate from '../../modules/app-update';
-import { parseDismissed, serializeDismissed, type AppUpdateInfo, type Dismissed, type InstallState } from '../core/app-update';
+import {
+  parseDismissed,
+  serializeDismissed,
+  type AppUpdateInfo,
+  type Dismissed,
+  type FlowResult,
+  type InstallState,
+} from '../core/app-update';
 import { getPref, setPref } from './storage';
 
 /**
@@ -20,14 +27,14 @@ export async function checkAppUpdate(): Promise<AppUpdateInfo | null> {
   }
 }
 
-/** Play 업데이트 창을 띄운다. 사용자가 업데이트를 고르면 true */
-export async function startFlexibleUpdate(): Promise<boolean> {
-  if (!AppUpdate) return false;
+/** Play 업데이트 창을 띄운다(core/app-update.ts FlowResult) */
+export async function startFlexibleUpdate(): Promise<FlowResult> {
+  if (!AppUpdate) return 'unavailable';
   try {
     return await AppUpdate.startFlexible();
   } catch (e) {
     console.warn('업데이트 창 열기 실패', e);
-    return false;
+    return 'failed';
   }
 }
 

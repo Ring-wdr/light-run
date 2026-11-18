@@ -29,7 +29,7 @@ jest.mock('../src/services/location', () => ({
 type Listener = (s: { status: string; bytesDownloaded: number; totalBytes: number }) => void;
 interface FakeAppUpdate {
   check: jest.Mock<Promise<AppUpdateInfo>, []>;
-  startFlexible: jest.Mock<Promise<boolean>, []>;
+  startFlexible: jest.Mock<Promise<string>, []>;
   completeUpdate: jest.Mock<Promise<void>, []>;
   addListener(name: string, f: Listener): { remove(): void };
   /** 테스트용: 네이티브가 진행 상황을 알린 것처럼 */
@@ -99,7 +99,7 @@ describe('홈 화면의 업데이트 안내', () => {
     resetAppUpdatePrompts();
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     native.check.mockReset().mockResolvedValue(info({ available: false }));
-    native.startFlexible.mockReset().mockResolvedValue(true);
+    native.startFlexible.mockReset().mockResolvedValue('accepted');
     native.completeUpdate.mockReset().mockResolvedValue();
     user = userEvent.setup();
   });
@@ -140,12 +140,25 @@ describe('홈 화면의 업데이트 안내', () => {
 
   it('창을 닫으면 같은 버전은 다시 띄우지 않는다', async () => {
     native.check.mockResolvedValue(info());
-    native.startFlexible.mockResolvedValue(false);
+    native.startFlexible.mockResolvedValue('declined');
     renderRouter('src/app');
     await settle();
     await refocusHome();
     expect(native.check).toHaveBeenCalledTimes(2);
     expect(native.startFlexible).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['창을 못 띄웠으면', () => native.startFlexible.mockResolvedValue('unavailable')],
+    ['Play 오류면', () => native.startFlexible.mockRejectedValue(new Error('ERR_APP_UPDATE_FLOW'))],
+  ])('%s 거절로 치지 않고 다음에 홈에 올 때 다시 띄운다', async (_label, arrange) => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    native.check.mockResolvedValue(info());
+    arrange();
+    renderRouter('src/app');
+    await settle();
+    await refocusHome();
+    expect(native.startFlexible).toHaveBeenCalledTimes(2);
   });
 
   it('다 받으면 다시 시작할지 묻고, 다시 시작하면 설치한다', async () => {

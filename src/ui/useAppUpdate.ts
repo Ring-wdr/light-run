@@ -16,7 +16,7 @@ import { alertError } from './alert';
  * 새 버전 안내(Google Play 유연한 업데이트). 홈 화면만 쓴다.
  * 홈은 기록 중이 아닐 때만 스택에 있으므로(_layout.tsx 가드) 달리는 중에는 묻지도, 다시 시작하지도 않는다.
  *   1. 홈에 올 때마다 확인하고, 새 버전이 있으면 Play가 아래쪽에 업데이트 창을 띄운다.
- *      거절하면 같은 버전은 며칠 동안 묻지 않는다(core/app-update.ts)
+ *      사용자가 거절하면 같은 버전은 며칠 동안 묻지 않는다(core/app-update.ts). 창을 못 띄웠으면 다음에 다시 시도
  *   2. 뒤에서 내려받기가 끝나면 다시 시작할지 묻는다. "나중에"면 이번 실행에서는 다시 묻지 않는다
  */
 
@@ -51,8 +51,8 @@ async function checkOnce(): Promise<void> {
   const action = updateAction(info, loadDismissed(), Date.now());
   if (action === 'install') return askInstall();
   if (action !== 'download') return;
-  const accepted = await startFlexibleUpdate();
-  if (!accepted) saveDismissed({ versionCode: info.versionCode, at: Date.now() });
+  // 사용자가 직접 거절했을 때만 기록한다. 창을 못 띄웠거나 Play 오류면 다음에 홈에 올 때 다시 시도한다
+  if ((await startFlexibleUpdate()) === 'declined') saveDismissed({ versionCode: info.versionCode, at: Date.now() });
 }
 
 function checkAppUpdateOnce(): void {

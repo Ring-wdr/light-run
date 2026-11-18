@@ -30,6 +30,14 @@ export interface InstallState {
   totalBytes: number;
 }
 
+/**
+ * 업데이트 창을 띄운 결과.
+ * - accepted: 업데이트를 골랐다 · declined: 사용자가 닫거나 거절했다
+ * - unavailable: 창을 띄우지 못했다 · failed: Play 오류
+ * 사용자가 실제로 거절한 declined만 "며칠 동안 묻지 않기"로 기록한다(못 본 창으로 업데이트를 숨기지 않게)
+ */
+export type FlowResult = 'accepted' | 'declined' | 'unavailable' | 'failed';
+
 /** 업데이트 창을 닫은 기록 */
 export interface Dismissed {
   versionCode: number;

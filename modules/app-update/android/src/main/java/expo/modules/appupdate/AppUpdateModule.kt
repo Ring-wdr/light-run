@@ -65,13 +65,16 @@ class AppUpdateModule : Module() {
     }
 
     /**
-     * Play의 유연한 업데이트 창을 띄운다. 사용자가 업데이트를 고르면 true, 닫거나 거절하면 false.
-     * 업데이트가 없거나 유연한 업데이트를 쓸 수 없으면 창 없이 false.
+     * Play의 유연한 업데이트 창을 띄운다.
+     * - "accepted": 사용자가 업데이트를 골랐다(뒤에서 내려받기 시작)
+     * - "declined": 사용자가 창을 닫거나 거절했다
+     * - "unavailable": 창을 띄우지 못했다(화면 없음·업데이트가 사라짐·유연한 업데이트 불가)
+     * Play 오류는 reject한다. 사용자가 보지 못한 창은 "declined"로 치지 않는다
      */
     AsyncFunction("startFlexible") { promise: Promise ->
       val activity = appContext.currentActivity
       if (activity == null) {
-        promise.resolve(false)
+        promise.resolve("unavailable")
         return@AsyncFunction
       }
       val m = manager()
@@ -80,11 +83,20 @@ class AppUpdateModule : Module() {
           val ok = info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
             info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
           if (!ok) {
-            promise.resolve(false)
+            promise.resolve("unavailable")
             return@addOnSuccessListener
           }
           m.startUpdateFlow(info, activity, AppUpdateOptions.defaultOptions(AppUpdateType.FLEXIBLE))
-            .addOnSuccessListener { code -> promise.resolve(code == Activity.RESULT_OK) }
+            .addOnSuccessListener { code ->
+              promise.resolve(
+                when (code) {
+                  Activity.RESULT_OK -> "accepted"
+                  Activity.RESULT_CANCELED -> "declined"
+                  // ActivityResult.RESULT_IN_APP_UPDATE_FAILED 등: 사용자가 거절한 게 아니다
+                  else -> "unavailable"
+                },
+              )
+            }
             .addOnFailureListener { e -> promise.reject("ERR_APP_UPDATE_FLOW", e.message, e) }
         }
         .addOnFailureListener { e -> promise.reject("ERR_APP_UPDATE_CHECK", e.message, e) }
