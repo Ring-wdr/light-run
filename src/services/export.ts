@@ -2,6 +2,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { isEmptyLibrary, type Library } from '../core/backup';
 import { courseLabel } from '../core/course';
+import { courseShareLibrary, planShareLibrary, shareFileName } from '../core/course-file';
 import { fileStamp, formatDateTimeMedium } from '../core/date';
 import { firstPointTime, gpxDocument, gpxTrack, type GpxTrack } from '../core/gpx';
 import { runEvents } from '../core/record';
@@ -85,6 +86,25 @@ export async function prepareAllGpx(onProgress?: OnProgress): Promise<GpxFile | 
   const uri = writeCache(`light-run-backup-${fileStamp(Date.now())}.gpx`, xml);
   onProgress?.(1);
   return { uri, title: '라이트런 전체 백업', count };
+}
+
+/**
+ * 코스 공유 파일: 내 코스 하나만 담은 GPX(트랙 없음, core/course-file.ts). 받는 사람은 "코스 불러오기"로 넣는다.
+ * 코스가 없으면 null
+ */
+export async function prepareCourseGpx(courseId: number): Promise<GpxFile | null> {
+  const library = courseShareLibrary(loadLibrary(), courseId);
+  if (!library) return null;
+  const uri = writeCache(shareFileName('course', library.courses[0]!.name), gpxDocument([], undefined, library));
+  return { uri, title: '코스 공유', count: 0 };
+}
+
+/** 플랜 공유 파일: 플랜 하나와 안의 코스(순서대로). 진행 상태는 넣지 않는다. 플랜이 없으면 null */
+export async function preparePlanGpx(planId: number): Promise<GpxFile | null> {
+  const library = planShareLibrary(loadLibrary(), planId);
+  if (!library) return null;
+  const uri = writeCache(shareFileName('plan', library.plans[0]!.name), gpxDocument([], undefined, library));
+  return { uri, title: '플랜 공유', count: 0 };
 }
 
 export async function shareGpx(file: GpxFile): Promise<void> {

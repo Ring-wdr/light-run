@@ -1,0 +1,57 @@
+# 코스 공유 파일(docs/PLAN.md §2-4): 코스 상세 ··· › 파일로 공유 → 저장 위치 고르기(Android) 알림창,
+# 내 코스 목록 ··· › 코스 불러오기 → 파일 선택기.
+# 공유 시트·폴더 고르기·파일 선택기는 시스템 화면(기기마다 다름)이라 열리는 데까지만 보고 닫는다.
+# 실제로 다른 폰에서 파일을 받아 넣는 것은 PR의 "실기기 확인 필요"로 남긴다.
+# Android의 inputText는 ASCII만 확실히 입력되므로 코스 이름은 영문(course-create.yml 참고)
+appId: com.ringwdr.lightrun.dev
+name: 코스 공유·불러오기
+tags:
+  - android
+---
+- launchApp:
+    clearState: true
+- runFlow: subflows/dismiss-battery-guide.yml
+- tapOn: '내 코스'
+- tapOn: '새로 만들기'
+- tapOn: '코스 만들기'
+- tapOn: '걷기-달리기 입문'
+- tapOn: '예: 걷뛰 30분'
+- inputText: 'Share A'
+- hideKeyboard
+- tapOn: '저장'
+- tapOn: '나중에'
+- tapOn: 'Share A'
+- assertVisible: 'Share A 시작'
+
+# 공유: Android는 "기기에 저장" / "다른 앱으로 보내기"를 묻는다. 취소하면 상세 그대로
+- tapOn: '더보기'
+- tapOn: '파일로 공유'
+- assertVisible: '파일을 어디에 둘까요?'
+- assertVisible: '다른 앱으로 보내기'
+- assertVisible: '기기에 저장'
+- tapOn: '취소'
+- assertVisible: 'Share A 시작'
+
+# 전체 목록(홈 "더보기")에 가려면 코스·플랜이 6개 이상이어야 한다. 복제로 채운다(복제는 상세 자리를 바꾼다)
+- repeat:
+    times: 5
+    commands:
+      - tapOn: '더보기'
+      - tapOn: '복제'
+- back
+- tapOn: '코스 1개 더 보기'
+
+# 코스 불러오기: 파일 선택기가 열린다. 뒤로 가기로 취소하면 목록 그대로, 알림창 없음
+# 선택기는 지난번 폴더 안에서 열릴 수 있어 뒤로 가기 한 번이면 위 폴더로만 간다(노트10). 목록이 보일 때까지 누른다
+- tapOn: '더보기'
+- assertVisible: '코스 불러오기'
+- tapOn: '코스 불러오기'
+- assertNotVisible: '새로 만들기'
+- repeat:
+    times: 5
+    while:
+      notVisible: '새로 만들기'
+    commands:
+      - back
+- assertVisible: '새로 만들기'
+- assertNotVisible: '새로 불러온 것이 없어요'

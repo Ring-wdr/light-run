@@ -5,10 +5,10 @@ import type { OnProgress } from '../services/progress';
 import { alertError } from './alert';
 
 /**
- * GPX 파일을 만들고(진행률 보고) 공유 시트로 넘긴다. 상세의 "GPX 내보내기"와 기록의 "전체 백업"이 같이 쓴다.
+ * GPX 파일을 만들고(진행률 보고) 공유 시트로 넘긴다. 상세의 "GPX 내보내기", 기록의 "전체 백업", 코스·플랜의 "공유"가 같이 쓴다.
  * busy·progress는 BusyOverlay에 그대로 넘긴다.
  *
- * offerSave(전체 백업): Android에서는 "기기에 저장"(고른 폴더)과 "다른 앱으로 보내기"(공유 시트)를 고르게 한다.
+ * offerSave(전체 백업·코스 공유): Android에서는 "기기에 저장"(고른 폴더)과 "다른 앱으로 보내기"(공유 시트)를 고르게 한다.
  * 공유 대상에 파일 앱·드라이브가 없는 폰이 있어서다. iOS 공유 시트에는 늘 "파일에 저장"이 있어 바로 공유 시트를 연다.
  */
 export function useGpxExport({
@@ -59,7 +59,7 @@ export function useGpxExport({
     if (!file) Alert.alert(emptyMessage);
     else if (offerSave && Platform.OS === 'android') {
       const made = file;
-      Alert.alert(made.title, '백업 파일을 어디에 둘까요?', [
+      Alert.alert(made.title, '파일을 어디에 둘까요?', [
         { text: '취소', style: 'cancel' },
         { text: '다른 앱으로 보내기', onPress: () => void share(made) },
         { text: '기기에 저장', onPress: () => void save(made) },
