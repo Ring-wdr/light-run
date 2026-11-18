@@ -15,6 +15,7 @@ import { RecentRunRow } from '../ui/RecentRunRow';
 import { Segmented } from '../ui/Segmented';
 import { startCourse } from '../ui/start';
 import { activityColor, color, courseTheme, space } from '../ui/theme';
+import { useAppUpdate } from '../ui/useAppUpdate';
 
 const GOAL_HINT: Record<Activity, Record<string, string>> = {
   walk: { '30': '가볍게 동네 한 바퀴', '50': '넉넉하게 산책', free: '시간 제한 없이' },
@@ -43,6 +44,8 @@ export default function Home() {
   const [recent, setRecent] = useState<RunRow[]>([]);
   const [courses, setCourses] = useState<ShelfItem[]>([]);
   const [starting, runStart] = useBusy();
+  // Play에 새 버전이 있으면 업데이트 창을 띄우고, 다 받으면 다시 시작할지 묻는다
+  useAppUpdate();
 
   useFocusEffect(
     useCallback(() => {
