@@ -132,28 +132,58 @@ describe('코스 코덱', () => {
 
 describe('링크', () => {
   it('# 뒤에 내용을 둔다', () => {
-    const link = courseLink(INTRO, linkBase('lightrun'));
+    const link = courseLink(INTRO, linkBase({ scheme: 'lightrun', appLinks: false }));
     expect(link).toMatch(/^lightrun:\/\/course#[A-Za-z0-9_-]+$/);
     expect(decodeCourse(linkPayload(link)!)).toEqual(INTRO);
   });
 
-  it('공유용·개발용·https 앞부분을 모두 받고, 다른 링크는 무시한다', () => {
+  it('커스텀 스킴(공유용·개발용)을 받고, 다른 스킴·호스트는 무시한다', () => {
     expect(linkPayload('lightrun://course#abc')).toBe('abc');
     expect(linkPayload('lightrun-dev://course#abc')).toBe('abc');
     expect(linkPayload('lightrun-dev://course/#abc')).toBe('abc');
-    expect(linkPayload('https://course#abc')).toBe('abc');
+    expect(linkPayload('LightRun://Course#abc')).toBe('abc');
+    expect(linkPayload('other://course#abc')).toBeNull();
+    expect(linkPayload('lightrun://course/x#abc')).toBeNull();
     expect(linkPayload('lightrun://settings')).toBeNull();
     expect(linkPayload('lightrun://course')).toBeNull();
     expect(linkPayload('lightrun://history/3#x')).toBeNull();
     expect(linkPayload('/courses/3')).toBeNull();
   });
 
+  it('https는 허용한 도메인·경로만 받는다', () => {
+    expect(linkPayload('https://ring-wdr.github.io/light-run/c#abc')).toBe('abc');
+    expect(linkPayload('https://ring-wdr.github.io/light-run/c/#abc')).toBe('abc');
+    expect(linkPayload('https://Ring-wdr.GitHub.io/light-run/c#abc')).toBe('abc');
+    expect(linkPayload('https://course#abc')).toBeNull();
+    expect(linkPayload('http://ring-wdr.github.io/light-run/c#abc')).toBeNull();
+    expect(linkPayload('https://evil.example/light-run/c#abc')).toBeNull();
+    expect(linkPayload('https://ring-wdr.github.io.evil.example/light-run/c#abc')).toBeNull();
+    expect(linkPayload('https://ring-wdr.github.io/light-run/cx#abc')).toBeNull();
+    expect(linkPayload('https://ring-wdr.github.io/light-run/c/x#abc')).toBeNull();
+    expect(linkPayload('https://ring-wdr.github.io/other/c#abc')).toBeNull();
+    expect(linkPayload('https://ring-wdr.github.io/light-run/c?x=1#abc')).toBeNull();
+    expect(linkPayload('https://ring-wdr.github.io/light-run/c')).toBeNull();
+  });
+
+  it('공유용 변형은 https 링크를, 개발용은 커스텀 스킴 링크를 만든다', () => {
+    expect(linkBase({ scheme: 'lightrun', appLinks: true })).toBe('https://ring-wdr.github.io/light-run/c');
+    expect(linkBase({ scheme: 'lightrun-dev', appLinks: false })).toBe('lightrun-dev://course');
+    for (const appLinks of [true, false]) {
+      const link = courseLink(INTRO, linkBase({ scheme: 'lightrun', appLinks }));
+      expect(decodeCourse(linkPayload(link)!)).toEqual(INTRO);
+    }
+  });
+
   it('대표 코스 링크 길이와 QR 크기(docs/PLAN.md §2-6-2)', () => {
-    const lens = TEMPLATES.map((t) => courseLink({ name: t.label, description: '', blocks: t.blocks }, linkBase('lightrun')).length);
-    const intro = courseLink(INTRO, linkBase('lightrun'));
+    const lens = TEMPLATES.map((t) => courseLink({ name: t.label, description: '', blocks: t.blocks }, linkBase({ scheme: 'lightrun', appLinks: false })).length);
+    const intro = courseLink(INTRO, linkBase({ scheme: 'lightrun', appLinks: false }));
     // 템플릿은 70자 안팎, 설명이 있는 입문 코스도 130자 안쪽(QR 버전 7)
     for (const n of lens) expect(n).toBeLessThan(80);
     expect(intro.length).toBeLessThan(130);
+    // https 앞부분은 21자 더 길다(공유용 앱이 만드는 링크)
+    const https = courseLink(INTRO, linkBase({ scheme: 'lightrun', appLinks: true }));
+    expect(https.length).toBe(intro.length + 21);
+    expect(qrVersion(qrMatrix(https)!)).toBeLessThanOrEqual(8);
     expect(qrVersion(qrMatrix(intro)!)).toBeLessThanOrEqual(7);
   });
 
@@ -163,7 +193,7 @@ describe('링크', () => {
       description: '나'.repeat(LIMITS.descriptionMax),
       blocks: Array.from({ length: LIMITS.totalMaxSec / LIMITS.stepMinSec }, () => step('run', LIMITS.stepMinSec)),
     };
-    const link = courseLink(c, linkBase('lightrun'));
+    const link = courseLink(c, linkBase({ scheme: 'lightrun', appLinks: false }));
     expect(decodeCourse(linkPayload(link)!)).toEqual(c);
     expect(link.length).toBeLessThan(MAX_PAYLOAD_CHARS);
     const m = qrMatrix(link);

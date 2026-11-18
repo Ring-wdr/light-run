@@ -1,4 +1,5 @@
 import createQr from 'qrcode-generator';
+import { APP_LINK_HOSTS, LINK_HOST, LINK_SCHEMES } from './link-hosts';
 import { INTENSITIES, LIMITS, repeat, step, validateDraft, type Block, type Intensity, type Step } from './my-course';
 
 /**
@@ -6,7 +7,7 @@ import { INTENSITIES, LIMITS, repeat, step, validateDraft, type Block, type Inte
  *
  * 링크 = `<앞부분>#<내용>`. 내용을 # 뒤(fragment)에 두는 이유: https 링크로 바꿨을 때 브라우저가 # 뒤는
  * 서버에 보내지 않는다(안내 페이지를 올린 정적 호스팅에도 코스 내용이 남지 않는다).
- * 지금 앞부분은 커스텀 스킴 `lightrun://course`(개발용 `lightrun-dev://course`)다.
+ * 앞부분은 core/link-hosts.ts: 공유용 앱은 `https://ring-wdr.github.io/light-run/c`, 개발용 앱은 `lightrun-dev://course`.
  *
  * 내용 = 바이트 열을 base64url(A-Z a-z 0-9 - _)로. 바이트 열(형식 버전 1):
  *   [버전 1] [종류 1=코스] [이름 길이 varint][이름 UTF-8] [설명 길이][설명 UTF-8] [블록 수]
@@ -15,9 +16,7 @@ import { INTENSITIES, LIMITS, repeat, step, validateDraft, type Block, type Inte
  * 받은 링크는 외부 입력이라 모양·길이·LIMITS를 모두 확인하고, 하나라도 틀리면 통째로 거부한다.
  */
 
-/** 링크 앞부분을 정하는 한 곳. https 도메인을 정하면 linkBase가 `https://<도메인>/c`를 돌려주게 바꾼다 */
-export const LINK_HOST = 'course';
-export const linkBase = (scheme: string) => `${scheme}://${LINK_HOST}`;
+export { linkBase } from './link-hosts';
 
 export const LINK_VERSION = 1;
 const KIND_COURSE = 1;
@@ -214,13 +213,19 @@ export function decodeCourse(payload: string): SharedCourse | null {
 export const courseLink = (c: SharedCourse, base: string) => `${base}#${encodeCourse(c)}`;
 
 /**
- * 들어온 URL이 코스 링크면 # 뒤 내용을, 아니면 null.
- * 앞부분은 `<스킴>://course`만 본다(스킴은 공유용·개발용 어느 쪽이든). https로 바꾸면 그 앞부분도 여기서 받는다
+ * 들어온 URL이 코스 링크면 # 뒤 내용을, 아니면 null. 받는 앞부분은 둘:
+ * - 커스텀 스킴 `lightrun://course#…`, `lightrun-dev://course#…`
+ * - https 앱 링크 `https://<APP_LINK_HOSTS의 호스트><경로>#…`(경로 끝 슬래시 허용). 목록에 없는 주소는 코스 링크가 아니다
  */
 export function linkPayload(url: string): string | null {
-  const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)\/?#(.*)$/i.exec(url.trim());
-  if (!m || m[1]!.toLowerCase() !== LINK_HOST) return null;
-  return m[2]!;
+  const m = /^([a-z][a-z0-9+.-]*):\/\/([^/?#]*)([^?#]*)#(.*)$/i.exec(url.trim());
+  if (!m) return null;
+  const [, rawScheme, rawHost, rawPath, payload] = m as unknown as [string, string, string, string, string];
+  const scheme = rawScheme.toLowerCase();
+  const host = rawHost.toLowerCase();
+  const path = rawPath.replace(/\/$/, '');
+  if (scheme === 'https') return APP_LINK_HOSTS.some((h) => h.host === host && h.path === path) ? payload : null;
+  return LINK_SCHEMES.includes(scheme) && host === LINK_HOST && path === '' ? payload : null;
 }
 
 // ── QR ───────────────────────────────────────────────

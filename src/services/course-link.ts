@@ -6,14 +6,18 @@ import { insertLibrary, loadLibrary } from './storage';
 
 /**
  * 링크·QR 코스 공유(docs/PLAN.md §2-6-2). 형식은 core/course-link.ts.
- * 링크 앞부분의 스킴은 앱 변형마다 다르다(app.config.ts: 공유용 lightrun, 개발용 lightrun-dev).
+ * 만드는 링크의 앞부분은 앱 변형마다 다르다: app.config.ts가 extra.courseAppLinks(공유용 true)와 스킴을 정해 준다
+ * (공유용 https 앱 링크, 개발용 lightrun-dev://course). 값이 없으면(테스트·Expo Go) 앱 스킴으로 만든다.
  */
-function appScheme(): string {
+function shareBase(): string {
   const s = Constants.expoConfig?.scheme;
-  return (Array.isArray(s) ? s[0] : s) ?? 'lightrun';
+  return linkBase({
+    scheme: (Array.isArray(s) ? s[0] : s) ?? 'lightrun',
+    appLinks: Constants.expoConfig?.extra?.courseAppLinks === true,
+  });
 }
 
-export const shareLinkFor = (c: SharedCourse): string => courseLink(c, linkBase(appScheme()));
+export const shareLinkFor = (c: SharedCourse): string => courseLink(c, shareBase());
 
 /** 시스템 공유 시트로 링크를 보낸다. 커스텀 스킴은 링크로 안 잡는 메신저가 있어 앱 이름과 안내를 같이 적는다 */
 export async function shareCourseLink(c: SharedCourse): Promise<void> {

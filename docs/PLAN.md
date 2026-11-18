@@ -245,15 +245,21 @@ e [더보기]  6개 이상: 5개 + [더보기 +N] → 전체 목록(새로 만�
 - **형식**(`core/course-link.ts`): `<앞부분>#<내용>`. 내용 = 바이트 열(형식 버전, 종류=코스, 이름·설명 UTF-8, 블록: 구간 varint(초×5+강도), 반복 varint(횟수×5+4)+구간들)을 base64url로.
   즐겨찾기·완료 표시·만든 시각·id는 담지 않는다. 받은 내용은 외부 입력이라 버전·길이·UTF-8·`LIMITS`(`validateDraft`)·남는 바이트·앞뒤 공백까지 확인하고 하나라도 틀리면 거부한다.
   내용을 `#` 뒤에 두는 이유: https로 바꿔도 브라우저는 `#` 뒤를 서버에 보내지 않는다(안내 페이지 호스팅에 코스가 남지 않음).
-- **링크 길이**(공유용 스킴 기준, 테스트로 고정): 템플릿 3개 50~73자(QR 버전 4~5), 설명이 있는 입문 코스 116자(버전 7), 이름 20자·설명 80자 한글 440자(버전 16),
+- **링크 길이**(커스텀 스킴 `lightrun://course#` 기준, 테스트로 고정. https 앞부분은 21자 더 길다): 템플릿 3개 50~73자(QR 버전 4~5), 설명이 있는 입문 코스 116자(버전 7), 이름 20자·설명 80자 한글 440자(버전 16),
   이론상 가장 긴 코스(10초 구간 1080개) 1868자(버전 36, 촘촘해 찍기 어려움). QR은 오류 정정 M, 둘레 빈 칸 4칸.
 - **플랜은 아직 안 보낸다.** 플랜 안 코스 수에 한도가 없어 길이가 정해지지 않는다(코스 12개 ≈ 460자 버전 17, 30개면 1천 자 넘음). 형식에 종류 바이트를 두어 나중에 더할 수 있다.
 - **QR 생성**: `qrcode-generator`(MIT, 의존성 없음, 순수 JS 56KB, 타입 포함)로 칸을 계산하고 이미 쓰는 `react-native-svg` 경로 하나로 그린다.
   네이티브 모듈이 없어 SDK 57과 상관없고 새 빌드도 필요 없다. 직접 구현(리드-솔로몬·마스크)은 검증 비용이 커서, `react-native-qrcode-svg`는 `qrcode`(Node용, 의존성 여럿)를 끌고 와서 고르지 않았다.
-- **스킴**: 지금은 커스텀 스킴 `lightrun://course#…`(개발용 `lightrun-dev://course#…`). 카카오톡 등 메신저가 커스텀 스킴을 링크로 안 잡을 수 있다.
-  **https 앱 링크로 가려면**(도메인을 정한 뒤): ① `linkBase`를 `https://<도메인>/c`로 ② `app.json` `android.intentFilters`에 `autoVerify: true`, `scheme: https`, `host`, `pathPrefix: /c`
-  (iOS는 `associatedDomains: applinks:<도메인>` + `apple-app-site-association`) ③ 도메인의 `/.well-known/assetlinks.json`에 공유용 `com.ringwdr.lightrun`(EAS 키 SHA-256)과 개발용 `com.ringwdr.lightrun.dev`(디버그 키) 둘 다
-  ④ `/c` 안내 페이지(앱이 없을 때 열림: 설치 안내, `#` 뒤 내용을 읽어 코스 이름만 보여 줄 수도 있음)를 정적 호스팅(GitHub Pages 등, 무료). 두 앱이 같은 도메인을 받으면 어느 앱으로 열지 묻는다.
+- **링크 앞부분**(`core/link-hosts.ts`·`link-hosts.json`): 공유용 앱은 **https 앱 링크** `https://ring-wdr.github.io/light-run/c#…`(GitHub Pages, 사용자 블로그 저장소의 계정 페이지),
+  개발용 앱은 `lightrun-dev://course#…`. 변형은 `app.config.ts`가 `extra.courseAppLinks`로 넘기고 링크는 `linkBase` 한 곳에서 만든다(화면·core는 변형을 보지 않는다).
+  개발용은 디버그 키라 도메인 인증에 넣지 않는다(공개된 디버그 키 지문을 넣으면 아무나 그 키로 서명한 앱으로 링크를 받을 수 있다).
+  - 받는 쪽은 둘 다: 커스텀 스킴(`lightrun`·`lightrun-dev`) + 허용 목록의 https 호스트·경로(끝 슬래시 허용). 목록 밖 https는 코스 링크가 아니다.
+  - 인텐트 필터(`autoVerify`, host `ring-wdr.github.io`, pathPrefix `/light-run/c`)는 공유용 변형에만 들어간다. `APP_VARIANT=production npx expo config --type introspect`로 매니페스트에 들어가는지 본다.
+  - https로 앱이 열려도 `#` 뒤가 그대로 `+native-intent.tsx`에 온다(에뮬레이터에서 `https://…#내용`을 MainActivity로 직접 열어 확인, 2026-11-18).
+  - Pages에 올리는 파일의 원본은 `site/`(`.well-known/assetlinks.json`, 안내 페이지 `light-run/c/index.html`). 올리는 법·지문 채우기·도메인 바꾸는 법은 `site/README.md`.
+    안내 페이지는 앱이 없거나 메신저 내장 브라우저가 앱 링크를 따르지 않을 때 보인다: `#` 뒤를 읽어 "라이트런에서 열기"(`lightrun://course#…`)와 안내만. 외부 스크립트·분석 없음.
+  - 도메인을 바꿀 때는 새 주소를 목록 맨 앞에 더하고 옛 주소는 남긴다(이미 보낸 링크가 계속 열리게).
+  - iOS 유니버설 링크는 아직 없다: `ios.associatedDomains: ["applinks:<도메인>"]` + 도메인의 `/.well-known/apple-app-site-association`(팀 ID·번들 ID, 경로 `/light-run/c*`)이 필요하다.
 
 ## 2-7. 음성 안내
 

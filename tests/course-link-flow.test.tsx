@@ -47,7 +47,7 @@ const SHARED: SharedCourse = {
   blocks: [step('walk', 300), repeat(4, [step('fast', 60), step('walk', 90)])],
 };
 /** 공유용 앱이 받는 링크 그대로 */
-const LINK = courseLink(SHARED, linkBase('lightrun'));
+const LINK = courseLink(SHARED, linkBase({ scheme: 'lightrun', appLinks: false }));
 
 /** 앱 밖에서 링크를 연 것처럼: native intent가 바꾼 경로 */
 function routeFor(url: string): string {
@@ -107,12 +107,15 @@ describe('링크로 받기', () => {
     expect(storage.listCourses()).toHaveLength(1);
   });
 
-  it('개발용 스킴 링크도 받는다', () => {
-    expect(routeFor(courseLink(SHARED, linkBase('lightrun-dev')))).toBe(routeFor(LINK));
+  it('개발용 스킴·https 앱 링크도 같은 미리보기로', () => {
+    expect(routeFor(courseLink(SHARED, linkBase({ scheme: 'lightrun-dev', appLinks: false })))).toBe(routeFor(LINK));
+    expect(routeFor(courseLink(SHARED, linkBase({ scheme: 'lightrun', appLinks: true })))).toBe(routeFor(LINK));
   });
 
   it('코스 링크가 아니면 그대로 넘긴다', () => {
     expect(redirectSystemPath({ path: 'lightrun://settings', initial: false })).toBe('lightrun://settings');
+    const other = 'https://ring-wdr.github.io/other#abc';
+    expect(redirectSystemPath({ path: other, initial: false })).toBe(other);
   });
 
   it('잘린 링크는 안내만 하고 저장하지 않는다. 홈으로', async () => {
