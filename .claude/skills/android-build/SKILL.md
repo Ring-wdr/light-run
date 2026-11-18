@@ -33,5 +33,6 @@ cd android && ./gradlew :<모듈>:compileDebugKotlin   # 로컬 모듈 하나만
 `android/gradle.properties`(생성물)는 고치지 않는다. `npx expo run:android`는 연결된 기기 ABI만 빌드하므로 따로 붙이지 않아도 된다.
 
 ## 자주 걸리는 것
-- 지도 키: `.env`(커밋 금지)의 `GOOGLE_MAPS_API_KEY`를 `app.config.ts`가 읽는다. git worktree에는 `.env`가 없어서 그대로 빌드하면 지도 키가 `MISSING_GOOGLE_MAPS_API_KEY`로 들어간다. worktree에서 빌드하기 전에 `.env`를 복사한다.
+- 지도 키: `.env`(커밋 금지)의 `GOOGLE_MAPS_API_KEY`를 `app.config.ts`가 읽는다. git worktree에는 `.env`가 없어서 그대로 빌드하면 지도 키가 `MISSING_GOOGLE_MAPS_API_KEY`로 들어간다. worktree에서 빌드하기 전에 저장소 루트의 `.env`를 worktree 루트로 복사하고,
+  빌드 뒤 `android/app/src/main/AndroidManifest.xml`에 `MISSING_GOOGLE_MAPS_API_KEY`가 없는지 확인한다(키 값 자체는 출력하지 않는다).
 - Windows에서 경로가 길면(worktree) CMake/ninja가 260자 제한에 걸린다. 긴 경로 지원과 ninja 1.12 이상이 필요하다.
