@@ -1,26 +1,6 @@
-import { useState } from 'react';
-import { Alert } from 'react-native';
 import { prepareAllGpx } from '../services/export';
-import { importGpx, pickGpxFile, type ImportResult } from '../services/import';
-import { alertError } from './alert';
 import { useGpxExport } from './useGpxExport';
-
-/** 불러오기 결과 안내 문구 */
-function resultMessage(r: ImportResult): [title: string, body: string | undefined] {
-  const added = [
-    r.imported ? `기록 ${r.imported}개` : '',
-    r.courses ? `코스 ${r.courses}개` : '',
-    r.plans ? `플랜 ${r.plans}개` : '',
-  ].filter(Boolean);
-  const skipped = [
-    r.duplicates ? `이미 있는 기록 ${r.duplicates}개` : '',
-    r.empty ? `GPS 점 없는 기록 ${r.empty}개` : '',
-  ].filter(Boolean);
-  return [
-    added.length ? `${added.join(', ')}를 불러왔어요` : '새로 불러온 것이 없어요',
-    skipped.length ? `건너뜀: ${skipped.join(', ')}` : undefined,
-  ];
-}
+import { useGpxImport } from './useGpxImport';
 
 /**
  * 라이트런 전체 백업(내보내기)과 백업 불러오기. 기록 화면 ··· 메뉴와 설정 화면이 같이 쓴다.
@@ -34,42 +14,18 @@ export function useBackup(onImported?: () => void) {
     failTitle: '백업하지 못했어요',
     offerSave: true,
   });
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
-
   // 새 폰·새 빌드로 옮길 때: 전체 백업 GPX를 다시 넣는다. 이미 있는 기록·코스·플랜은 건너뛴다
-  const startImport = async () => {
-    let xml: string | null;
-    try {
-      xml = await pickGpxFile();
-    } catch (e) {
-      alertError('파일을 열지 못했어요', e);
-      return;
-    }
-    if (xml == null) return;
-    setImporting(true);
-    setImportProgress(0);
-    try {
-      const r = await importGpx(xml, setImportProgress);
-      setImporting(false);
-      onImported?.();
-      Alert.alert(...resultMessage(r));
-    } catch (e) {
-      alertError('불러오지 못했어요', e);
-    } finally {
-      setImporting(false);
-    }
-  };
+  const restore = useGpxImport(onImported);
 
-  const busy = backup.busy || importing;
+  const busy = backup.busy || restore.importing;
   return {
     busy,
     startBackup: backup.start,
-    startImport,
+    startImport: restore.start,
     overlay: {
       visible: busy,
-      label: importing ? '불러오는 중' : '백업 파일 만드는 중',
-      progress: importing ? importProgress : backup.progress,
+      label: restore.importing ? '불러오는 중' : '백업 파일 만드는 중',
+      progress: restore.importing ? restore.progress : backup.progress,
     },
   };
 }

@@ -13,7 +13,9 @@ import {
   type MyCourse,
   type Step,
 } from '../../core/my-course';
+import { prepareCourseGpx } from '../../services/export';
 import { deleteCourse, duplicateCourse, getCourse, getPlan, setCourseFavorite } from '../../services/storage';
+import { BusyOverlay } from '../../ui/BusyOverlay';
 import { CourseBar } from '../../ui/CourseBar';
 import { useBusy } from '../../ui/hooks';
 import { useLayout } from '../../ui/layout';
@@ -21,6 +23,7 @@ import { MoreMenu } from '../../ui/MoreMenu';
 import { goBackOrHome } from '../../ui/navigation';
 import { startCourse } from '../../ui/start';
 import { color, courseTheme, space } from '../../ui/theme';
+import { useGpxExport } from '../../ui/useGpxExport';
 
 export default function CourseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,6 +34,13 @@ export default function CourseDetail() {
   const [course, setCourse] = useState<MyCourse | null | undefined>(undefined);
   const [planName, setPlanName] = useState<string | null>(null);
   const [starting, runStart] = useBusy();
+  // 코스 하나만 담은 파일(core/course-file.ts). 받는 사람은 내 코스 ··· › 코스 불러오기로 넣는다
+  const share = useGpxExport({
+    prepare: () => prepareCourseGpx(courseId),
+    emptyMessage: '코스를 찾을 수 없어요',
+    failTitle: '공유하지 못했어요',
+    offerSave: true,
+  });
 
   // 편집하고 돌아오면 다시 읽는다
   useFocusEffect(
@@ -90,6 +100,7 @@ export default function CourseDetail() {
                 { label: '편집', onPress: () => router.navigate({ pathname: '/courses/edit', params: { id: String(c.id) } }) },
                 { label: '링크·QR로 공유', onPress: () => router.navigate({ pathname: '/courses/qr', params: { id: String(c.id) } }) },
                 { label: '복제', onPress: onDuplicate },
+                { label: '파일로 공유', onPress: () => void share.start(), disabled: share.busy },
                 { label: '삭제', onPress: onDelete, destructive: true },
               ]}
             />
@@ -136,6 +147,7 @@ export default function CourseDetail() {
           <Text style={styles.startText}>시작</Text>
         </Pressable>
       </View>
+      <BusyOverlay visible={share.busy} label="공유 파일 만드는 중" />
     </View>
   );
 }

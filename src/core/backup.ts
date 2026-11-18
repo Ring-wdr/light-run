@@ -1,4 +1,5 @@
-import { toBlocks, type Block } from './my-course';
+import { LIMITS, toBlocks, totalSec, type Block } from './my-course';
+import { PLAN_LIMITS } from './plan';
 
 /**
  * 전체 백업에 함께 넣는 내 코스·플랜 목록(docs/PLAN.md §2-4).
@@ -46,50 +47,101 @@ export const isEmptyLibrary = (l: Library) => l.courses.length === 0 && l.plans.
 const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const str = (x: unknown): string => (typeof x === 'string' ? x : '');
 
-/** 파일의 JSON을 믿지 않고 모양을 확인한다. 이상한 코스·플랜은 버리고 나머지는 살린다 */
-export function parseLibrary(raw: unknown): Library {
-  if (typeof raw !== 'object' || raw == null) return EMPTY_LIBRARY;
+/** 파일에서 읽은 목록과, 모양이 틀리거나 한도(LIMITS·PLAN_LIMITS)를 넘어 버린 코스·플랜 수 */
+export interface LibraryRead {
+  library: Library;
+  rejected: number;
+}
+
+/**
+ * 파일의 JSON을 믿지 않고 모양을 확인한다. 이상한 코스·플랜은 버리고 나머지는 살린다.
+ * 남이 보낸 공유 파일(core/course-file.ts)도 이 길로 들어오므로, 편집 화면에서 만들 수 없는 코스
+ * (이름·설명 길이, 구간 10초~60분, 반복 2~30회, 총 3시간을 넘는 것)도 버린다. 고쳐서 넣지 않는다.
+ * 앱이 만든 코스는 늘 이 한도 안이라(편집 화면이 막는다) 전체 백업 복원에는 영향이 없다.
+ * 플랜 안의 코스 하나가 틀리면 그 코스만 빼고 플랜은 넣는다
+ */
+export function readLibrary(raw: unknown): LibraryRead {
+  if (typeof raw !== 'object' || raw == null) return { library: EMPTY_LIBRARY, rejected: 0 };
   const r = raw as { courses?: unknown; plans?: unknown };
-  const courses = Array.isArray(r.courses) ? r.courses.map(parseCourse).filter((c) => c != null) : [];
-  const plans = Array.isArray(r.plans) ? r.plans.map(parsePlan).filter((p) => p != null) : [];
-  return { courses, plans };
+  let rejected = 0;
+  const keep = <T>(x: T | null): x is T => {
+    if (x == null) rejected++;
+    return x != null;
+  };
+  const courses = Array.isArray(r.courses) ? r.courses.map(parseCourse).filter(keep) : [];
+  const plans: BackupPlan[] = [];
+  for (const p of Array.isArray(r.plans) ? r.plans : []) {
+    const parsed = parsePlan(p);
+    if (!keep(parsed)) continue;
+    plans.push({ ...parsed.plan, courses: parsed.courses.filter(keep) });
+  }
+  return { library: { courses, plans }, rejected };
+}
+
+export const parseLibrary = (raw: unknown): Library => readLibrary(raw).library;
+
+const isInt = (x: unknown, lo: number, hi: number): boolean => Number.isInteger(x) && (x as number) >= lo && (x as number) <= hi;
+
+/** 원본 JSON의 구간이 편집 화면에서 만들 수 있는 모양인지. toBlocks는 틀린 구간을 조용히 빼므로 그 전에 본다 */
+function validBlocks(raw: unknown): boolean {
+  if (!Array.isArray(raw) || raw.length === 0) return false;
+  const validStep = (s: unknown) => isInt((s as { sec?: unknown } | null)?.sec, LIMITS.stepMinSec, LIMITS.stepMaxSec);
+  for (const b of raw as unknown[]) {
+    if (typeof b !== 'object' || b == null) return false;
+    const x = b as { kind?: unknown; times?: unknown; steps?: unknown };
+    if (x.kind === 'repeat') {
+      if (!isInt(x.times, LIMITS.timesMin, LIMITS.timesMax)) return false;
+      if (!Array.isArray(x.steps) || x.steps.length === 0 || !x.steps.every(validStep)) return false;
+    } else if (!validStep(b)) return false;
+  }
+  const blocks = toBlocks(raw);
+  // 강도·종류가 틀린 구간은 toBlocks가 빼므로 개수(반복 안까지)가 줄었으면 틀린 것
+  const count = (xs: unknown[]) => xs.reduce<number>((n, b) => n + 1 + ((b as { steps?: unknown[] }).steps?.length ?? 0), 0);
+  return count(blocks) === count(raw) && totalSec(blocks) <= LIMITS.totalMaxSec;
 }
 
 function parseCourse(raw: unknown): BackupCourse | null {
   if (typeof raw !== 'object' || raw == null) return null;
   const r = raw as Record<string, unknown>;
   const id = num(r.id);
-  const blocks = toBlocks(r.blocks);
   const name = str(r.name).trim();
-  if (id == null || blocks.length === 0 || name === '') return null;
+  const description = str(r.description);
+  if (id == null || name === '' || name.length > LIMITS.nameMax) return null;
+  if (description.trim().length > LIMITS.descriptionMax || !validBlocks(r.blocks)) return null;
   return {
     id,
     name,
-    description: str(r.description),
-    blocks,
+    description,
+    blocks: toBlocks(r.blocks),
     createdAt: num(r.createdAt) ?? 0,
     favoritedAt: num(r.favoritedAt),
     doneAt: num(r.doneAt),
   };
 }
 
-function parsePlan(raw: unknown): BackupPlan | null {
+/** 플랜 하나. 안의 코스는 따로 걸러 세도록 읽은 그대로(null 포함) 돌려준다 */
+function parsePlan(raw: unknown): { plan: BackupPlan; courses: (BackupCourse | null)[] } | null {
   if (typeof raw !== 'object' || raw == null) return null;
   const r = raw as Record<string, unknown>;
   const id = num(r.id);
   const name = str(r.name).trim();
-  if (id == null || name === '') return null;
+  const description = str(r.description);
+  if (id == null || name === '' || name.length > PLAN_LIMITS.nameMax) return null;
+  if (description.trim().length > PLAN_LIMITS.descriptionMax) return null;
   const perWeek = num(r.perWeek);
   return {
-    id,
-    name,
-    description: str(r.description),
-    createdAt: num(r.createdAt) ?? 0,
-    favoritedAt: num(r.favoritedAt),
-    nextCourseId: num(r.nextCourseId),
-    progressFrom: num(r.progressFrom) ?? 0,
-    perWeek: perWeek != null && Number.isInteger(perWeek) && perWeek > 0 ? perWeek : null,
-    courses: Array.isArray(r.courses) ? r.courses.map(parseCourse).filter((c) => c != null) : [],
+    plan: {
+      id,
+      name,
+      description,
+      createdAt: num(r.createdAt) ?? 0,
+      favoritedAt: num(r.favoritedAt),
+      nextCourseId: num(r.nextCourseId),
+      progressFrom: num(r.progressFrom) ?? 0,
+      perWeek: perWeek != null && isInt(perWeek, 1, PLAN_LIMITS.perWeekMax) ? perWeek : null,
+      courses: [],
+    },
+    courses: Array.isArray(r.courses) ? r.courses.map(parseCourse) : [],
   };
 }
 
