@@ -29,7 +29,9 @@ Play 앱은 Google이 가진 "앱 서명 키"로 서명돼 배포되고, 개발�
 - 대신 출시 뒤에는 EAS `preview` APK와 Play 버전이 서로 덮어 설치되지 않는다. 테스트 빌드는 APK 대신 Play 내부·비공개 테스트 트랙으로 나눠 준다.
 
 2026-10-28 Play Console이 앱 서명 키를 만들었다. SHA-1 `E5:8E:AE:7C:E6:C0:E1:EA:39:CE:76:9C:0D:F0:CE:24:85:7E:83:F2`
-(Maps 키 Android 앱 제한에 넣을 값, §2). 업로드 키는 첫 AAB에 서명한 EAS 키(`production` 프로필 기본 키스토어)로 등록된다.
+(Maps 키 Android 앱 제한에 넣을 값, §2), SHA-256 `65:94:32:B3:2F:0F:4F:92:12:89:9A:39:47:D4:F7:35:94:D2:11:FC:C3:4B:D2:EA:8F:C4:C4:25:AD:1E:CC:B0`
+(코스 링크 앱 링크 인증용 `site/.well-known/assetlinks.json`에 넣을 값, site/README.md).
+지문은 Play Console › 앱 › Google Play로 보호됨 › 앱 서명(주소 끝 `/keymanagement`)에 있다. 맨 아래 "디지털 애셋 링크 JSON"에 SHA-256이 바로 보인다. 업로드 키는 첫 AAB에 서명한 EAS 키(`production` 프로필 기본 키스토어)로 등록된다.
 
 어느 쪽이든 EAS 키스토어는 지우지 말 것(이제 업로드 키다). 루트의 `*.jks` 백업은 git에서 제외돼 있다(`.gitignore`).
 
@@ -42,7 +44,7 @@ npx eas-cli@latest build -p android --profile production
 - `production` 프로필은 AAB(기본값), `APP_VARIANT=production`, `versionCode` 자동 증가(`appVersionSource: remote`).
 - 빌드 전 EAS 환경 변수 `production`에 `GOOGLE_MAPS_API_KEY`, `EXPO_PUBLIC_MAPBOX_TOKEN`이 있는지 확인(README "지도 키·토큰").
   Google Cloud Console의 Maps 키 Android 앱 제한에 **Play 앱 서명 키의 SHA-1**을 추가해야 Play에서 받은 앱에 지도가 뜬다
-  (Play Console › 테스트 및 출시 › 설정 › 앱 서명에서 복사). 빠뜨리면 지도만 빈 화면이 된다.
+  (Play Console › Google Play로 보호됨 › 앱 서명에서 복사). 빠뜨리면 지도만 빈 화면이 된다.
 - **첫 AAB는 Play Console에 손으로 올린다**(Google API는 첫 업로드를 받지 않는다). 테스트 및 출시 › 비공개 테스트 › 트랙 만들기 › 새 버전.
 - 이후부터는 `eas submit`으로 올릴 수 있다. Google Cloud 서비스 계정 JSON 키가 필요하다(EAS가 서버에 보관, 저장소에 넣지 말 것).
   ```bash

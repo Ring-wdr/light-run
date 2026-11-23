@@ -12,7 +12,7 @@
 
 1. `assetlinks.json`에는 공유용 앱(EAS Default 빌드 자격 증명)의 SHA-256 지문이 들어 있다(2026-11-18 확인).
    키가 바뀌면 `npx eas-cli@latest credentials -p android` → 프로필(preview·production) → `SHA256 Fingerprint`로 다시 구해 바꾼다.
-   Play 앱 서명을 쓰게 되면 Play Console › 앱 서명의 지문도 배열에 더한다. 개발용 앱(디버그 키)은 넣지 않는다(디버그 키는 공개돼 있다).
+   Play에서 받은 앱은 Play 앱 서명 키로 서명되므로 그 지문(`65:94:…`, docs/RELEASE.md §1)도 배열에 들어 있다(2026-11-23 추가, 빠져서 Play 앱의 링크 인증이 실패했었다). 개발용 앱(디버그 키)은 넣지 않는다(디버그 키는 공개돼 있다).
 2. 블로그 저장소는 `_config.yml`·`.nojekyll`이 없는 Jekyll 기본 빌드(master `/`)라 점으로 시작하는 폴더(`.well-known`)가 배포에서 빠진다.
    그래서 저장소 맨 위에 `include: [".well-known"]`만 든 `_config.yml`을 같이 둔다(`.nojekyll`은 기존 블로그 빌드를 바꿀 수 있어 쓰지 않는다).
 3. 올린 뒤 확인: `https://ring-wdr.github.io/.well-known/assetlinks.json`이 JSON으로 열리는지,
